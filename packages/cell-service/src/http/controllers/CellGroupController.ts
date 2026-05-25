@@ -16,6 +16,7 @@ import { CreateJoinRequestUseCase }         from '../../application/use-cases/Cr
 import { GetJoinRequestsUseCase }           from '../../application/use-cases/GetJoinRequestsUseCase';
 import { ApproveJoinRequestUseCase }        from '../../application/use-cases/ApproveJoinRequestUseCase';
 import { RejectJoinRequestUseCase }         from '../../application/use-cases/RejectJoinRequestUseCase';
+import { GetNetworkMembersUseCase }         from '../../application/use-cases/GetNetworkMembersUseCase';
 import {
   createCellSchema, updateCellSchema, addMembersSchema,
   createJoinRequestSchema, decideJoinRequestSchema,
@@ -24,20 +25,21 @@ import {
 
 export class CellGroupController {
   constructor(
-    private readonly createUC:        CreateCellGroupUseCase,
-    private readonly getCellsUC:      GetCellsUseCase,
-    private readonly getMyCellsUC:    GetMyCellsUseCase,
-    private readonly getCellByIdUC:   GetCellByIdUseCase,
-    private readonly updateUC:        UpdateCellGroupUseCase,
-    private readonly archiveUC:       ArchiveCellGroupUseCase,
-    private readonly deleteUC:        DeleteCellGroupUseCase,
-    private readonly transferUC:      TransferCellOwnershipUseCase,
-    private readonly addMembersUC:    AddMembersUseCase,
-    private readonly removeMemberUC:  RemoveMemberUseCase,
-    private readonly createJoinUC:    CreateJoinRequestUseCase,
-    private readonly getJoinUC:       GetJoinRequestsUseCase,
-    private readonly approveJoinUC:   ApproveJoinRequestUseCase,
-    private readonly rejectJoinUC:    RejectJoinRequestUseCase,
+    private readonly createUC:           CreateCellGroupUseCase,
+    private readonly getCellsUC:         GetCellsUseCase,
+    private readonly getMyCellsUC:       GetMyCellsUseCase,
+    private readonly getCellByIdUC:      GetCellByIdUseCase,
+    private readonly updateUC:           UpdateCellGroupUseCase,
+    private readonly archiveUC:          ArchiveCellGroupUseCase,
+    private readonly deleteUC:           DeleteCellGroupUseCase,
+    private readonly transferUC:         TransferCellOwnershipUseCase,
+    private readonly addMembersUC:       AddMembersUseCase,
+    private readonly removeMemberUC:     RemoveMemberUseCase,
+    private readonly createJoinUC:       CreateJoinRequestUseCase,
+    private readonly getJoinUC:          GetJoinRequestsUseCase,
+    private readonly approveJoinUC:      ApproveJoinRequestUseCase,
+    private readonly rejectJoinUC:       RejectJoinRequestUseCase,
+    private readonly networkMembersUC:   GetNetworkMembersUseCase,
   ) {}
 
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -171,6 +173,20 @@ export class CellGroupController {
       const { uid } = (req as AuthenticatedRequest).principal;
       const requestId = (req.headers['x-request-id'] as string) ?? '';
       const result = await this.rejectJoinUC.execute(req.params.id, req.params.rid, uid, parsed.data.note, requestId);
+      sendSuccess(res, result);
+    } catch (err) { next(err); }
+  };
+
+  /**
+   * GET /cells/network/members
+   * G12: all members from cells where g12LeaderUid === callerUid
+   * Leader: members from their own cell
+   * Admin/SA: members from all active cells
+   */
+  networkMembers = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const result = await this.networkMembersUC.execute(uid, roles);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

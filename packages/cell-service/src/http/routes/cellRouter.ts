@@ -27,6 +27,10 @@ cellRouter.get( '/cells/:id/join-requests',                authenticate(), autho
 cellRouter.post('/cells/:id/join-requests/:rid/approve',   authenticate(), authorize('admin', 'super_admin'),                     container.cellGroupController.approveJoinRequest);
 cellRouter.post('/cells/:id/join-requests/:rid/reject',    authenticate(), authorize('admin', 'super_admin'),                     container.cellGroupController.rejectJoinRequest);
 
+// ── Network routes — must be registered BEFORE /cells/:id to avoid :id matching "network" ──────
+// G12: all members from cells where g12LeaderUid===callerUid | Leader: own cell | Admin: all
+cellRouter.get( '/cells/network/members', authenticate(), authorize('leader', 'g12', 'admin', 'super_admin'), container.cellGroupController.networkMembers);
+
 // ── Cell Reports ──────────────────────────────────────────────────────────────
 // Network reports — must be registered BEFORE /cells/:id/reports to avoid :id matching "network"
 // G12: all reports from cells where g12LeaderUid===callerUid | Leader: own cell | Admin: all

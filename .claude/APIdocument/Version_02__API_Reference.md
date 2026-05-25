@@ -56,6 +56,7 @@
     - 13.11 [List Join Requests](#1310-get-cellsidjoin-requests)
     - 13.12 [Approve Join Request](#1311-post-cellsidjoin-requestsridapprove)
     - 13.13 [Reject Join Request](#1312-post-cellsidjoin-requestsridreject)
+    - **13.14 [Network Members (G12 view) ★ NEW](#1314-get-cellsnetworkmembers--new)**
 14. [Cell Report Endpoints — NEW V2](#14-cell-report-endpoints--new-v2)
    - **14.6 [Network Reports (G12 view) ★ NEW](#146-get-cellsnetworkreports--new)**
 15. [Analytics Endpoints — NEW V2](#15-analytics-endpoints--new-v2)
@@ -2497,6 +2498,82 @@ Reject a member's request to join the cell. The member is not added.
 **`200 OK`** — JoinRequest with `status: "rejected"`.
 
 **`409 Conflict`** → `INVALID_STATE` — request already decided
+
+---
+
+### 13.14 `GET /cells/network/members` ★ NEW
+
+Returns all cell members across every cell in the caller's network, grouped by cell. Allows a G12 leader to see every member under every leader they oversee in one call.
+
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+
+#### Scope by Role
+
+| Caller | Cells included |
+|--------|---------------|
+| `g12` | All **active** cells where `g12LeaderUid === callerUid` |
+| `leader` | Only the leader's **own** active cell (`leaderUid === callerUid`) |
+| `admin` / `super_admin` | **All** active cells (no UID filter) |
+
+#### Response
+
+**`200 OK`**
+```json
+{
+  "items": [
+    {
+      "cellId":      "cell-001",
+      "cellName":    "Rathmalana West G12",
+      "cellType":    "g12",
+      "area":        "Rathmalana",
+      "leaderUid":   "usr-leader1",
+      "memberCount": 3,
+      "members": [
+        { "uid": "usr-mem1", "firstName": "Sapna",  "lastName": "Nethmini", "displayName": "Sapna Nethmini" },
+        { "uid": "usr-mem2", "firstName": "Viruli", "lastName": "W.",       "displayName": "Viruli W." },
+        { "uid": "usr-mem3", "firstName": "Nimal",  "lastName": "Perera",   "displayName": "Nimal Perera" }
+      ]
+    },
+    {
+      "cellId":      "cell-002",
+      "cellName":    "Colombo East Care",
+      "cellType":    "care",
+      "area":        "Colombo",
+      "leaderUid":   "usr-leader2",
+      "memberCount": 2,
+      "members": [
+        { "uid": "usr-mem4", "firstName": "Chamari", "lastName": "Silva", "displayName": "Chamari Silva" },
+        { "uid": "usr-mem5", "firstName": "Ruwan",   "lastName": "K.",    "displayName": "Ruwan K." }
+      ]
+    }
+  ],
+  "totalCells":   2,
+  "totalMembers": 5
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `items[]` | One entry per cell in scope |
+| `items[].cellId` | Cell group ID |
+| `items[].cellName` | Cell display name |
+| `items[].cellType` | `g12` \| `care` \| `children` \| `outreach` |
+| `items[].area` | Geographic area of the cell |
+| `items[].leaderUid` | UID of the cell leader |
+| `items[].memberCount` | Total approved members in the cell |
+| `items[].members[]` | Live member profiles enriched from user-service |
+| `items[].members[].uid` | User UID |
+| `items[].members[].firstName` | First name (empty string if profile unavailable) |
+| `items[].members[].lastName` | Last name (empty string if profile unavailable) |
+| `items[].members[].displayName` | `firstName + ' ' + lastName` trimmed |
+| `totalCells` | Number of cells in scope |
+| `totalMembers` | Total distinct member slots across all cells (not deduplicated — a member in 2 cells counts twice) |
+
+> **Graceful degradation:** If user-service is temporarily unavailable for a specific member lookup, that member is returned with `firstName: ""`, `lastName: ""`, `displayName: ""` rather than failing the entire request (uses `Promise.allSettled`). The cell is still included.
+
+> **No pagination:** Results are capped at 100 cells per call (sufficient for any realistic G12 network). Member lists are returned in full per cell.
+
+**`403 Forbidden`** → `FORBIDDEN` — caller does not hold `leader`, `g12`, `admin`, or `super_admin`
 
 ---
 

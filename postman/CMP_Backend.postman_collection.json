@@ -7656,6 +7656,61 @@
           "name": "Members",
           "item": [
             {
+              "id": "f1a2b3c4-d5e6-7890-abcd-ef1234567890",
+              "name": "Get Network Members (G12 View)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/network/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "network",
+                    "members"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{g12Token}}",
+                      "type": "string"
+                    }
+                  ]
+                },
+                "description": "G12 leaders see all members across every cell in their network, grouped by cell.\nLeaders see their own cell only. Admins see all active cells."
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "a9b8c7d6-e5f4-3210-fedc-ba9876543210",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK — Network Members', () => pm.response.to.have.status(200));",
+                      "pm.test('Has items array', () => {",
+                      "  const body = pm.response.json();",
+                      "  pm.expect(body).to.have.property('items').that.is.an('array');",
+                      "  pm.expect(body).to.have.property('totalCells');",
+                      "  pm.expect(body).to.have.property('totalMembers');",
+                      "});",
+                      "if (pm.response.json().items.length > 0) {",
+                      "  const first = pm.response.json().items[0];",
+                      "  pm.test('Cell entry has required fields', () => {",
+                      "    pm.expect(first).to.have.all.keys('cellId','cellName','cellType','area','leaderUid','memberCount','members');",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
               "id": "d73e7573-4323-4dfb-8c04-688b8368411b",
               "name": "Add Member to Cell",
               "request": {
