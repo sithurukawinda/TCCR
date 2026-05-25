@@ -2425,6 +2425,27 @@ const cellCrudSubFolder = folder('Cell CRUD', [
 
 const membersSubFolder = folder('Members', [
   buildRequest({
+    name: 'Get Network Members (G12 View)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/members' },
+    auth: bearerAuth('g12Token'),
+    tests: [
+      `pm.test("200 OK — Network Members", () => pm.response.to.have.status(200));`,
+      `pm.test("Has items, totalCells, totalMembers", () => {`,
+      `  const b = pm.response.json();`,
+      `  pm.expect(b).to.have.property('items').that.is.an('array');`,
+      `  pm.expect(b).to.have.property('totalCells').that.is.a('number');`,
+      `  pm.expect(b).to.have.property('totalMembers').that.is.a('number');`,
+      `});`,
+      `if (pm.response.json().items.length > 0) {`,
+      `  const c = pm.response.json().items[0];`,
+      `  pm.test("Cell entry has required fields", () => {`,
+      `    pm.expect(c).to.have.all.keys('cellId','cellName','cellType','area','leaderUid','memberCount','members');`,
+      `  });`,
+      `}`,
+    ],
+  }),
+  buildRequest({
     name: 'Add Member to Cell',
     method: 'POST',
     url: { raw: '{{baseUrl}}/cells/{{cellId}}/members' },

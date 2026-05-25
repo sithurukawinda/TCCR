@@ -1,12 +1,12 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.19.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.20.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.19.0
-**Date:** 24 May 2026
+**Version:** 2.20.0
+**Date:** 25 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.18.0 (24 May 2026)
+**Supersedes:** Version 2.19.0 (24 May 2026)
 
 ---
 
@@ -17,6 +17,7 @@
    - 2.1 [Register](#21-post-authregister) · 2.2 [Google](#22-post-authfederatedgoogle--new-v2) · 2.3 [Apple](#23-post-authfederatedapple--new-v2) · 2.4 [Logout](#24-post-authlogout)
    - 2.5 [Password Reset](#25-post-authpassword-reset) · 2.6 [Verify OTP](#26-post-authpassword-resetverify) · 2.7 [Track Failure](#27-post-authtrack-failure)
    - **2.8 [Resend Verification](#28-post-authresend-verification--new) ★** · **2.9 [Verify Email OTP](#29-post-authverify-email--new) ★**
+   - **2.10 [Apple Init](#210-get-authappleinit--new--apple-web-oauth-step-1) ★** · **2.11 [Apple Callback](#211-post-authapplecallback--new--apple-web-oauth-step-2) ★** · **2.12 [Apple Refresh](#212-post-authapplerefresh--new--apple-web-oauth-validate-session) ★** · **2.13 [Apple Revoke](#213-post-authapplerevoke--new--apple-web-oauth-account-deletion) ★**
 3. [Profile Endpoints (Me)](#3-profile-endpoints-me)
    - 3.1 [Get Profile](#31-get-me) · 3.2 [Update Profile](#32-patch-me) · 3.3 [Change Password](#33-post-mechange-password)
    - 3.4 [Upload Avatar](#34-post-meavatar) · 3.5 [Upload Qualification](#35-post-mequalification--new) · 3.6 [Link Provider](#36-post-meproviders-link--new-v2) · 3.7 [Unlink Provider](#37-delete-meproviders-provider--new-v2)
@@ -418,6 +419,72 @@ Verify email with a 6-digit OTP from the welcome email. Sets `emailVerified = tr
 | `400 INVALID_OTP` | Wrong code (shows remaining attempts) |
 | `400 OTP_EXPIRED` | Code has expired — call `POST /auth/resend-verification` |
 | `400 OTP_MAX_ATTEMPTS` | 5 failed attempts — call `POST /auth/resend-verification` |
+
+---
+
+### 2.10 `GET /auth/apple/init` ★ NEW — Apple Web OAuth (Step 1)
+
+Generates a CSRF state JWT and returns the full Apple authorisation URL. The frontend redirects the user there. For mobile apps using the Apple SDK, use `POST /auth/federated/apple` (§2.3) instead.
+
+**Authentication:** None (public)
+
+**`200 OK`**
+```json
+{
+  "state":        "eyJhbGciOiJIUzI1NiJ9...",
+  "authorizeUrl": "https://appleid.apple.com/auth/authorize?client_id=...&state=...&response_type=code&..."
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `state` | CSRF state JWT (10-minute TTL, signed with `JWT_SECRET`). Pass back unmodified in `POST /auth/apple/callback`. |
+| `authorizeUrl` | Full Apple authorisation URL — redirect the user's browser here |
+
+**`404 Not Found`** → `APPLE_CLIENT_ID not configured` — `APPLE_CLIENT_ID` env var is missing (expected on local/dev stacks without Apple credentials)
+
+---
+
+### 2.11 `POST /auth/apple/callback` ★ NEW — Apple Web OAuth (Step 2)
+
+Apple POSTs the auth code here after user consent. Also accepts a forwarded JSON body from frontends. Validates the CSRF state, exchanges the code for tokens, and signs the user in.
+
+**Authentication:** None (public)  
+**Content-Type:** `application/x-www-form-urlencoded` (Apple redirect) or `application/json` (frontend forward)
+
+```json
+{ "code": "<apple-auth-code>", "state": "<state-from-init>" }
+```
+
+**`200 OK`**
+```json
+{ "firebaseToken": "<firebase-custom-token>", "uid": "Xf3aBC...", "isNewUser": false }
+```
+
+**`400 Bad Request`** → `INVALID_STATE` — state JWT invalid, expired, or mismatched  
+**`401 Unauthorized`** → `FEDERATED_TOKEN_INVALID` — Apple code exchange failed
+
+---
+
+### 2.12 `POST /auth/apple/refresh` ★ NEW — Apple Web OAuth (Validate Session)
+
+Verify the Apple session is still active. Call periodically to confirm the user has not revoked Apple access. Requires a valid Firebase ID token.
+
+**Authentication:** Bearer required | **Roles:** Any  
+
+**`200 OK`** — Apple session is still active  
+**`401 Unauthorized`** → Apple refresh token has been revoked — user must re-authenticate
+
+---
+
+### 2.13 `POST /auth/apple/revoke` ★ NEW — Apple Web OAuth (Account Deletion)
+
+Revoke Apple tokens. **Required by Apple App Store guidelines** when a user deletes their TCCR account — apps that miss this step fail App Store review. Call this endpoint as part of any account-deletion flow for users who signed in with Apple.
+
+**Authentication:** Bearer required | **Roles:** Any  
+
+**`204 No Content`** — Tokens revoked  
+**`404 Not Found`** → No Apple token stored for this account (non-Apple user)
 
 ---
 
