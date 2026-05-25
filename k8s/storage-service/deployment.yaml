@@ -1,0 +1,58 @@
+# Template — copy to k8s/<service-name>/deployment.yaml and fill in storage-service and 3006
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-storage-service
+  labels:
+    app: cmp-storage-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-storage-service
+  template:
+    metadata:
+      labels:
+        app: cmp-storage-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: storage-service
+          image: REGISTRY/cmp-storage-service:latest
+          ports:
+            - containerPort: 3006
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: storage-service
+              value: storage-service
+            - name: 3006
+              value: "3006"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3006
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3006
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

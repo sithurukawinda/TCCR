@@ -1,0 +1,9 @@
+{
+  "projects": {
+    "default": "e-learning-f4209",
+    "online": "e-learning-f4209",
+    "local": "cms-app-4d5f3"
+  },
+  "targets": {},
+  "etags": {}
+}

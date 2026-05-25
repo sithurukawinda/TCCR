@@ -1,0 +1,58 @@
+# Template — copy to k8s/<service-name>/deployment.yaml and fill in notification-service and 3007
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-notification-service
+  labels:
+    app: cmp-notification-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-notification-service
+  template:
+    metadata:
+      labels:
+        app: cmp-notification-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: notification-service
+          image: REGISTRY/cmp-notification-service:latest
+          ports:
+            - containerPort: 3007
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: notification-service
+              value: notification-service
+            - name: 3007
+              value: "3007"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3007
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3007
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

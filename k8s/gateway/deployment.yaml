@@ -1,0 +1,58 @@
+# Template — copy to k8s/<service-name>/deployment.yaml and fill in gateway and 3000
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-gateway
+  labels:
+    app: cmp-gateway
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-gateway
+  template:
+    metadata:
+      labels:
+        app: cmp-gateway
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: gateway
+          image: REGISTRY/cmp-gateway:latest
+          ports:
+            - containerPort: 3000
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: gateway
+              value: gateway
+            - name: 3000
+              value: "3000"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

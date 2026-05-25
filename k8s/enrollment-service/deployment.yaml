@@ -1,0 +1,58 @@
+# Template — copy to k8s/<service-name>/deployment.yaml and fill in enrollment-service and 3004
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-enrollment-service
+  labels:
+    app: cmp-enrollment-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-enrollment-service
+  template:
+    metadata:
+      labels:
+        app: cmp-enrollment-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: enrollment-service
+          image: REGISTRY/cmp-enrollment-service:latest
+          ports:
+            - containerPort: 3004
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: enrollment-service
+              value: enrollment-service
+            - name: 3004
+              value: "3004"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3004
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3004
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

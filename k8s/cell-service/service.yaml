@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-cell-service
+spec:
+  selector:
+    app: cmp-cell-service
+  ports:
+    - port: 3009
+      targetPort: 3009
+  type: ClusterIP

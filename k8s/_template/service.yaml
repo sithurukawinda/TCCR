@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: cmp-SERVICE_NAME
+spec:
+  selector:
+    app: cmp-SERVICE_NAME
+  ports:
+    - port: PORT
+      targetPort: PORT
+  type: ClusterIP

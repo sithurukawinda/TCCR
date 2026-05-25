@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "nodejs-best-practices",
+  "owner": "sickn33",
+  "repo": "antigravity-awesome-skills",
+  "path": "plugins/antigravity-awesome-skills-claude/skills/nodejs-best-practices",
+  "branch": "main",
+  "sha": "8e7cf262d8b2c8a89961b43a5a2163d4487449f5",
+  "source": "manual"
+}

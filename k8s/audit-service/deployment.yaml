@@ -1,0 +1,58 @@
+# Template — copy to k8s/<service-name>/deployment.yaml and fill in audit-service and 3008
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-audit-service
+  labels:
+    app: cmp-audit-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-audit-service
+  template:
+    metadata:
+      labels:
+        app: cmp-audit-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: audit-service
+          image: REGISTRY/cmp-audit-service:latest
+          ports:
+            - containerPort: 3008
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: audit-service
+              value: audit-service
+            - name: 3008
+              value: "3008"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3008
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3008
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

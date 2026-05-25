@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "github-mcp-server",
+  "owner": "github",
+  "repo": "gh-aw",
+  "path": "skills/github-mcp-server",
+  "branch": "main",
+  "sha": "89098587cef0350092171f5452a33b2b0e3e84e5",
+  "source": "manual"
+}

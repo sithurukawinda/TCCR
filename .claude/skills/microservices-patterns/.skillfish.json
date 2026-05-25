@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "microservices-patterns",
+  "owner": "sickn33",
+  "repo": "antigravity-awesome-skills",
+  "path": "plugins/antigravity-awesome-skills-claude/skills/microservices-patterns",
+  "branch": "main",
+  "sha": "e5fa8175e528c990a6cea80733805130cf0f1d17",
+  "source": "manual"
+}

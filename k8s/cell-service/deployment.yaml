@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-cell-service
+  labels:
+    app: cmp-cell-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cmp-cell-service
+  template:
+    metadata:
+      labels:
+        app: cmp-cell-service
+    spec:
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: cell-service
+          image: REGISTRY/cmp-cell-service:latest
+          ports:
+            - containerPort: 3009
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: SERVICE_NAME
+              value: cell-service
+            - name: PORT
+              value: "3009"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3009
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: 3009
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi

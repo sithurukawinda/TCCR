@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "paths": {
+      "@shared/firebase":             ["./packages/shared/firebase/src/index.ts"],
+      "@shared/logger":               ["./packages/shared/logger/src/index.ts"],
+      "@shared/errors":               ["./packages/shared/errors/src/index.ts"],
+      "@shared/auth-middleware":      ["./packages/shared/auth-middleware/src/index.ts"],
+      "@shared/events":               ["./packages/shared/events/src/index.ts"],
+      "@shared/internal-http-client": ["./packages/shared/internal-http-client/src/index.ts"],
+      "@shared/response":             ["./packages/shared/response/src/index.ts"],
+      "@shared/health":               ["./packages/shared/health/src/index.ts"],
+      "@shared/tracing":              ["./packages/shared/tracing/src/index.ts"]
+    }
+  },
+  "exclude": ["**/dist/**", "**/node_modules/**"]
+}

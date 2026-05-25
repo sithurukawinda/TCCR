@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-outbox-worker
+  labels:
+    app: cmp-outbox-worker
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmp-outbox-worker
+  template:
+    metadata:
+      labels:
+        app: cmp-outbox-worker
+    spec:
+      terminationGracePeriodSeconds: 15
+      containers:
+        - name: outbox-worker
+          image: REGISTRY/cmp-outbox-worker:latest
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: SERVICE_NAME
+              value: outbox-worker
+            - name: NODE_ENV
+              value: production
+          resources:
+            requests:
+              cpu:    50m
+              memory: 64Mi
+            limits:
+              cpu:    250m
+              memory: 256Mi

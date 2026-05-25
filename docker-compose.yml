@@ -1,0 +1,149 @@
+services:
+
+  gateway:
+    build: { context: ., dockerfile: packages/gateway/Dockerfile }
+    ports: ['3000:3000']
+    env_file: .env
+    environment:
+      SERVICE_NAME:             gateway
+      PORT:                     3000
+      SERVICE_AUTH_URL:         http://auth-service:3001
+      SERVICE_USER_URL:         http://user-service:3002
+      SERVICE_COURSE_URL:       http://course-service:3003
+      SERVICE_ENROLLMENT_URL:   http://enrollment-service:3004
+      SERVICE_PROGRESS_URL:     http://progress-service:3005
+      SERVICE_STORAGE_URL:      http://storage-service:3006
+      SERVICE_NOTIFICATION_URL: http://notification-service:3007
+      SERVICE_AUDIT_URL:        http://audit-service:3008
+      SERVICE_CELL_URL:         http://cell-service:3009
+      SERVICE_ANALYTICS_URL:    http://analytics-service:3011
+    depends_on:
+      - auth-service
+      - user-service
+      - course-service
+      - enrollment-service
+      - progress-service
+      - storage-service
+      - notification-service
+      - audit-service
+      - cell-service
+      - analytics-service
+
+  auth-service:
+    build: { context: ., dockerfile: packages/auth-service/Dockerfile }
+    ports: ['3001:3001']
+    env_file: .env
+    environment:
+      SERVICE_NAME:           auth-service
+      PORT:                   3001
+      SERVICE_USER_URL:       http://user-service:3002
+      SERVICE_ENROLLMENT_URL: http://enrollment-service:3004
+    depends_on:
+      - user-service
+
+  user-service:
+    build: { context: ., dockerfile: packages/user-service/Dockerfile }
+    ports: ['3002:3002']
+    env_file: .env
+    environment:
+      SERVICE_NAME:       user-service
+      PORT:               3002
+      SERVICE_AUTH_URL:   http://auth-service:3001
+
+  course-service:
+    build: { context: ., dockerfile: packages/course-service/Dockerfile }
+    ports: ['3003:3003']
+    env_file: .env
+    environment:
+      SERVICE_NAME: course-service
+      PORT:         3003
+
+  enrollment-service:
+    build: { context: ., dockerfile: packages/enrollment-service/Dockerfile }
+    ports: ['3004:3004']
+    env_file: .env
+    environment:
+      SERVICE_NAME:         enrollment-service
+      PORT:                 3004
+      SERVICE_USER_URL:     http://user-service:3002
+      SERVICE_COURSE_URL:   http://course-service:3003
+    depends_on:
+      - user-service
+      - course-service
+
+  progress-service:
+    build: { context: ., dockerfile: packages/progress-service/Dockerfile }
+    ports: ['3005:3005']
+    env_file: .env
+    environment:
+      SERVICE_NAME:       progress-service
+      PORT:               3005
+      SERVICE_COURSE_URL: http://course-service:3003
+    depends_on:
+      - course-service
+
+  storage-service:
+    build: { context: ., dockerfile: packages/storage-service/Dockerfile }
+    ports: ['3006:3006']
+    env_file: .env
+    environment:
+      SERVICE_NAME:           storage-service
+      PORT:                   3006
+      SERVICE_COURSE_URL:     http://course-service:3003
+      SERVICE_ENROLLMENT_URL: http://enrollment-service:3004
+    depends_on:
+      - course-service
+
+  notification-service:
+    build: { context: ., dockerfile: packages/notification-service/Dockerfile }
+    ports: ['3007:3007']
+    env_file: .env
+    environment:
+      SERVICE_NAME:     notification-service
+      PORT:             3007
+      SERVICE_USER_URL: http://user-service:3002
+
+  audit-service:
+    build: { context: ., dockerfile: packages/audit-service/Dockerfile }
+    ports: ['3008:3008']
+    env_file: .env
+    environment:
+      SERVICE_NAME: audit-service
+      PORT:         3008
+
+  cell-service:
+    build: { context: ., dockerfile: packages/cell-service/Dockerfile }
+    ports: ['3009:3009']
+    env_file: .env
+    environment:
+      SERVICE_NAME: cell-service
+      PORT:         3009
+
+  analytics-service:
+    build: { context: ., dockerfile: packages/analytics-service/Dockerfile }
+    ports: ['3011:3011']
+    env_file: .env
+    environment:
+      SERVICE_NAME: analytics-service
+      PORT:         3011
+
+  scheduled-jobs:
+    build: { context: ., dockerfile: packages/scheduled-jobs/Dockerfile }
+    env_file: .env
+    environment:
+      SERVICE_NAME:             scheduled-jobs
+      BATCH_SWEEP_INTERVAL_MS:  900000
+      SEMESTER_SWEEP_INTERVAL_MS: 3600000
+      SNAPSHOT_CHECK_INTERVAL_MS: 3600000
+
+  outbox-worker:
+    build: { context: ., dockerfile: packages/outbox-worker/Dockerfile }
+    env_file: .env
+    environment:
+      SERVICE_NAME:             outbox-worker
+      SERVICE_USER_URL:         http://user-service:3002
+      SERVICE_NOTIFICATION_URL: http://notification-service:3007
+      SERVICE_AUDIT_URL:        http://audit-service:3008
+    depends_on:
+      - notification-service
+      - audit-service

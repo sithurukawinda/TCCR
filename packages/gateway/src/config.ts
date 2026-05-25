@@ -1,0 +1,18 @@
+export const config = {
+  serviceName:          process.env.SERVICE_NAME           ?? 'gateway',
+  port:                 Number(process.env.PORT             ?? 3000),
+  allowedOrigins:       (process.env.ALLOWED_ORIGINS        ?? 'http://localhost:3000').split(','),
+  rateLimitWindowMs:    Number(process.env.RATE_LIMIT_WINDOW_MS  ?? 60_000),
+  rateLimitMax:         Number(process.env.RATE_LIMIT_MAX        ?? 200),
+  authRateLimitMax:     Number(process.env.AUTH_RATE_LIMIT_MAX   ?? 10),
+  serviceAuthUrl:       process.env.SERVICE_AUTH_URL        ?? 'http://localhost:3001',
+  serviceUserUrl:       process.env.SERVICE_USER_URL        ?? 'http://localhost:3002',
+  serviceCourseUrl:     process.env.SERVICE_COURSE_URL      ?? 'http://localhost:3003',
+  serviceEnrollUrl:     process.env.SERVICE_ENROLLMENT_URL  ?? 'http://localhost:3004',
+  serviceProgressUrl:   process.env.SERVICE_PROGRESS_URL    ?? 'http://localhost:3005',
+  serviceStorageUrl:    process.env.SERVICE_STORAGE_URL     ?? 'http://localhost:3006',
+  serviceNotifyUrl:     process.env.SERVICE_NOTIFICATION_URL ?? 'http://localhost:3007',
+  serviceAuditUrl:      process.env.SERVICE_AUDIT_URL       ?? 'http://localhost:3008',
+  serviceCellUrl:       process.env.SERVICE_CELL_URL        ?? 'http://localhost:3009',
+  serviceAnalyticsUrl:  process.env.SERVICE_ANALYTICS_URL   ?? 'http://localhost:3011',
+} as const;

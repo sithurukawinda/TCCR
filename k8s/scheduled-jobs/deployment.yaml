@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cmp-scheduled-jobs
+  labels:
+    app: cmp-scheduled-jobs
+spec:
+  # Singleton — snapshotJob deduplication is in-process (weekKey guard).
+  # Running more than one replica would write duplicate analytics_snapshots.
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cmp-scheduled-jobs
+  template:
+    metadata:
+      labels:
+        app: cmp-scheduled-jobs
+    spec:
+      # Allow in-flight sweeps to finish before the pod is terminated
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: scheduled-jobs
+          image: REGISTRY/cmp-scheduled-jobs:latest
+          envFrom:
+            - secretRef:
+                name: cmp-secrets
+          env:
+            - name: SERVICE_NAME
+              value: scheduled-jobs
+            - name: NODE_ENV
+              value: production
+            # Batch sweep every 15 minutes
+            - name: BATCH_SWEEP_INTERVAL_MS
+              value: "900000"
+            # Semester end-date check every hour
+            - name: SEMESTER_SWEEP_INTERVAL_MS
+              value: "3600000"
+            # Snapshot readiness check every hour
+            - name: SNAPSHOT_CHECK_INTERVAL_MS
+              value: "3600000"
+            # Generate snapshots on Sunday at 02:00 UTC
+            - name: SNAPSHOT_WEEKDAY
+              value: "0"
+            - name: SNAPSHOT_HOUR_UTC
+              value: "2"
+          resources:
+            requests:
+              cpu:    100m
+              memory: 128Mi
+            limits:
+              cpu:    500m
+              memory: 512Mi
