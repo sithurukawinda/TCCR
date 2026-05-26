@@ -1,13 +1,17 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.22.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.23.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.22.0
+**Version:** 2.23.0
 **Date:** 26 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.21.0 (26 May 2026)
-**Change in 2.22.0:** Added `GET /users/summary` — system-wide member roster grouped by role (§4.11)
+**Supersedes:** Version 2.22.0 (26 May 2026)
+**Change in 2.23.0:** Corrected §4.8 Promote, §4.9 Delete, §4.10 Demote response shapes and delete semantics:
+- §4.8 Promote: `204` → `200 { message }` (promote + idempotent path)
+- §4.9 Delete: "soft-delete" → "hard-delete" (permanently removes Firestore doc + Firebase Auth)
+- §4.10 Demote: `204` → `200 { message }` (demote + idempotent path)
+- ToC: added missing §4.10 Demote link
 
 ---
 
@@ -27,7 +31,7 @@
    - 4.1 [List Users](#41-get-users) · 4.2 [Get User](#42-get-usersuid) · 4.3 [Assign Roles](#43-patch-usersuidroles--new-v2)
    - 4.4 [User Audit Log](#44-get-usersuidaudit-log--new-v2) · 4.5 [Suspend](#45-post-usersusidsuspend) · 4.6 [Reactivate](#46-post-usersuidreactivate)
    - 4.7 [Provision Leader/G12 User (with welcome email)](#47-post-users--new) · 4.8 [Promote Existing User](#48-post-usersuidpromote--new-v2) · 4.9 [Delete User ★](#49-delete-usersuid--new)
-   - **4.11 [System Member Summary ★ NEW](#411-get-userssummary--new)**
+   - **4.10 [Demote User ★](#410-post-usersuiddemote--new)** · **4.11 [System Member Summary ★ NEW](#411-get-userssummary--new)**
 5. [Role Requests — NEW V2](#5-role-requests--new-v2)
    - 5.1 [Submit Role Request (multipart)](#51-post-role-requests) · 5.2 [My Requests](#52-get-role-requestsmine) · 5.3 [Admin List](#53-get-role-requests)
    - 5.4 [Get Request](#54-get-role-requestsid) · 5.5 [Download Qualification PDF ★](#55-get-role-requestsidqualification) · 5.6 [Approve](#56-post-role-requestsidapprove) · 5.7 [Reject](#57-post-role-requestsidreject)
@@ -977,7 +981,7 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 | `leader` | `g12` only (cannot create more leaders) |
 | Any | Cannot target a user who holds `admin` or `super_admin` |
 
-**Idempotent** — if the target already holds the requested role, returns `204` without re-writing.
+**Idempotent** — if the target already holds the requested role, returns `200` silently without re-writing.
 
 #### Request Body
 
@@ -991,7 +995,10 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 
 #### Responses
 
-**`204 No Content`** — Role promoted successfully.
+**`200 OK`** — Role promoted successfully.
+```json
+{ "message": "User promoted successfully." }
+```
 
 **`404 Not Found`** → `USER_NOT_FOUND`
 
@@ -1002,11 +1009,11 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 
 ---
 
-### 4.9 `DELETE /users/:uid` ★ NEW 
+### 4.9 `DELETE /users/:uid` ★ NEW
 
-Soft-delete a regular (non-admin) user account. Sets `deletedAt` in Firestore and disables the Firebase Auth account so the user can no longer sign in. The record is preserved for audit purposes.
+**Permanently hard-deletes** a regular (non-admin) user. Both the Firestore document and the Firebase Auth account are irreversibly removed. This is **not** a soft-delete — there is no recovery.
 
-> **For admin/super_admin accounts** use `DELETE /super-admin/admins/:uid` (section 18).
+> **For admin/super_admin accounts** use `DELETE /super-admin/admins/:uid` (section 18) which does a soft-delete instead.
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
@@ -1015,13 +1022,13 @@ Soft-delete a regular (non-admin) user account. Sets `deletedAt` in Firestore an
 | Condition | Result |
 |-----------|--------|
 | `targetUid === callerUid` | `403 FORBIDDEN` — cannot delete yourself |
-| Target not found (or already deleted) | `404 USER_NOT_FOUND` |
+| Target not found | `404 USER_NOT_FOUND` |
 | Target holds `admin` or `super_admin` role | `403 FORBIDDEN` — use `/super-admin/admins/:uid` |
-| Target is a `member`, `student`, `leader`, or `g12` | `204 No Content` — deleted |
+| Target is a `member`, `student`, `leader`, or `g12` | `204 No Content` — permanently deleted |
 
-**Side effects (both execute; if `disableUser` fails the Firestore soft-delete has already committed):**
-1. `userRepo.softDelete(uid)` — sets `deletedAt` + `updatedAt` in Firestore
-2. `authClient.disableUser(uid)` — prevents future Firebase sign-ins
+**Side effects (both must succeed — no partial rollback):**
+1. `userRepo.hardDelete(uid)` — **permanently removes** the Firestore document
+2. `authClient.deleteUser(uid)` — **permanently removes** the Firebase Auth account
 
 #### Responses
 
@@ -1074,7 +1081,7 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 - Cannot demote yourself
 - Cannot demote an `admin` or `super_admin` via this endpoint
 - `member` role can never be removed (permanent base role)
-- Idempotent — returns `204` silently if the user does not already hold the role
+- Idempotent — returns `200` silently if the user does not already hold the role
 
 #### What changes after a successful demote
 
@@ -1088,7 +1095,10 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 
 #### Responses
 
-**`204 No Content`** — Role removed; access updated.
+**`200 OK`** — Role removed; access updated on next token refresh.
+```json
+{ "message": "User demoted successfully." }
+```
 
 **`400 Bad Request`** → `VALIDATION_ERROR` — Invalid role value
 ```json
