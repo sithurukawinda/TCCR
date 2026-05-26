@@ -1,12 +1,15 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.23.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.24.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.23.0
-**Date:** 26 May 2026
+**Version:** 2.24.0
+**Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.22.0 (26 May 2026)
+**Supersedes:** Version 2.23.0 (26 May 2026)
+**Change in 2.24.0:** PDF file inputs made optional across all upload endpoints (§3.5, §10.1):
+- §3.5 `POST /me/qualification`: `qualification` field now optional — omitting it returns `{ fileUrl: null }`
+- §10.1 `POST /subjects/:id/attachments`: `file` field now optional — omitting it returns `200 { message }`
 **Change in 2.23.0:** Corrected §4.8 Promote, §4.9 Delete, §4.10 Demote response shapes and delete semantics:
 - §4.8 Promote: `204` → `200 { message }` (promote + idempotent path)
 - §4.9 Delete: "soft-delete" → "hard-delete" (permanently removes Firestore doc + Firebase Auth)
@@ -641,7 +644,7 @@ Upload a qualification PDF to Firebase Storage and receive a download URL.
 > **Stateless** — this endpoint does **not** save anything to the user profile. The returned `fileUrl` must be included in the `qualifications[].fileUrl` field when calling `PATCH /me` (§3.2) to persist the qualification. This design supports multiple qualification entries — each PDF gets a unique UUID-namespaced path so uploads never overwrite each other.
 
 **Flow:**
-1. `POST /me/qualification` → receive `{ fileUrl }`
+1. `POST /me/qualification` → receive `{ fileUrl }` (or `{ fileUrl: null }` if no file sent)
 2. Store `fileUrl` alongside the qualification title in the `qualifications[]` array
 3. `PATCH /me` with `{ qualifications: [{ id, title, fileUrl }, ...] }` to save
 
@@ -650,16 +653,21 @@ Upload a qualification PDF to Firebase Storage and receive a download URL.
 
 | Field | Type | Required | Validation |
 |-------|------|:--------:|-----------|
-| `qualification` | file | Yes | PDF only · max **10 MB** · field name `qualification` |
+| `qualification` | file | **No (optional)** | PDF only · max **10 MB** · field name `qualification` |
 
-**`200 OK`**
+> **File is optional.** If the `qualification` field is omitted, the endpoint returns `{ fileUrl: null }` without uploading anything. This allows clients to call the endpoint without a PDF and still receive a valid response.
+
+**`200 OK` — with file**
 ```json
 {
   "fileUrl": "https://firebasestorage.googleapis.com/v0/b/bucket/o/qualifications%2Fuid%2Fuuid.pdf?alt=media&token=..."
 }
 ```
 
-**`400 Bad Request`** → `VALIDATION_ERROR` — no file attached
+**`200 OK` — no file provided**
+```json
+{ "fileUrl": null }
+```
 
 **`413 Payload Too Large`** → `FILE_TOO_LARGE` — file exceeds 10 MB
 
@@ -2118,11 +2126,13 @@ Upload PDF or DOCX. Max **25 MB** (FR-CRS-010).
 **Authentication:** Bearer required | **Roles:** `admin`
 **Content-Type:** `multipart/form-data`
 
-| Field | Allowed MIME | Max |
-|-------|-------------|:---:|
-| `file` | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 25 MB |
+| Field | Type | Required | Allowed MIME | Max |
+|-------|------|:--------:|-------------|:---:|
+| `file` | file | **No (optional)** | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 25 MB |
 
-**`201 Created`**
+> **File is optional.** If the `file` field is omitted, the endpoint returns a `200 OK` with a message instead of creating an attachment record.
+
+**`201 Created`** — file uploaded
 ```json
 {
   "id": "att-001", "subjectId": "sub-001", "courseId": "course-abc",
@@ -2133,7 +2143,12 @@ Upload PDF or DOCX. Max **25 MB** (FR-CRS-010).
 }
 ```
 
-**`415`** → `UNSUPPORTED_MEDIA_TYPE` | **`400`** → `FILE_TOO_LARGE`
+**`200 OK`** — no file provided
+```json
+{ "message": "No file uploaded. Provide a PDF, DOC, or DOCX file to create an attachment." }
+```
+
+**`415`** → `UNSUPPORTED_MEDIA_TYPE` | **`413`** → `FILE_TOO_LARGE`
 
 ---
 

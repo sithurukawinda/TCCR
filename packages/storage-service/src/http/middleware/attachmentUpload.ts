@@ -14,14 +14,18 @@ const upload = multer({
   limits:  { fileSize: config.maxFileSizeBytes },
 });
 
+/**
+ * File (`file` field, PDF/DOC/DOCX, max 25 MB) is **optional** —
+ * if omitted the controller returns { message: 'No file uploaded.' } without creating an attachment.
+ */
 export function handleAttachmentUpload(req: Request, res: Response, next: NextFunction): void {
   upload.single('file')(req, res, (err) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
       return next(createHttpError(413, 'FILE_TOO_LARGE', `File exceeds ${config.maxFileSizeBytes / 1024 / 1024} MB limit.`));
     }
     if (err) return next(err);
-    if (!req.file) return next(createHttpError(400, 'VALIDATION_ERROR', 'No file provided.'));
-    if (!ALLOWED_MIME_TYPES.includes(req.file.mimetype)) {
+    // No file is allowed — controller handles req.file === undefined
+    if (req.file && !ALLOWED_MIME_TYPES.includes(req.file.mimetype)) {
       return next(createHttpError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Only PDF, DOC, and DOCX files are allowed.'));
     }
     next();
