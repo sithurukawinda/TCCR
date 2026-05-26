@@ -294,7 +294,7 @@ Controllers are thin â€” they call one use case and delegate errors with `n
 - `audit-service` â€” has `src/application/handlers/` that write append-only entries to `audit_log` via a repository. No HTTP creation endpoint exists; entries are only created by event handlers. `GET /audit-log` supports `?actorUid=:uid` for per-user timeline filtering; `GET /users/:uid/audit-log` is the per-user timeline endpoint (admin + super_admin).
 - `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells/network/reports` is role-scoped: G12 callers see reports from all cells where they are the G12 leader, cell leaders see their own cell only, admins see all active cells. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
 - `analytics-service` (:3011, V2) â€” reads `analytics_snapshots` written by scheduled-jobs. Exposes 6 read-only endpoints (weekly cells, attendance, meeting types, growth, participation, CSV export). No writes. Background workers (scheduled-jobs) are the sole writers to `analytics_snapshots`.
-- `scheduled-jobs` (no HTTP port, V2) â€” background worker running 3 `setInterval` loops: `batchSweepJob` (opens/closes batches by schedule), `semesterSweepJob` (disables semesters past `endDate`, runs once per day), `snapshotJob` (aggregates cell reports into `analytics_snapshots`, runs weekly). All jobs are wrapped in `safeRun()` â€” failures log and continue. Direct Firestore reads (exempt from the cross-service HTTP rule, same as outbox-worker).
+- `scheduled-jobs` (no HTTP port, V2) â€” background worker running 3 `setInterval` loops: `batchSweepJob` (opens/closes batches by schedule), `semesterSweepJob` (disables semesters past `endDate`, runs once per day), `snapshotJob` (aggregates cell reports into `analytics_snapshots`, runs weekly). All jobs are wrapped in `safeRun()` â€” failures log and continue. Direct Firestore reads (exempt from the cross-service HTTP rule, same as outbox-worker). **Job deduplication (in-memory, resets on restart):** `semesterSweepJob` uses a `YYYY-MM-DD` UTC date key so it runs at most once per UTC day regardless of restart; `snapshotJob` uses an ISO week key (`YYYY-WNN`, Monday-start) so restarting mid-week does not re-run the snapshot. `batchSweepJob` has no deduplication â€” it is safe to run repeatedly.
 
 ### Shared Packages
 
@@ -328,6 +328,8 @@ Every service follows the same two-file startup split:
 - `src/server.ts` â€” creates the Express app, binds to the port, attaches graceful shutdown on `SIGTERM`/`SIGINT`. Excluded from coverage.
 
 `app.ts` is the testable unit â€” it wires middleware and routes without starting a server.
+
+**Docker entrypoint:** All service Dockerfiles use `CMD [“node”, “dist/server.ts”]`, not `dist/index.ts`. Firebase/tracing init (`index.ts`) runs first only in local dev; the Docker image entry point boots the Express app directly.
 
 ### Docker Compose Networking
 
@@ -435,6 +437,8 @@ helmet() â†’ cors() â†’ requestId â†’ httpLogger â†’ general
 `errorHandler` must be the final middleware â€” Express identifies it by its four-argument signature `(err, req, res, next)`.
 
 **Exception â€” the gateway does not register `errorHandler`.** It is a pure reverse proxy (`http-proxy-middleware`) with no business logic; all responses pass through from upstream services unchanged.
+
+**Gateway CORS details:** Methods allowed: `GET, POST, PATCH, DELETE, OPTIONS`. Headers allowed: `Authorization, Content-Type, Accept-Language, X-Request-Id, X-Idempotency-Key`. Preflight OPTIONS requests return 204 and are handled entirely by `cors()` (`preflightContinue: false`). Any new request header used by a service must be added to this allowlist or browser preflight will fail silently.
 
 ### Error Handling
 
@@ -780,8 +784,8 @@ APPLE_CLIENT_ID                         # Apple OAuth client ID for POST /auth/f
 
 # Gateway
 ALLOWED_ORIGINS                         # comma-separated CORS allowlist
-RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX    # global rate limit
-AUTH_RATE_LIMIT_MAX                     # stricter limit for /auth/* routes
+RATE_LIMIT_WINDOW_MS, RATE_LIMIT_MAX    # global rate limit (default: 200 req/min); error code RATE_LIMIT_EXCEEDED; returns RFC 6585 RateLimit-* headers
+AUTH_RATE_LIMIT_MAX                     # stricter limit for /auth/* routes (default: 10 req/min); error code AUTH_RATE_LIMIT_EXCEEDED
 
 # Service-specific
 ATTACHMENT_MAX_SIZE_BYTES               # storage-service (default: 26214400)
@@ -864,7 +868,7 @@ The collection is generated by `scripts/build-postman-collection.js` â€” re
 
 Use `jest.clearAllMocks()` in `beforeEach` to prevent test bleed. When typing test-fixture arrays that will be passed to use-case inputs (e.g. `callerRoles`), use `as UserRole[]` instead of `as const` â€” `as const` creates a `readonly` tuple that is incompatible with mutable array parameters and causes a TypeScript compile error that silently drops the entire test suite (0 tests run, no failures reported). Integration tests use the Firebase emulator â€” `tests/integration/setup.ts` automatically sets `FIRESTORE_EMULATOR_HOST=127.0.0.1:8080` and `FIREBASE_AUTH_EMULATOR_HOST=127.0.0.1:9099` with fake credentials, so no real Firebase project credentials are needed. Just ensure the emulators are running before `npm run test:integration`.
 
-Coverage thresholds enforced by `jest.config.ts`: branches 70%, functions/lines/statements 80%. `index.ts` and `server.ts` are excluded from coverage collection.
+Coverage thresholds enforced by `jest.config.ts`: branches 70%, functions/lines/statements 80%. Coverage is **not collected** from: `index.ts`, `server.ts`, `src/infrastructure/**`, `src/http/**`, `src/app.ts`, `src/container.ts`, `src/config.ts`. Unit tests therefore live exclusively under `tests/unit/application/` and `tests/unit/domain/`.
 
 **Unit test baseline:** 355+ tests across 80+ suites â€” every use case, handler, domain entity, validator, and infrastructure utility across all services (including cell-service, analytics-service, scheduled-jobs) has test coverage. Integration test suite: 99+ tests across 13+ suites.
 
