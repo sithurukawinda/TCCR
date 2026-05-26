@@ -82,7 +82,7 @@ export class MeController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.changePassword.execute({ uid, ...parsed.data });
-      res.status(204).send();
+      sendSuccess(res, { message: 'Password changed successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -92,7 +92,7 @@ export class MeController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.registerFcmToken.execute(uid, parsed.data.token);
-      res.status(204).send();
+      sendSuccess(res, { message: 'FCM token registered.' });
     } catch (err) { next(err); }
   };
 

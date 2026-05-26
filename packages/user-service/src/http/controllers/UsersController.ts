@@ -101,7 +101,7 @@ export class UsersController {
       } else {
         await this.removeRoleUseCase.execute(req.params.uid, parsed.data.role);
       }
-      res.status(204).send();
+      sendSuccess(res, { message: 'Role updated successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -126,7 +126,7 @@ export class UsersController {
         requestId,
       });
 
-      res.status(204).send();
+      sendSuccess(res, { message: 'User promoted successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -156,7 +156,7 @@ export class UsersController {
       });
 
       UsersController.listCache.clear();
-      res.status(204).send();
+      sendSuccess(res, { message: 'User demoted successfully.' });
     } catch (err) { next(err); }
   };
 }

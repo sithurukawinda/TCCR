@@ -73,7 +73,7 @@ export class AuthController {
     try {
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.logoutUseCase.execute(uid);
-      res.status(204).send();
+      sendSuccess(res, { message: 'Logged out successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -91,7 +91,7 @@ export class AuthController {
       const parsed = verifyOtpSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
       await this.verifyOtpUseCase.execute(parsed.data.email, parsed.data.otp);
-      res.status(204).send();
+      sendSuccess(res, { message: 'Password reset email sent to your inbox.' });
     } catch (err) { next(err); }
   };
 
@@ -109,7 +109,7 @@ export class AuthController {
       const parsed = resendVerificationSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
       await this.resendVerificationUseCase.execute(parsed.data.email);
-      res.status(204).send();
+      sendSuccess(res, { message: 'Verification email sent.' });
     } catch (err) { next(err); }
   };
 
@@ -118,7 +118,7 @@ export class AuthController {
       const parsed = verifyEmailOtpSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
       await this.verifyEmailOtpUseCase.execute(parsed.data.email, parsed.data.otp);
-      res.status(204).send();
+      sendSuccess(res, { message: 'Email verified successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -243,7 +243,7 @@ export class AuthController {
     try {
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.appleRevokeUseCase.execute(uid);
-      res.status(204).send();
+      sendSuccess(res, { message: 'Apple session revoked.' });
     } catch (err) { next(err); }
   };
 }
