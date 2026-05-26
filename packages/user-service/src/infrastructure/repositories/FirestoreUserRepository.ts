@@ -110,4 +110,8 @@ export class FirestoreUserRepository implements IUserRepository {
       updatedAt: new Date().toISOString(),
     });
   }
+
+  async hardDelete(uid: string): Promise<void> {
+    await this.col.doc(uid).delete();
+  }
 }

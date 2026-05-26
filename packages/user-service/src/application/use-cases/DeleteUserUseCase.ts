@@ -10,7 +10,7 @@ export interface DeleteUserInput {
 }
 
 /**
- * Soft-delete a regular (non-admin) user account.
+ * Permanently delete a regular (non-admin) user account.
  *
  * Business rules:
  *  - Target must exist and must NOT hold `admin` or `super_admin` — use
@@ -19,8 +19,8 @@ export interface DeleteUserInput {
  *  - Idempotent guard: already-deleted users return 404 (findById returns null).
  *
  * Side-effects (both must succeed; no partial rollback):
- *  1. `userRepo.softDelete(uid)` — sets `deletedAt` + `updatedAt` in Firestore
- *  2. `authClient.disableUser(uid)` — prevents future sign-ins via Firebase Auth
+ *  1. `userRepo.hardDelete(uid)` — permanently removes the Firestore document
+ *  2. `authClient.deleteUser(uid)` — permanently removes the Firebase Auth account
  */
 export class DeleteUserUseCase {
   constructor(
@@ -50,7 +50,7 @@ export class DeleteUserUseCase {
       );
     }
 
-    await this.userRepo.softDelete(targetUid);
-    await this.authClient.disableUser(targetUid);
+    await this.userRepo.hardDelete(targetUid);
+    await this.authClient.deleteUser(targetUid);
   }
 }
