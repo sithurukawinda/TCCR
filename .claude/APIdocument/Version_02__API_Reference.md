@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.21.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.22.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.21.0
+**Version:** 2.22.0
 **Date:** 26 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.20.0 (25 May 2026)
+**Supersedes:** Version 2.21.0 (26 May 2026)
+**Change in 2.22.0:** Added `GET /users/summary` — system-wide member roster grouped by role (§4.11)
 
 ---
 
@@ -26,6 +27,7 @@
    - 4.1 [List Users](#41-get-users) · 4.2 [Get User](#42-get-usersuid) · 4.3 [Assign Roles](#43-patch-usersuidroles--new-v2)
    - 4.4 [User Audit Log](#44-get-usersuidaudit-log--new-v2) · 4.5 [Suspend](#45-post-usersusidsuspend) · 4.6 [Reactivate](#46-post-usersuidreactivate)
    - 4.7 [Provision Leader/G12 User (with welcome email)](#47-post-users--new) · 4.8 [Promote Existing User](#48-post-usersuidpromote--new-v2) · 4.9 [Delete User ★](#49-delete-usersuid--new)
+   - **4.11 [System Member Summary ★ NEW](#411-get-userssummary--new)**
 5. [Role Requests — NEW V2](#5-role-requests--new-v2)
    - 5.1 [Submit Role Request (multipart)](#51-post-role-requests) · 5.2 [My Requests](#52-get-role-requestsmine) · 5.3 [Admin List](#53-get-role-requests)
    - 5.4 [Get Request](#54-get-role-requestsid) · 5.5 [Download Qualification PDF ★](#55-get-role-requestsidqualification) · 5.6 [Approve](#56-post-role-requestsidapprove) · 5.7 [Reject](#57-post-role-requestsidreject)
@@ -1101,6 +1103,141 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 **`404 Not Found`** → `USER_NOT_FOUND`
 
 ---
+---
+
+### 4.11 `GET /users/summary` ★ NEW
+
+Returns **all approved users grouped by their highest role** with full names in a single response. Designed as a one-page system overview — no pagination needed.
+
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`
+
+> **Scope:** `leader` and `g12` callers follow the same scoped-access rule as `GET /users` — they see only approved non-admin users. The `superAdmins` and `admins` groups will be empty for these callers. `admin` / `super_admin` callers see all groups.
+
+#### Role Grouping Logic
+
+Each user appears in **exactly one group** — their highest role in this hierarchy:
+
+```
+super_admin > admin > g12 > leader > student > member
+```
+
+A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are sorted alphabetically by `displayName` within each group.
+
+#### Response `200 OK`
+
+```json
+{
+  "superAdmins": [
+    {
+      "uid":             "SA001",
+      "firstName":       "Pastor",
+      "lastName":        "Jayasinghe",
+      "displayName":     "Pastor Jayasinghe",
+      "email":           "pastor@tccr.lk",
+      "profilePhotoUrl": null
+    }
+  ],
+  "admins": [
+    {
+      "uid":             "AD001",
+      "firstName":       "Admin",
+      "lastName":        "User",
+      "displayName":     "Admin User",
+      "email":           "admin@tccr.lk",
+      "profilePhotoUrl": null
+    }
+  ],
+  "g12": [
+    {
+      "uid":             "G12001",
+      "firstName":       "G12",
+      "lastName":        "Leader",
+      "displayName":     "G12 Leader",
+      "email":           "g12leader@tccr.lk",
+      "profilePhotoUrl": "https://firebasestorage.googleapis.com/.../avatars/G12001.jpg"
+    }
+  ],
+  "leaders": [
+    {
+      "uid":             "LDR001",
+      "firstName":       "Cell",
+      "lastName":        "Leader",
+      "displayName":     "Cell Leader",
+      "email":           "leader@tccr.lk",
+      "profilePhotoUrl": null
+    }
+  ],
+  "students": [
+    {
+      "uid":             "STU001",
+      "firstName":       "Viruli",
+      "lastName":        "Weerasinghe",
+      "displayName":     "Viruli Weerasinghe",
+      "email":           "viruli@example.com",
+      "profilePhotoUrl": null
+    }
+  ],
+  "members": [
+    {
+      "uid":             "MEM001",
+      "firstName":       "Nimal",
+      "lastName":        "Perera",
+      "displayName":     "Nimal Perera",
+      "email":           "nimal@example.com",
+      "profilePhotoUrl": null
+    }
+  ],
+  "totals": {
+    "superAdmins": 1,
+    "admins":      2,
+    "g12":         3,
+    "leaders":     8,
+    "students":    45,
+    "members":     120,
+    "total":       179
+  }
+}
+```
+
+#### Response Field Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `superAdmins[]` | `SummaryProfile[]` | Users whose highest role is `super_admin` |
+| `admins[]` | `SummaryProfile[]` | Users whose highest role is `admin` |
+| `g12[]` | `SummaryProfile[]` | Users whose highest role is `g12` |
+| `leaders[]` | `SummaryProfile[]` | Users whose highest role is `leader` |
+| `students[]` | `SummaryProfile[]` | Users whose highest role is `student` |
+| `members[]` | `SummaryProfile[]` | Base members — hold only the `member` role |
+| `totals.total` | number | Sum of all groups (= total approved system users) |
+
+**`SummaryProfile` shape:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `uid` | string | Firebase Auth UID |
+| `firstName` | string | |
+| `lastName` | string | |
+| `displayName` | string | `firstName + ' ' + lastName` — falls back to email if both names are empty |
+| `email` | string | Registered email |
+| `profilePhotoUrl` | string \| null | Firebase Storage URL |
+
+#### Notes
+
+- **Suspended users are excluded** — only `status: "approved"` users appear.
+- **Deleted users are excluded** — soft-deleted (`deletedAt != null`) users never appear.
+- **No pagination** — the entire roster is returned in one call. For systems with thousands of active users, consider adding a `?roles=` filter param in a future version.
+- Response time is proportional to the total number of approved users; at TCCR's target scale (≤ 10 000 users) this will remain under 800 ms (NFR-PER-001).
+
+#### Errors
+
+| Status | Code | Reason |
+|--------|------|--------|
+| `401` | `UNAUTHENTICATED` | Missing or expired Bearer token |
+| `403` | `FORBIDDEN` | Caller does not hold `leader`, `g12`, or `admin` |
+
+---
+
 ## 5. Role Requests — NEW V2
 
 After registration every user is a **Member**. From there they can follow two paths — both require Admin/Super Admin approval:
@@ -2361,6 +2498,7 @@ List cell groups. Scope auto-applied by role:
 | `type` | `g12` \| `care` \| `children` \| `outreach` |
 | `area` | Exact match on area |
 | `state` | `active` \| `archived` — default varies by role: `admin`/`super_admin` see **all states** when omitted; all others default to `active` ★ Updated |
+
 | `leaderUid` | Filter by leader (admin/g12 only) |
 | `limit`, `cursor` | Pagination |
 
@@ -2765,6 +2903,7 @@ Returns all cell members across every cell in the caller's network, grouped by c
 > **No pagination:** Results are capped at 100 cells per call (sufficient for any realistic G12 network). Member lists are returned in full per cell.
 
 **`403 Forbidden`** → `FORBIDDEN` — caller does not hold `leader`, `g12`, `admin`, or `super_admin`
+
 
 ---
 

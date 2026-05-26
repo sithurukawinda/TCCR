@@ -168,6 +168,60 @@ bash scripts/api-test.sh
 # Verify online Firebase connectivity (Firestore + Auth + outbox collection)
 # Reads credentials from .env.local â€” run before seeding or deploying to confirm creds are valid
 node scripts/check-firebase.js
+
+# -- User management utilities (all read from .env.local for online Firebase) --
+
+# Look up a user by email in Firebase Auth + Firestore -- shows status, roles, deletedAt
+# Usage: node scripts/check-user.js <email>
+node scripts/check-user.js
+
+# Quick cross-collection search by email (users, loginAttempts, emailVerificationOtps)
+# Usage: node scripts/find-user.js <email>
+node scripts/find-user.js
+
+# Soft-delete a user -- sets deletedAt + disables Firebase Auth (admin-level non-destructive disable)
+# Usage: node scripts/delete-user.js <email>
+node scripts/delete-user.js
+
+# Restore a soft-deleted user -- re-enables Firebase Auth + clears deletedAt
+# Usage: node scripts/restore-user.js <email>
+node scripts/restore-user.js
+
+# PERMANENT hard-delete -- purges user from ALL collections (GDPR / test cleanup). IRREVERSIBLE.
+# Usage: node scripts/purge-user.js <email>
+node scripts/purge-user.js
+
+# One-shot fix: explicitly set deletedAt=null on a Firestore user doc by UID
+# Usage: node scripts/fix-deleted-at.js <uid>
+node scripts/fix-deleted-at.js
+
+# -- Auth / infrastructure verification --
+
+# SMTP smoke test -- verifies mail relay credentials and sends a test email
+# Usage: node scripts/test-smtp.js [recipient@example.com]
+node scripts/test-smtp.js
+
+# Checks Google federated login backend readiness (GOOGLE_CLIENT_ID, Firebase Admin, live endpoint)
+node scripts/_check-google-auth.js
+
+# Full end-to-end login test for a uid -- marks email verified, exchanges a custom token, calls GET /me
+# Usage: node scripts/test-login.js <uid>
+node scripts/test-login.js
+
+# Online system health test -- verifies key endpoints on the deployed backend (cms.api.bethelnet.au)
+node scripts/test-online.js
+
+# -- One-time migrations / TCCR seeds --
+
+# One-time: send email-verification links to all existing unverified Firebase Auth users
+# Run ONCE after deploying the email-verification feature to production. Safe to re-run.
+node scripts/send-verification-emails.js
+
+# Seed g12leader@tccr.lk (g12) and leader@tccr.lk (leader) into online Firebase
+node scripts/seed-tccr-leaders-online.js
+
+# Verify that TCCR leader / g12 accounts exist in online Firebase Auth + Firestore
+node scripts/check-tccr-users.js
 ```
 
 ---
@@ -329,7 +383,7 @@ Every service follows the same two-file startup split:
 
 `app.ts` is the testable unit â€” it wires middleware and routes without starting a server.
 
-**Docker entrypoint:** All service Dockerfiles use `CMD [“node”, “dist/server.ts”]`, not `dist/index.ts`. Firebase/tracing init (`index.ts`) runs first only in local dev; the Docker image entry point boots the Express app directly.
+**Docker entrypoint:** HTTP service Dockerfiles use `CMD [“node”, “dist/server.js”]`, not `dist/index.js`. Worker services (`outbox-worker`, `scheduled-jobs`) use `CMD [“node”, “dist/worker.js”]` — they have no HTTP server. Firebase/tracing init (`index.ts`) runs first only in local dev; the Docker image entry point boots directly.
 
 ### Docker Compose Networking
 
@@ -405,8 +459,9 @@ auth-service tracks failed sign-ins via the `loginAttempts` Firestore collection
 
 | Status | Trigger |
 |--------|---------|
-| 201 | Resource created (POST) |
-| 204 | Successful DELETE |
+| 201 | Resource created (POST that returns the new resource) |
+| 200 | Action endpoint that returns no resource — sends `{ message: '...' }` (e.g. logout, verify-email, resend-verification, approve/reject actions) |
+| 204 | Successful DELETE, internal event-handler routes (`/internal/*`), and `POST /auth/password-reset` (email-enumeration prevention) |
 | 400 | Zod validation failure |
 | 401 | Missing / expired / revoked token |
 | 403 | Valid token, wrong role or ownership |
@@ -557,7 +612,7 @@ The `User` domain entity (`packages/user-service/src/domain/entities/User.ts`) g
 - `fcmTokens: string[]` â€” device FCM tokens for push notifications; updated via `POST /me/fcm-token`.
 - `notificationPreferences: { email: boolean; push: boolean }` â€” per-user notification opt-in flags; defaults `true` for both.
 
-**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (soft-delete Firestore doc + disable Firebase Auth â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin), and `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`).
+**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which soft-deletes instead), and `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`).
 
 **`GET /users` query filters:** `?limit`, `?cursor`, `?role=<UserRole>`, `?status=<UserStatus>`, `?name=<prefix>` (case-sensitive prefix search on `firstName` only â€” not lastName). Accessible to `leader`, `g12`, and `admin` (super_admin inherits). **Scoped access:** when the caller holds only `leader` or `g12` (no admin/super_admin), `GetUsersUseCase` filters results to approved non-admin users only. The list cache key includes the caller's roles to prevent cross-role data leakage.
 
@@ -709,7 +764,11 @@ await fetch(url, { method: 'POST', body: JSON.stringify({ requestType: 'PASSWORD
 
 ### Soft Deletes
 
-Courses, semesters, subjects, and users are soft-deleted by setting `deletedAt` timestamp (recoverable within 30 days). Queries filter `where('deletedAt', '==', null)`.
+Courses, semesters, and subjects are soft-deleted by setting a `deletedAt` timestamp (recoverable within 30 days). Queries filter `where('deletedAt', '==', null)`.
+
+**User deletion is split across two endpoints with different semantics:**
+- `DELETE /users/:uid` (admin) — **permanently hard-deletes** a regular user from Firestore and Firebase Auth (irreversible).
+- `DELETE /super-admin/admins/:uid` (super_admin) — **soft-deletes** an admin account by setting `deletedAt` and disabling their Firebase Auth account.
 
 ### Internal Service Communication
 
@@ -893,6 +952,11 @@ Project-specific commands live in `.claude/commands/`. Use them with `/command-n
 | `/test-integration` | `test-integration.md` | Generate Supertest + Firestore emulator integration tests for an endpoint |
 | `/test-security` | `test-security.md` | Audit a service's routes for missing auth guards and Zod validators (report only) |
 | `/run-check` | `run-check.md` | Run type-check + lint + unit tests for one service or all workspaces |
+| `/spec` | `spec.md` | Create feature spec file and branch from a short idea |
+| `/commit-message` | `commit-message.md` | Guided git commit workflow: branch strategy, change scope, message with emoji type |
+| `/create-plan` | `create-plan.md` | Save Claude's implementation plan to a dated markdown file in `_plan/` |
+| `/create-sprints` | `create-sprints.md` | Break a `_plan/` file into individual sprint files under `_sprints/<name>/` |
+| `/run-sprint` | `run-sprint.md` | Execute and track progress on a specific sprint (single or folder-mode batch) |
 
 ---
 
@@ -944,6 +1008,8 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/plan/implementation-plan.md`** â€” Detailed implementation plan with phase dependencies and sequencing.
 - **`.claude/sprints/`** â€” Per-sprint breakdown (`sprint-1-*.md` through `sprint-7-*.md`) with user stories and acceptance criteria.
 - **`.claude/settings.local.json`** â€” Pre-approved PowerShell/Bash permission patterns so Claude Code does not prompt for common `npm run *`, `node *`, `docker-compose *`, and `git` operations. Edit this file (via `/update-config`) when new command patterns need approval.
+- **`_plan/`** â€” Dated implementation plan files (e.g. `_plan/2026-05-26-action-endpoints-response-bodies.md`). Created by `/create-plan`.
+- **`_sprints/`** â€” Per-sprint markdown files broken down from a `_plan/` file. Each subdirectory contains individual phase files and a `next-sprint.sh` automation helper. Created by `/create-sprints`, executed by `/run-sprint`.
 
 
 

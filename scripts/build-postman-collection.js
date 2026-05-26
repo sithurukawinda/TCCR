@@ -703,6 +703,83 @@ const meFolder = folder('2️⃣ User Service — Me', [
 // ---------------------------------------------------------------------------
 
 const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
+
+  // ── System Summary (new) ──────────────────────────────────────────────────
+  buildRequest({
+    name: 'System User Summary — Admin ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/users/summary' },
+    auth: bearerAuth('adminToken'),
+    description: [
+      'Returns ALL approved users grouped by their highest role in one response.',
+      'Groups: superAdmins → admins → g12 → leaders → students → members.',
+      'Each user appears in exactly ONE group. Users sorted A→Z by displayName within each group.',
+      '',
+      'Seeded emulator data guarantees:',
+      '  superAdmins ≥ 1  (superadmin@cmp.com)',
+      '  admins      ≥ 1  (admin@cmp.com)',
+      '  g12         ≥ 1  (g12leader@cmp.com)',
+      '  leaders     ≥ 1  (leader@cmp.com)',
+      '  students    ≥ 1  (student2@cmp.com)',
+    ].join('\n'),
+    tests: [
+      `pm.test("200 OK — System User Summary", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("superAdmins is array", () => pm.expect(j.superAdmins).to.be.an("array"));`,
+      `pm.test("admins is array",      () => pm.expect(j.admins).to.be.an("array"));`,
+      `pm.test("g12 is array",         () => pm.expect(j.g12).to.be.an("array"));`,
+      `pm.test("leaders is array",     () => pm.expect(j.leaders).to.be.an("array"));`,
+      `pm.test("students is array",    () => pm.expect(j.students).to.be.an("array"));`,
+      `pm.test("members is array",     () => pm.expect(j.members).to.be.an("array"));`,
+      `pm.test("totals object present", () => {`,
+      `  pm.expect(j.totals).to.be.an("object");`,
+      `  pm.expect(j.totals.total).to.be.a("number").and.be.at.least(1);`,
+      `});`,
+      `pm.test("totals.superAdmins >= 1 (seed: superadmin@cmp.com)", () => pm.expect(j.totals.superAdmins).to.be.at.least(1));`,
+      `pm.test("totals.admins >= 1 (seed: admin@cmp.com)",           () => pm.expect(j.totals.admins).to.be.at.least(1));`,
+      `pm.test("totals.g12 >= 1 (seed: g12leader@cmp.com)",         () => pm.expect(j.totals.g12).to.be.at.least(1));`,
+      `pm.test("totals.leaders >= 1 (seed: leader@cmp.com)",        () => pm.expect(j.totals.leaders).to.be.at.least(1));`,
+      `pm.test("group sum equals total", () => {`,
+      `  const t = j.totals;`,
+      `  pm.expect(t.superAdmins + t.admins + t.g12 + t.leaders + t.students + t.members).to.equal(t.total);`,
+      `});`,
+      `pm.test("each superAdmin profile has uid, email, displayName", () => {`,
+      `  j.superAdmins.forEach(u => {`,
+      `    pm.expect(u.uid).to.be.a("string").and.not.empty;`,
+      `    pm.expect(u.email).to.be.a("string").and.not.empty;`,
+      `    pm.expect(u.displayName).to.be.a("string");`,
+      `  });`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'System User Summary — Leader (scoped) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/users/summary' },
+    auth: bearerAuth('leaderToken'),
+    description: 'Leader gets a scoped view — superAdmins and admins groups are empty (same scope as GET /users for leaders).',
+    tests: [
+      `pm.test("200 OK — Leader scoped summary", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("superAdmins is empty (scoped view)", () => pm.expect(j.superAdmins).to.be.an("array").and.have.lengthOf(0));`,
+      `pm.test("admins is empty (scoped view)",      () => pm.expect(j.admins).to.be.an("array").and.have.lengthOf(0));`,
+      `pm.test("g12 group still visible",             () => pm.expect(j.g12).to.be.an("array"));`,
+      `pm.test("leaders still visible",               () => pm.expect(j.leaders).to.be.an("array"));`,
+      `pm.test("totals.total >= 0", () => pm.expect(j.totals.total).to.be.a("number"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'System User Summary — student (expect 403) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/users/summary' },
+    auth: bearerAuth('studentToken'),
+    tests: [
+      `pm.test("403 — student cannot access summary", () => pm.response.to.have.status(403));`,
+    ],
+  }),
+
   buildRequest({
     name: 'List Users (Admin)',
     method: 'GET',
@@ -2968,10 +3045,10 @@ const healthFolder = folder('🏥 Health Checks', [
 const collection = {
   info: {
     _postman_id: uuid(),
-    name: 'TCCR Backend — Full API Collection v2.5',
+    name: 'TCCR Backend — Full API Collection v2.6',
     description:
       'Complete API test collection for TCCR (The Christian Center Rathmalana) backend.\n' +
-      'Aligned with API Reference v2.5.0 (22 May 2026).\n' +
+      'Aligned with API Reference v2.22.0 (26 May 2026).\n' +
       'Covers all V1 and V2 endpoints across 13 microservices.\n\n' +
       'Test flow:\n' +
       '1. Run 🔐 Sign In first — populates all *Token and *Id variables\n' +
