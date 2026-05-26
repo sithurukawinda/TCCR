@@ -155,8 +155,8 @@ HTTP 204 No Content
 
 | Endpoint Group | Limit | Window |
 |---------------|-------|--------|
-| `POST /auth/*` | 10 | Per IP per minute |
-| All other endpoints | 200 | Per IP per minute |
+| `POST /auth/*` | 20 | Per IP per minute |
+| All other endpoints | 500 | Per IP per minute |
 
 Returns `429 Too Many Requests` with `Retry-After` header.
 
@@ -512,16 +512,53 @@ Get the authenticated user's full profile.
   "email":                   "viruli@example.com",
   "firstName":               "Viruli",
   "lastName":                "Weerasinghe",
-  "preferredLanguage":       "si",
+  "role":                    "student",
   "roles":                   ["member", "student"],
-  "providers":               ["password"],
   "status":                  "approved",
-  "profilePhotoUrl":         "https://storage.googleapis.com/...",
+  "profilePhotoUrl":         null,
+  "phoneNumber":             null,
+  "preferredLanguage":       "en",
+  "fcmTokens":               [],
   "notificationPreferences": { "email": true, "push": true },
+  "providers":               ["password"],
+  "dateOfBirth":             null,
+  "gender":                  null,
+  "address":                 null,
+  "qualifications":          [],
+  "qualificationTitle":      null,
+  "qualificationUrl":        null,
+  "qualificationStoragePath": null,
   "createdAt":               "2026-05-01T08:00:00.000Z",
-  "updatedAt":               "2026-05-05T10:30:00.000Z"
+  "updatedAt":               "2026-05-01T08:00:00.000Z",
+  "deletedAt":               null
 }
 ```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `uid` | string | Firebase Auth UID |
+| `email` | string | Registered email |
+| `firstName` | string | |
+| `lastName` | string | |
+| `role` | string | Primary role scalar — V1 backward-compat field; always equals the highest role in `roles[]` |
+| `roles` | string[] | All current roles e.g. `["member","student"]` |
+| `status` | string | `approved` \| `suspended` |
+| `profilePhotoUrl` | string \| null | Firebase Storage URL |
+| `phoneNumber` | string \| null | International format |
+| `preferredLanguage` | string | `en` \| `si` \| `ta` |
+| `fcmTokens` | string[] | Registered FCM push tokens |
+| `notificationPreferences` | object | `{ email: boolean, push: boolean }` |
+| `providers` | string[] | `password`, `google.com`, `apple.com` |
+| `dateOfBirth` | string \| null | `YYYY-MM-DD` |
+| `gender` | string \| null | `male` \| `female` \| `other` |
+| `address` | string \| null | Free text |
+| `qualifications` | array | `[{ id, title, fileUrl }]` — ordered list |
+| `qualificationTitle` | string \| null | Title of the first qualification (convenience field) |
+| `qualificationUrl` | string \| null | Download URL of the first qualification PDF |
+| `qualificationStoragePath` | string \| null | Internal Firebase Storage path of the first qualification PDF |
+| `createdAt` | string | ISO 8601 |
+| `updatedAt` | string | ISO 8601 |
+| `deletedAt` | string \| null | Non-null = soft-deleted |
 
 ---
 
