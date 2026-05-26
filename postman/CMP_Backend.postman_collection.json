@@ -3319,7 +3319,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Admin\",\n  \"email\": \"newadmin{{runId}}@tccr.lk\",\n  \"initialPassword\": \"Admin@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
+              "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Admin\",\n  \"email\": \"newadmin{{runId}}@tccr.lk\",\n  \"initialPassword\": \"Admin@Tccr2026\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6144,7 +6144,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"semesterId\": \"{{semesterId}}\",\n  \"batchId\": \"{{batchId}}\"\n}",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"semesterId\": \"{{semesterId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6203,7 +6203,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"semesterId\": \"{{semesterId}}\",\n  \"batchId\": \"{{batchId}}\"\n}",
+              "raw": "{\n  \"courseId\": \"{{courseId}}\",\n  \"semesterId\": \"{{semesterId}}\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -6739,7 +6739,7 @@
               "mode": "formdata",
               "formdata": [
                 {
-                  "key": "image",
+                  "key": "file",
                   "type": "file",
                   "src": "",
                   "description": "Select a PNG or JPEG image (max 10 MB)."
@@ -6767,7 +6767,7 @@
                 }
               ]
             },
-            "description": "Multipart image upload for a subject. Field name must be \"image\". Accepts image/png or image/jpeg, max 10 MB. Returns the stored image URL."
+            "description": "Multipart image upload for a subject. Field name must be \"file\". Accepts image/png or image/jpeg, max 10 MB. Returns the stored image URL."
           },
           "response": [],
           "event": [

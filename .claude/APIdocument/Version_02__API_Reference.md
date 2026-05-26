@@ -1,12 +1,12 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.20.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.21.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.20.0
-**Date:** 25 May 2026
+**Version:** 2.21.0
+**Date:** 26 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.19.0 (24 May 2026)
+**Supersedes:** Version 2.20.0 (25 May 2026)
 
 ---
 
@@ -96,7 +96,7 @@ Authorization: Bearer <firebase-id-token>
 
 **Public endpoints (no token required):**
 
-> **Email-verification gate:** After registration, all protected endpoints return `403 EMAIL_NOT_VERIFIED` until the user submits their OTP via `POST /auth/verify-email`. Federated users (Google/Apple) are exempt — Firebase marks them as verified automatically.
+> **Email-verification gate:** Applies only to users who sign up via `POST /auth/register` — Firebase Auth email-verification status is set to `true` immediately on account creation, so newly registered users can access all protected endpoints without an OTP step. Federated users (Google/Apple) are always verified automatically by Firebase.
 
 | Endpoint | Description |
 |----------|-------------|
@@ -116,7 +116,7 @@ Authorization: Bearer <firebase-id-token>
 - JSON bodies: `Content-Type: application/json`
 - File uploads: `multipart/form-data`
 - Optional: `X-Request-Id` (UUID v4); server generates if absent
-- **Required** on `POST /cells/:id/reports`: `X-Idempotency-Key: <client-uuid>`
+- **Strongly recommended** on `POST /cells/:id/reports`: `X-Idempotency-Key: <client-uuid>` — when provided, the server stores it and returns the existing report on duplicate submission rather than creating a duplicate; ideal for mobile clients that may retry on network failure
 
 ### 1.4 Response Format
 
@@ -262,7 +262,7 @@ Register a new account. **V2:** Creates an **active Member** immediately — no 
 
 **`201 Created`**
 ```json
-{ "uid": "Xf3aBC...", "message": "Registration successful. You are now an active member." }
+{ "uid": "Xf3aBC...", "message": "Registration successful. You can now log in to your account." }
 ```
 
 **`400 Bad Request`** — Zod validation failure (missing field, weak password, invalid email)
@@ -441,7 +441,7 @@ Generates a CSRF state JWT and returns the full Apple authorisation URL. The fro
 | `state` | CSRF state JWT (10-minute TTL, signed with `JWT_SECRET`). Pass back unmodified in `POST /auth/apple/callback`. |
 | `authorizeUrl` | Full Apple authorisation URL — redirect the user's browser here |
 
-**`404 Not Found`** → `APPLE_CLIENT_ID not configured` — `APPLE_CLIENT_ID` env var is missing (expected on local/dev stacks without Apple credentials)
+**`404 Not Found`** → `APPLE_NOT_CONFIGURED` — `APPLE_CLIENT_ID` env var is missing (expected on local/dev stacks without Apple credentials)
 
 ---
 
@@ -472,8 +472,15 @@ Verify the Apple session is still active. Call periodically to confirm the user 
 
 **Authentication:** Bearer required | **Roles:** Any  
 
-**`200 OK`** — Apple session is still active  
+**`200 OK`**
+```json
+{ "valid": true }
+```
+Apple session is confirmed active.
+
 **`401 Unauthorized`** → Apple refresh token has been revoked — user must re-authenticate
+
+**`404 Not Found`** → `APPLE_TOKEN_NOT_FOUND` — No Apple refresh token stored for this account (user did not sign in with Apple)
 
 ---
 
@@ -714,7 +721,7 @@ List users with filtering.
 
 Get a specific user's profile.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 > **Scoped access for `leader` / `g12`:** These callers can look up any non-admin user. Attempting to fetch a user who holds `admin` or `super_admin` returns `403 FORBIDDEN`.
 
@@ -757,9 +764,11 @@ Add or remove a **single role** per request. Role change rules:
 
 ---
 
-### 4.4 `GET /users/:uid/audit-log` — NEW V2
+### 4.4 `GET /users/:uid/audit-log` — NEW V2 ⚠️ NOT YET IMPLEMENTED
 
 Per-user audit timeline — entries where user was actor or target (FR-SADM-005 / FR-ADM-005).
+
+> **⚠️ This endpoint is documented but not yet implemented in the current release. Calling it will return `404 Not Found`. Use `GET /audit-log?actorUid=:uid` (Section 17) as a workaround to filter audit entries by user.**
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
@@ -769,7 +778,7 @@ Per-user audit timeline — entries where user was actor or target (FR-SADM-005 
 | `from`, `to` | ISO datetime range |
 | `limit`, `cursor` | Pagination |
 
-**`200 OK`**
+**`200 OK`** _(planned response shape — not yet live)_
 ```json
 {
   "items": [
@@ -778,6 +787,7 @@ Per-user audit timeline — entries where user was actor or target (FR-SADM-005 
       "actor": { "uid": "admin-uid", "email": "admin@tccr.lk" },
       "action": "role.granted", "category": "enrollment",
       "targetType": "user", "targetId": "Xf3aBC...",
+      "ip": "203.0.113.45",
       "requestId": "7f3a-..."
     }
   ],
@@ -1460,7 +1470,7 @@ List courses. Member/Student/public see `published` only. Admin sees all states.
     "id": "course-abc", "title": "Bible Foundations",
     "description": "An introduction to the Bible.",
     "coverImageUrl": null, "state": "published",
-    "semesterCount": 3, "batchCount": 2,
+    "semesterCount": 3,
     "createdAt": "2026-01-01T08:00:00.000Z",
     "updatedAt": "2026-05-01T09:00:00.000Z"
   }],
@@ -1482,12 +1492,12 @@ Get course with semester and subject tree. Student/public get `404` if draft or 
   "id": "course-abc", "title": "Bible Foundations",
   "description": "An introduction to the Bible.",
   "coverImageUrl": null, "state": "published",
-  "semesterCount": 2, "batchCount": 2,
+  "semesterCount": 2,
   "createdAt": "2026-01-01T08:00:00.000Z",
   "updatedAt": "2026-05-01T09:00:00.000Z",
   "semesters": [{
     "id": "sem-001", "title": "Semester 1 — Foundations",
-    "number": 1, "openDate": "2026-07-01", "endDate": "2026-09-30",
+    "order": 1, "openDate": "2026-07-01", "endDate": "2026-09-30",
     "status": "active",
     "subjects": [{ "id": "sub-001", "title": "The Gospel of John", "order": 1 }]
   }]
@@ -1502,7 +1512,7 @@ Get course with semester and subject tree. Student/public get `404` if draft or 
 
 Create a course in `draft` state. `title` must be unique.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 ```json
 { "title": "Bible Foundations", "description": "...", "coverImageUrl": null }
@@ -1514,7 +1524,7 @@ Create a course in `draft` state. `title` must be unique.
 
 ### 6.4 `PATCH /courses/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Updated Course object.
 
@@ -1522,9 +1532,9 @@ Create a course in `draft` state. `title` must be unique.
 
 ### 6.5 `POST /courses/:id/publish`
 
-Publish a `draft` course. Requires: ≥1 Batch, ≥1 Semester, every semester has ≥1 Subject.
+Publish a `draft` course. Requires: ≥1 Semester, and every semester must have ≥1 Subject.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Course with `status: "published"`.
 
@@ -1536,7 +1546,7 @@ Publish a `draft` course. Requires: ≥1 Batch, ≥1 Semester, every semester ha
 
 Return to `draft`. Enrolled students retain enrollments; content suspended until re-published.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Course with `status: "draft"`.
 
@@ -1546,7 +1556,7 @@ Return to `draft`. Enrolled students retain enrollments; content suspended until
 
 Archive a published course. Cannot archive if active enrollments exist (FR-CRS-008).
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Course with `status: "archived"`.
 
@@ -1561,7 +1571,7 @@ Archive a published course. Cannot archive if active enrollments exist (FR-CRS-0
 
 Restore an `archived` course back to `draft`. The course must be re-published before it is visible to students again.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Course object with `state: "draft"` (full semester/subject tree intact)
 
@@ -1578,7 +1588,7 @@ Restore an `archived` course back to `draft`. The course must be re-published be
 
 Soft-delete. Sets `deletedAt`; recoverable 30 days.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`204 No Content`**
 
@@ -1624,7 +1634,7 @@ Batches are intake cohorts. They carry **no curriculum** — all batches of a co
 
 Create a batch (FR-CRS-002).
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 ```json
 {
@@ -1662,7 +1672,7 @@ Create a batch (FR-CRS-002).
 
 Cannot change dates if approved enrollments exist.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Updated Batch object.
 
@@ -1672,7 +1682,7 @@ Cannot change dates if approved enrollments exist.
 
 Manually open a batch for enrollment before or instead of the `scheduledOpenAt` time. Batch must be in `draft` state.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Batch with `state: "open"`.
 
@@ -1687,7 +1697,7 @@ Manually open a batch for enrollment before or instead of the `scheduledOpenAt` 
 
 Manually close intake window before `intakeEnd` is reached. No new enrollment requests will be accepted after closing.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Batch with `state: "closed"`.
 
@@ -1715,7 +1725,7 @@ V1 carry-forward. V2 adds `openDate` and `endDate` (FR-CRS-003).
 {
   "items": [{
     "id": "sem-001", "courseId": "course-abc",
-    "title": "Semester 1 — Foundations", "number": 1,
+    "title": "Semester 1 — Foundations", "order": 1,
     "openDate": "2026-07-01", "endDate": "2026-09-30",
     "status": "active", "subjectCount": 4,
     "createdAt": "2026-05-01T08:00:00.000Z",
@@ -1731,18 +1741,19 @@ V1 carry-forward. V2 adds `openDate` and `endDate` (FR-CRS-003).
 
 V2 adds `openDate` and `endDate`. After `endDate` the semester is auto-disabled by the nightly sweep job (FR-CRS-004).
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 ```json
-{ "title": "Semester 1 — Foundations", "number": 1, "openDate": "2026-07-01", "endDate": "2026-09-30" }
+{ "title": "Semester 1 — Foundations", "openDate": "2026-07-01", "endDate": "2026-09-30" }
 ```
+
+> **`order`** is assigned automatically (incrementing count of existing semesters + 1) and cannot be set in the request.
 
 | Field | Required | Notes |
 |-------|:--------:|-------|
 | `title` | Yes | 1–200 chars |
-| `number` | Yes | Sequence within course |
-| `openDate` | Yes | ISO date; when content becomes accessible |
-| `endDate` | No | ISO date; auto-disables after this date |
+| `openDate` | No | ISO date (`YYYY-MM-DD`); when content becomes accessible. Defaults to `null`. |
+| `endDate` | No | ISO date (`YYYY-MM-DD`); semester auto-disabled by nightly sweep after this date. Defaults to `null`. |
 
 **`201 Created`** — Semester object.
 
@@ -1750,7 +1761,7 @@ V2 adds `openDate` and `endDate`. After `endDate` the semester is auto-disabled 
 
 ### 8.3 `PATCH /semesters/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Updated Semester object.
 
@@ -1760,7 +1771,7 @@ V2 adds `openDate` and `endDate`. After `endDate` the semester is auto-disabled 
 
 Soft-delete a semester and all its subjects.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`204 No Content`**
 
@@ -1781,28 +1792,34 @@ List active subjects. Student must have approved enrollment in the parent course
 **`200 OK`**
 ```json
 [{
-  "id": "sub-001", "semesterId": "sem-001", "courseId": "course-abc",
-  "title": "The Gospel of John", "description": "Deep study of John's Gospel.",
+  "id": "sub-001",
+  "semesterId": "sem-001",
+  "courseId": "course-abc",
+  "title": "The Gospel of John",
   "order": 1,
-  "imageUrls": ["https://storage.googleapis.com/.../cover.jpg"],
-  "attachments": [{ "id": "att-001", "filename": "study-notes.pdf", "mimeType": "application/pdf", "sizeBytes": 204800 }],
   "deletedAt": null,
   "createdAt": "2026-05-01T09:00:00.000Z",
   "updatedAt": "2026-05-01T09:00:00.000Z"
 }]
 ```
 
+> Use `POST /subjects/:id/attachments` (§10.1) and `POST /subjects/:id/images` (§10.2) to upload files associated with a subject. Use `GET /attachments/:id/download-url` (§10.3) to retrieve a signed download URL for an attachment.
+
 ---
 
-### 9.2 `POST /semesters/:id/subjects` — Amended V2
+### 9.2 `POST /semesters/:id/subjects`
 
-V2 adds `imageUrls[]` for PNG/JPG cover images (FR-CRS-005).
+Creates a new subject under the specified semester. `order` is assigned automatically. Use `POST /subjects/:id/attachments` (§10.1) and `POST /subjects/:id/images` (§10.2) to upload files separately after creation.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 ```json
-{ "title": "The Gospel of John", "description": "...", "imageUrls": [], "attachments": [], "lessons": [] }
+{ "title": "The Gospel of John" }
 ```
+
+| Field | Required | Validation |
+|-------|:--------:|-----------|
+| `title` | Yes | 1–200 chars |
 
 **`201 Created`** — Subject object.
 
@@ -1810,7 +1827,7 @@ V2 adds `imageUrls[]` for PNG/JPG cover images (FR-CRS-005).
 
 ### 9.3 `PATCH /subjects/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Updated Subject object.
 
@@ -1818,7 +1835,7 @@ V2 adds `imageUrls[]` for PNG/JPG cover images (FR-CRS-005).
 
 ### 9.4 `DELETE /subjects/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`204 No Content`**
 
@@ -1848,7 +1865,7 @@ Plain array of Lesson objects, ordered by `order` ascending (FR-LRN-001).
 
 ### 9.6 `POST /subjects/:id/lessons`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 ```json
 {
@@ -1872,7 +1889,7 @@ Plain array of Lesson objects, ordered by `order` ascending (FR-LRN-001).
 
 ### 9.7 `PATCH /lessons/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`200 OK`** — Updated Lesson object.
 
@@ -1880,7 +1897,7 @@ Plain array of Lesson objects, ordered by `order` ascending (FR-LRN-001).
 
 ### 9.8 `DELETE /lessons/:id`
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`204 No Content`**
 
@@ -1958,7 +1975,7 @@ Short-lived signed URL. Expires in **15 minutes** (FR-LRN-002). Student must hav
 
 Remove attachment or image from Cloud Storage and subject record.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 **`204 No Content`**
 
@@ -1978,18 +1995,22 @@ List own enrollments (SRS §7.3.5 path).
 ```json
 {
   "items": [{
-    "id": "Xf3aBC..._batch-xyz",
-    "userUid": "Xf3aBC...",
-    "courseId": "course-abc", "courseName": "Bible Foundations",
-    "batchId": "batch-xyz",  "batchName": "2026 Intake",
-    "status": "approved",
-    "enrolledAt": "2026-05-10T09:00:00.000Z",
+    "id": "Xf3aBC..._course-abc",
+    "studentUid": "Xf3aBC...",
+    "courseId": "course-abc",
+    "state": "approved",
+    "reason": null,
+    "approvedAt": "2026-05-10T09:00:00.000Z",
+    "rejectedAt": null,
+    "withdrawnAt": null,
     "createdAt": "2026-05-08T12:00:00.000Z",
     "updatedAt": "2026-05-10T09:00:00.000Z"
   }],
   "nextCursor": null, "total": 1
 }
 ```
+
+> **Field note:** The enrollment `id` is `${studentUid}_${courseId}`. The status field is named `state` (not `status`). Timestamps `approvedAt`, `rejectedAt`, and `withdrawnAt` are `null` until the relevant transition occurs.
 
 ---
 
@@ -2003,7 +2024,12 @@ List own enrollments (SRS §7.3.5 path).
 { "courseId": "course-def", "batchId": "batch-456" }
 ```
 
-**`201 Created`** — Enrollment with `status: "pending"`.
+| Field | Required | Notes |
+|-------|:--------:|-------|
+| `courseId` | Yes | Must be a `published` course |
+| `batchId` | No | Optional batch reference |
+
+**`201 Created`** — Enrollment with `state: "pending"`.
 
 **`409`** → `ALREADY_ENROLLED` | **`422`** → `COOLOFF_ACTIVE`
 
@@ -2013,7 +2039,7 @@ List own enrollments (SRS §7.3.5 path).
 
 **Authentication:** Bearer required | **Roles:** `student` (own only)
 
-**`200 OK`** — Enrollment with `status: "withdrawn"`.
+**`200 OK`** — Enrollment with `state: "withdrawn"`.
 
 **`403`** → `FORBIDDEN` (not owner) | **`409`** → `INVALID_STATE`
 
@@ -2023,14 +2049,14 @@ List own enrollments (SRS §7.3.5 path).
 
 Admin view.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 | Parameter | Description |
 |-----------|-------------|
 | `userId` | Filter by user UID |
 | `courseId` | Filter by course |
 | `batchId` | Filter by batch — **NEW V2** |
-| `status` | `pending` \| `approved` \| `withdrawn` \| `rejected` |
+| `state` | `pending` \| `approved` \| `withdrawn` \| `rejected` |
 | `search` | Partial match on user name/email |
 | `limit`, `cursor` | Pagination |
 
@@ -2042,7 +2068,7 @@ Admin view.
 
 Approve an enrollment. Sets `state: "approved"` on the enrollment and dispatches a **welcome email** to the student (FR-ENR-005).
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`  
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`  
 **Content-Type:** `application/json`
 
 #### Request Body
@@ -2107,7 +2133,7 @@ Approve an enrollment. Sets `state: "approved"` on the enrollment and dispatches
 
 Reject an enrollment application and send a **rejection notification email** to the student.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`  
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`  
 **Content-Type:** `application/json`
 
 #### Request Body
@@ -3073,19 +3099,33 @@ Organisation-wide audit log (FR-SADM-007 / FR-ADM-005).
     "actor": { "uid": "admin-uid-xyz", "email": "admin@tccr.lk" },
     "action": "enrollment.approved", "category": "enrollment",
     "targetType": "enrollment", "targetId": "enr-abc",
+    "ip": "203.0.113.45",
     "requestId": "7f3a1c2d-..."
   }],
   "nextCursor": null, "total": 142
 }
 ```
 
-> `before`/`after` state snapshots stored internally; excluded from API responses.
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Auto UUID |
+| `when` | string | ISO timestamp of the action |
+| `actor.uid` | string \| null | UID of the user who performed the action (`null` for system events) |
+| `actor.email` | string \| null | Email of the actor at the time of the action |
+| `action` | string | Event type key (e.g. `enrollment.approved`, `role.granted`) |
+| `category` | string \| null | Broad category of the action |
+| `targetType` | string \| null | Type of the affected entity (e.g. `user`, `enrollment`) |
+| `targetId` | string \| null | ID of the affected entity |
+| `ip` | string \| null | Client IP address of the request; `null` for system-generated events |
+| `requestId` | string | Correlates with `X-Request-Id` response header |
+
+> `before`/`after` state snapshots are stored internally and excluded from API responses.
 
 ---
 
-### 17.2 `GET /users/:uid/audit-log` — NEW V2
+### 17.2 `GET /users/:uid/audit-log` — ⚠️ NOT YET IMPLEMENTED
 
-Per-user audit timeline — actor or target entries.
+Per-user audit timeline — actor or target entries. **Not yet implemented — use `GET /audit-log?actorUid=:uid` as a workaround.**
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
@@ -3119,10 +3159,18 @@ Create Admin account (FR-SADM-001).
 {
   "firstName": "Ushani", "lastName": "Amanda",
   "email": "ushani@tccr.lk",
-  "initialPassword": "Admin@2026X",
-  "preferredLanguage": "en"
+  "initialPassword": "Admin@2026X"
 }
 ```
+
+| Field | Required | Validation |
+|-------|:--------:|-----------|
+| `firstName` | Yes | 1–100 chars |
+| `lastName` | Yes | 1–100 chars |
+| `email` | string | Yes | Valid email; must be unique |
+| `initialPassword` | Yes | Min 10 chars; ≥1 uppercase, ≥1 lowercase, ≥1 digit, ≥1 special char |
+
+> **Note:** `preferredLanguage` defaults to `"en"` for admin accounts and cannot be set at creation time. The admin can update it after login via `PATCH /me`.
 
 **`201 Created`** — User with `roles: ["admin"]`.
 
@@ -3182,7 +3230,7 @@ Promote student to Admin. User retains both `student` and `admin` roles (dual-ro
 
 Liveness probe.
 
-**`200 OK`** → `{ "status": "ok", "service": "api-gateway" }`
+**`200 OK`** → `{ "status": "ok", "service": "<service-name>" }` — `service` is the `SERVICE_NAME` env var value (e.g. `"gateway"`, `"auth-service"`, etc.)
 
 ---
 
@@ -3294,7 +3342,6 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 | `coverImageUrl` | string or null | |
 | `state` | string | `draft` \| `published` \| `archived` |
 | `semesterCount` | number | |
-| `batchCount` | number | **NEW V2** |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
 | `deletedAt` | string or null | |
@@ -3320,37 +3367,36 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 
 ### Semester
 
-| Field | Type | V2 Change |
-|-------|------|-----------|
-| `id` | string | |
-| `courseId` | string | |
-| `title` | string | |
-| `number` | number | Sequence within course |
-| `openDate` | string | **NEW** — ISO date; content accessible from this date |
-| `endDate` | string or null | **NEW** — auto-disables after this date |
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto UUID |
+| `courseId` | string | FK → courses |
+| `title` | string | 1–200 chars |
+| `order` | number | Auto-assigned sequential within course; gaps expected after deletions |
+| `openDate` | string or null | ISO date (`YYYY-MM-DD`); content accessible from this date |
+| `endDate` | string or null | ISO date (`YYYY-MM-DD`); auto-disabled by nightly sweep after this date |
 | `status` | string | `active` \| `disabled` |
-| `subjectCount` | number | |
+| `subjectCount` | number | Denormalised; maintained by create/delete subject use cases |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
-| `deletedAt` | string or null | |
+| `deletedAt` | string or null | Non-null = soft-deleted |
 
 ---
 
 ### Subject
 
-| Field | Type | V2 Change |
-|-------|------|-----------|
-| `id` | string | |
-| `semesterId` | string | |
-| `courseId` | string | |
-| `title` | string | |
-| `description` | string | |
-| `order` | number | |
-| `imageUrls` | string[] | **NEW** — PNG/JPG cover images (FR-CRS-005) |
-| `attachments` | Attachment[] | PDF/DOCX |
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Auto UUID |
+| `semesterId` | string | FK → semesters |
+| `courseId` | string | FK → courses |
+| `title` | string | 1–200 chars |
+| `order` | number | Auto-assigned sequential within semester; gaps expected after deletions |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
-| `deletedAt` | string or null | |
+| `deletedAt` | string or null | Non-null = soft-deleted |
+
+> To attach files to a subject use `POST /subjects/:id/attachments` (PDF/DOCX, max 25 MB) and `POST /subjects/:id/images` (PNG/JPG, max 10 MB). To download an attachment use `GET /attachments/:id/download-url`.
 
 ---
 
@@ -3390,15 +3436,16 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 
 ### Enrollment
 
-| Field | Type | V2 Change |
-|-------|------|-----------|
-| `id` | string | `${userUid}_${batchId}` — **changed** (was `${uid}_${courseId}` in V1) |
-| `userUid` | string | |
-| `courseId` | string | |
-| `batchId` | string | **NEW** — FK → batches |
-| `roleRequestId` | string or null | **NEW** — links to originating role request |
-| `status` | string | `pending` \| `approved` \| `withdrawn` \| `rejected` |
-| `enrolledAt` | string or null | Set on approval |
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | `${studentUid}_${courseId}` |
+| `studentUid` | string | FK → users |
+| `courseId` | string | FK → courses |
+| `state` | string | `pending` \| `approved` \| `withdrawn` \| `rejected` |
+| `reason` | string or null | Rejection reason (set on rejection) |
+| `approvedAt` | string or null | ISO 8601; set when `state` → `approved` |
+| `rejectedAt` | string or null | ISO 8601; set when `state` → `rejected` |
+| `withdrawnAt` | string or null | ISO 8601; set when `state` → `withdrawn` |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
 
@@ -3505,13 +3552,11 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | string | Auto UUID |
-| `recipientUid` | string | |
-| `templateKey` | string | e.g. `role.granted`, `enrollment.approved`, `cell_report.filed` |
-| `title` | string | Rendered in `localeRendered` |
-| `body` | string | Rendered in `localeRendered` |
-| `localeRendered` | string | `si` \| `ta` \| `en` — **NEW V2** (FR-NOT-001) |
-| `channels` | string[] | `in_app`, `email`, `push` |
-| `readAt` | string or null | ISO 8601; `null` when unread |
+| `userUid` | string | Recipient user UID |
+| `type` | string | Event type key, e.g. `role.granted`, `enrollment.approved`, `cell_report.filed` |
+| `title` | string | Notification title text |
+| `body` | string | Notification body text |
+| `read` | boolean | `false` when unread; set to `true` via `PATCH /me/notifications/:id/read` |
 | `createdAt` | string | ISO 8601 |
 
 ---
@@ -3527,6 +3572,7 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 | `category` | string or null | Logical grouping, e.g. `enrollment`, `cell`, `auth` |
 | `targetType` | string or null | Affected collection |
 | `targetId` | string or null | Affected document ID |
+| `ip` | string or null | Client IP of the originating request; `null` for system-generated events |
 | `requestId` | string | `X-Request-Id` from originating HTTP request |
 
 > `before`/`after` snapshots stored internally; excluded from API responses.
@@ -3584,6 +3630,8 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 |------|:------:|-------------|
 | `FEDERATED_TOKEN_INVALID` | 401 | Google or Apple ID token failed verification |
 | `EMAIL_NOT_VERIFIED` | 401 | Federated sign-in with unverified email |
+| `APPLE_NOT_CONFIGURED` | 404 | `APPLE_CLIENT_ID` env var missing; Apple OAuth not available on this server |
+| `APPLE_TOKEN_NOT_FOUND` | 404 | No Apple refresh token stored for this account (user did not sign in with Apple) |
 | `SEMESTER_DISABLED` | 403 | Semester's endDate passed; student not enrolled before cutoff |
 | `BATCH_NOT_FOUND` | 404 | Batch not found |
 | `ROLE_REQUEST_NOT_FOUND` | 404 | Role request not found |
