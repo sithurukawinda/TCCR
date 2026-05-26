@@ -1,6 +1,6 @@
 {
   "info": {
-    "_postman_id": "01534750-15a1-4353-9bcb-5f0bbf994b02",
+    "_postman_id": "36eef32f-4b19-44d7-8fb9-b7e2c5839235",
     "name": "TCCR Backend — Full API Collection v2.6",
     "description": "Complete API test collection for TCCR (The Christian Center Rathmalana) backend.\nAligned with API Reference v2.22.0 (26 May 2026).\nCovers all V1 and V2 endpoints across 13 microservices.\n\nTest flow:\n1. Run 🔐 Sign In first — populates all *Token and *Id variables\n2. Run folders in order (1️⃣ → 📊) — each folder saves IDs used by later folders\n3. Before each Newman run: node scripts/_restore-seeds.js\n\nPrerequisites (online Firebase):\n  docker-compose up (services running against e-learning-f4209)\n  node scripts/_restore-seeds.js\n\nPrerequisites (emulator):\n  npx firebase emulators:start\n  node scripts/seed-emulator.js && node scripts/seed-v2-roles.js\n  docker-compose -f docker-compose.yml -f docker-compose.local.yml up\n\nKey V2 changes vs V1:\n  • Registration auto-approves as Member (no pending_approval queue)\n  • Roles are additive arrays: [\"member\",\"student\",\"leader\",\"g12\"]\n  • Role Requests: PATCH /me (profile) → POST /me/qualification (PDF) → POST /role-requests { requestedRole: \"student\" }\n  • Batches: intake cohorts under each course\n  • Cell Groups, Cell Reports, Analytics dashboards\n  • Federated OAuth (Google + Apple SDK + Apple web flow)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
@@ -9,7 +9,7 @@
     {
       "listen": "prerequest",
       "script": {
-        "id": "52d586d7-cc2c-45ea-a6c0-5fac2687e9b5",
+        "id": "64069971-b2f7-407e-856b-c641e29d77a5",
         "type": "text/javascript",
         "exec": [
           "// Generate a short unique run ID once per Newman session.",
@@ -23,11 +23,11 @@
   ],
   "item": [
     {
-      "id": "6a93d74d-1359-449b-a61a-4b9048556250",
+      "id": "e8b562f4-658a-4216-a9c6-6fb3247a276e",
       "name": "🔐 Sign In",
       "item": [
         {
-          "id": "93d7daea-6130-4439-8a27-eb6a00cea5fc",
+          "id": "2e231bf7-f97a-4a4d-b719-ad7732826b84",
           "name": "Super Admin Sign In",
           "request": {
             "method": "POST",
@@ -70,7 +70,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a389766f-9b25-4b66-bffb-4a5f8aa95080",
+                "id": "01668700-8b37-40b8-ad6e-aa69a4e741e1",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Super Admin Sign In\", () => pm.response.to.have.status(200));",
@@ -85,7 +85,7 @@
           ]
         },
         {
-          "id": "dbafb5b1-3155-4223-a1b8-075622bfebe8",
+          "id": "a0de6781-24fc-417f-92e2-907261fbcac6",
           "name": "Admin Sign In",
           "request": {
             "method": "POST",
@@ -128,7 +128,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "22cfb092-14de-4526-b506-4197f3fc1d1c",
+                "id": "cabd9fdd-1dd3-4c0f-a375-c4624818f076",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Admin Sign In\", () => pm.response.to.have.status(200));",
@@ -143,7 +143,7 @@
           ]
         },
         {
-          "id": "0b578f7c-1f3f-4232-8dbb-321706719831",
+          "id": "4c166f7b-5ed6-46fc-8889-01b98bb04432",
           "name": "Student 1 (pending) Sign In",
           "request": {
             "method": "POST",
@@ -186,7 +186,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "11335e0f-a271-4070-abd9-dec9048c1212",
+                "id": "e406fda1-9fe1-4d67-ad59-31b47effeb5a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 400 — Student 1 Sign In (400 = disabled/wrong-pw; token optional)\", () => {",
@@ -200,7 +200,7 @@
           ]
         },
         {
-          "id": "90d65980-4900-4fed-a829-f051840e0cdb",
+          "id": "8d5001a5-310f-4113-bc73-a42f55df8733",
           "name": "Student 2 (approved) Sign In",
           "request": {
             "method": "POST",
@@ -243,7 +243,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "99bd2dc3-39c1-48c5-9fca-24a8553dff8a",
+                "id": "1b4b8f5c-a003-47e5-be37-895ce188b8b6",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Student 2 (approved) Sign In\", () => pm.response.to.have.status(200));",
@@ -259,7 +259,7 @@
           ]
         },
         {
-          "id": "ab060eed-05ce-4326-86d1-37eb68a0f301",
+          "id": "ae10dc4f-6aa8-4a9a-a03c-b0c048be8794",
           "name": "Leader Sign In",
           "request": {
             "method": "POST",
@@ -302,7 +302,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "1ed2ae60-9486-4a25-94a0-c230a00528f4",
+                "id": "d8018d27-c9c5-4533-9ee1-ce0eeb4dce2c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Leader Sign In\", () => pm.response.to.have.status(200));",
@@ -317,7 +317,7 @@
           ]
         },
         {
-          "id": "6a890ba0-5e68-42f7-b39c-dbc563883550",
+          "id": "c5a95b0e-8675-4b10-8ba0-0cde94df8b49",
           "name": "G12 Sign In",
           "request": {
             "method": "POST",
@@ -360,7 +360,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "058c9b36-7f45-4693-a05b-cff487b71c29",
+                "id": "c1899f46-cc94-4705-9a99-5e8e14ced768",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — G12 Sign In\", () => pm.response.to.have.status(200));",
@@ -377,11 +377,11 @@
       ]
     },
     {
-      "id": "c6746fde-a478-481a-ae6e-a1b12067aedc",
+      "id": "064a4586-ff4b-491f-9b83-2dc5cb4cd2b8",
       "name": "1️⃣ Auth Service",
       "item": [
         {
-          "id": "40969e82-15c0-4328-81ee-0aa48d2eb994",
+          "id": "cf0ed803-ddf4-4830-957d-58eceb047db0",
           "name": "Register New Member",
           "request": {
             "method": "POST",
@@ -419,7 +419,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "fd246294-a813-4e5b-a742-7a08b3881beb",
+                "id": "dcdcfdb9-fb16-4f29-a38a-10e1b52ff834",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 or 409 — Register (409 = email exists from prior run)\", () => { pm.expect([201,409]).to.include(pm.response.code); });",
@@ -431,7 +431,7 @@
           ]
         },
         {
-          "id": "8808cef0-2cd2-4402-856d-eb06eae02691",
+          "id": "232cff9a-00ac-4d87-984b-764c6d3a282c",
           "name": "Resend Verification Email",
           "request": {
             "method": "POST",
@@ -469,7 +469,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5ee6670f-cfc9-47a3-b953-ad5fbfb2025c",
+                "id": "61c0ff5e-18a4-4c5c-b160-c4d09dc97e0e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 400 — Resend Verification (400 = already verified)\", () => {",
@@ -481,7 +481,7 @@
           ]
         },
         {
-          "id": "3f098e0c-4ff1-4f85-b267-09a66c489461",
+          "id": "b961e492-4e94-4bfa-93c1-994e92ac482f",
           "name": "Verify Email OTP",
           "request": {
             "method": "POST",
@@ -519,7 +519,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "deaa07ac-3d3a-4e08-8f56-62dac715e98c",
+                "id": "bdbf1b9f-da79-490f-b07d-ffe98186f887",
                 "type": "text/javascript",
                 "exec": [
                   "// 400 is expected in automated runs because the OTP is unknown at test time.",
@@ -533,7 +533,7 @@
           ]
         },
         {
-          "id": "f371a5f4-6818-41e9-918d-f8d75d821ada",
+          "id": "25633bfd-f88f-42dc-97fa-a05e4a139fc2",
           "name": "Register — Fake Domain (expect 422)",
           "request": {
             "method": "POST",
@@ -571,7 +571,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e531e943-8edd-444d-855b-90843636faff",
+                "id": "338efad8-326f-488e-8b57-18022b7d282e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"422 — Fake email domain blocked\", () => pm.response.to.have.status(422));",
@@ -585,7 +585,7 @@
           ]
         },
         {
-          "id": "25ac4216-9896-406a-b4b7-7ae2abcfee28",
+          "id": "393a7c88-97ea-43f1-9697-134e2d275bd7",
           "name": "Register — Disposable Email (expect 422)",
           "request": {
             "method": "POST",
@@ -623,7 +623,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "1b60ca80-6232-40f2-971c-4d25abdb9aec",
+                "id": "217a5dd2-a33d-4f48-b293-7f38a404a954",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"422 — Disposable email blocked\", () => pm.response.to.have.status(422));",
@@ -637,7 +637,7 @@
           ]
         },
         {
-          "id": "c4638c52-6343-44b3-8d25-89ddbce7bd42",
+          "id": "ee1e8b03-037d-435c-a429-7bd7fa72074f",
           "name": "Sign In — New Member (for logout test)",
           "request": {
             "method": "POST",
@@ -681,7 +681,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "c148b013-b194-47a2-a651-6499a07ab5ca",
+                "id": "408ec1fb-1834-46d1-9510-54159fe50856",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — New Member Sign In\", () => pm.response.to.have.status(200));",
@@ -693,7 +693,7 @@
           ]
         },
         {
-          "id": "30379745-3831-440d-aba6-a2681201cbe1",
+          "id": "0062950c-b8cd-4ac1-ae18-457c4d5d1ff5",
           "name": "Logout (new member)",
           "request": {
             "method": "POST",
@@ -729,7 +729,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "05d339fe-7fd0-462d-834d-cd0ff7b66f0f",
+                "id": "9d3c6272-368e-4460-9963-8bdc0f77563c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Logout\", () => pm.response.to.have.status(204));"
@@ -739,7 +739,7 @@
           ]
         },
         {
-          "id": "6d0b9392-e043-4773-b0d2-4bc15be4f46d",
+          "id": "fb44289e-cf1e-4f5c-acf9-5ffe901cbc88",
           "name": "Request Password Reset",
           "request": {
             "method": "POST",
@@ -777,7 +777,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d81f3490-17eb-4439-a862-088ba2fec2b5",
+                "id": "afc27134-6985-4bab-9b2b-134298a9b4fe",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Password Reset\", () => pm.response.to.have.status(204));"
@@ -787,7 +787,7 @@
           ]
         },
         {
-          "id": "2c1e7904-d8c0-4530-8b82-d51e9402ebd2",
+          "id": "d69a659f-de0f-4c60-9c63-634af0e97616",
           "name": "Verify OTP (wrong OTP — expect 400)",
           "request": {
             "method": "POST",
@@ -826,7 +826,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d49ba18b-8aa1-4f46-86e2-c704918d1756",
+                "id": "f9ee6ff7-5b87-459b-b30b-9689bfc5f598",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"400 Bad Request — Wrong OTP\", () => pm.response.to.have.status(400));"
@@ -836,7 +836,7 @@
           ]
         },
         {
-          "id": "a8d98547-8e9e-4f75-b91c-ec312a35925e",
+          "id": "90dd1f34-b266-40ba-acf1-8d6fed68bdcf",
           "name": "Track Login Failure",
           "request": {
             "method": "POST",
@@ -874,7 +874,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "6250be3a-8d27-4529-9b6a-a4eb510c0330",
+                "id": "b85d2bdf-1674-48a7-a1e5-015ec947c4e4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Track Failure\", () => pm.response.to.have.status(200));"
@@ -884,7 +884,7 @@
           ]
         },
         {
-          "id": "d2a1001b-038b-4654-9319-f429223b55ff",
+          "id": "8c72dfb8-cc28-4b25-b340-213c6d1a3a2d",
           "name": "Federated Login — Google (emulator bypass)",
           "request": {
             "method": "POST",
@@ -923,7 +923,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f752d68e-e79f-477d-a9e1-56fbb1bc9e1f",
+                "id": "f217d405-b644-49ff-8a3a-6764011f92cb",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"No 500 — Federated Login (Google)\", () => {",
@@ -939,7 +939,7 @@
           ]
         },
         {
-          "id": "ebf56016-6d31-4265-94af-da088956e5a8",
+          "id": "d9e75a03-f3dc-4466-8218-c69eddec6af3",
           "name": "Federated Login — Apple (emulator bypass)",
           "request": {
             "method": "POST",
@@ -978,7 +978,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3308f60c-8894-4228-8b35-f02dafcd4e5a",
+                "id": "9b21984c-55b5-4833-9aa7-2ecdf7e1457a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"No 500 — Federated Login (Apple)\", () => {",
@@ -990,7 +990,7 @@
           ]
         },
         {
-          "id": "72da9c74-0a35-4a6b-b6cb-4f24480d6a76",
+          "id": "b159b624-03c7-43d6-9d60-e9bdd4d44a5e",
           "name": "Apple OAuth — Init (get state + auth URL)",
           "request": {
             "method": "GET",
@@ -1015,7 +1015,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "cfec7199-9214-4587-ae70-2feb931132b7",
+                "id": "008ba628-2a1f-40be-a9dd-64bead2c7d97",
                 "type": "text/javascript",
                 "exec": [
                   "// 404 = APPLE_CLIENT_ID not configured in .env (expected on local/dev stacks)",
@@ -1034,7 +1034,7 @@
           ]
         },
         {
-          "id": "c04d29f6-e54c-4421-9935-5f51771b5c5e",
+          "id": "54c73778-a528-40ac-a2d7-3afe303d291f",
           "name": "Apple OAuth — Callback (exchange code)",
           "request": {
             "method": "POST",
@@ -1073,7 +1073,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "1601daa6-6f9c-4b06-8ef2-ba4785090fda",
+                "id": "bb6bb32b-c23d-4c50-87cc-d885c67e039f",
                 "type": "text/javascript",
                 "exec": [
                   "// 404 = APPLE_CLIENT_ID not configured; 400/401 = real flow without valid code/state",
@@ -1091,7 +1091,7 @@
           ]
         },
         {
-          "id": "c46ec185-0afa-4c30-a02b-242e47395d1e",
+          "id": "c30b54a8-4e38-4f26-9778-cfc053faa519",
           "name": "Apple OAuth — Refresh (validate stored token)",
           "request": {
             "method": "POST",
@@ -1123,7 +1123,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f0bf9d72-6de7-4168-99dc-49c4ea4d76e8",
+                "id": "f1c067fe-3ed0-4270-8a19-3e58922f64c9",
                 "type": "text/javascript",
                 "exec": [
                   "// 404 = no Apple token stored for this account (expected for non-Apple seed users)",
@@ -1136,7 +1136,7 @@
           ]
         },
         {
-          "id": "7dacd2e2-64d8-45a2-9bc1-20b40299ee27",
+          "id": "713b05a2-8a38-4569-9ad7-da79f9792d6a",
           "name": "Apple OAuth — Revoke (account deletion)",
           "request": {
             "method": "POST",
@@ -1168,7 +1168,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "cf081cce-5814-4d7c-9ed9-37f00584eb2c",
+                "id": "cfa64842-d6c7-46f6-820c-94c87a2175e4",
                 "type": "text/javascript",
                 "exec": [
                   "// 204 = revoked (or no token stored). Never a 500.",
@@ -1183,11 +1183,11 @@
       ]
     },
     {
-      "id": "b5ef46a9-e174-4a9b-a145-ca247695e061",
+      "id": "d30edf80-438a-4396-bf87-8e81f1c6bc9b",
       "name": "2️⃣ User Service — Me",
       "item": [
         {
-          "id": "d18d7507-63f2-4d0c-8fc0-2622c308a9ee",
+          "id": "d6732c10-db0f-40fd-96f3-04ff6e425e17",
           "name": "Get My Profile",
           "request": {
             "method": "GET",
@@ -1217,7 +1217,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "06d4a576-108f-4fb1-b2aa-61c1e6be7c99",
+                "id": "ca161d6f-ac03-4083-a5f1-b2bc43201e21",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Profile\", () => pm.response.to.have.status(200));",
@@ -1229,7 +1229,7 @@
           ]
         },
         {
-          "id": "8efcd0d0-c260-4ff1-89ed-d18b3642445c",
+          "id": "e258eda4-3aa6-49f7-ba54-9a84e2fc19c2",
           "name": "Update My Profile",
           "request": {
             "method": "PATCH",
@@ -1273,7 +1273,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7a18bf02-8bd6-410c-ad34-2c6896eb94e0",
+                "id": "247b1044-a001-4133-9788-cef5fdee675c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Profile\", () => pm.response.to.have.status(200));",
@@ -1286,7 +1286,7 @@
           ]
         },
         {
-          "id": "3a2af863-8363-4ea1-b3d6-e0aed7538b07",
+          "id": "69c04ba2-258a-4b9a-b7c7-9905b758c421",
           "name": "Upload Avatar (photo)",
           "request": {
             "method": "POST",
@@ -1329,7 +1329,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "37b52544-542b-42e0-b894-aebaa8172884",
+                "id": "e32b9026-4475-4b6c-815b-b4590f32b742",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK or 400/415 — Upload Avatar\", () => {",
@@ -1341,7 +1341,7 @@
           ]
         },
         {
-          "id": "a62abca1-f7ca-4bef-bca9-3c7d42e01698",
+          "id": "69313226-5d27-417a-9aa2-8142859e78be",
           "name": "Upload Qualification PDF",
           "request": {
             "method": "POST",
@@ -1384,7 +1384,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "38740c5a-0116-4ed0-9ef7-e32bd7dc07a1",
+                "id": "a2f5f6a7-e63b-44c2-af4c-1c8099a6225f",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 400/413/415 — Upload Qualification\", () => {",
@@ -1402,7 +1402,7 @@
           ]
         },
         {
-          "id": "41b0afeb-b023-45ce-9d3a-3d3477cab60c",
+          "id": "2827ed3a-2eb1-45b3-b9c3-f1b29d8ee576",
           "name": "Change Password (student1)",
           "request": {
             "method": "POST",
@@ -1447,7 +1447,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0ba2ab58-5071-4922-8aa7-0db364409e63",
+                "id": "5b4398ef-edf8-447e-bff9-c6daf31be9cf",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 401 — Change Password\", () => {",
@@ -1459,7 +1459,7 @@
           ]
         },
         {
-          "id": "2dc357a2-a41b-4e75-8295-d01cb4e2dbe9",
+          "id": "23de7438-fa8d-4048-811b-afa8c95af2c4",
           "name": "Register FCM Token",
           "request": {
             "method": "POST",
@@ -1504,7 +1504,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "9dd98685-ca6f-4e24-a25f-49f2641ea53b",
+                "id": "d0b81816-8e20-419d-83e8-9f701489bf31",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Register FCM Token\", () => pm.response.to.have.status(204));"
@@ -1514,7 +1514,7 @@
           ]
         },
         {
-          "id": "8ded8d11-1e88-43cc-b3dc-9671222417e7",
+          "id": "9c4fc737-e572-453c-868b-33c47fa2fde7",
           "name": "Delete FCM Token",
           "request": {
             "method": "DELETE",
@@ -1559,7 +1559,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "83f44998-a911-43ac-840c-180a9f91a77c",
+                "id": "e5e65f48-b6bb-40cb-976c-7dcd1490c5ad",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete FCM Token\", () => pm.response.to.have.status(204));"
@@ -1569,7 +1569,7 @@
           ]
         },
         {
-          "id": "91f7d531-5d0a-460f-bdc8-dfecf9c977e8",
+          "id": "dc8b0a95-6045-4770-81e3-b268e396d100",
           "name": "Update Notification Preferences",
           "request": {
             "method": "PATCH",
@@ -1615,7 +1615,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "6c9bf56a-15ad-4ad7-8996-61b1741fa9d5",
+                "id": "404e72a2-261d-41e6-b36b-d2ceed52b83d",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Preferences\", () => pm.response.to.have.status(200));"
@@ -1625,7 +1625,7 @@
           ]
         },
         {
-          "id": "aacbb9fd-0e6d-4544-b47a-2b39acebb081",
+          "id": "c5f1b806-69d8-44be-be17-a685f251bf38",
           "name": "Get My Notifications",
           "request": {
             "method": "GET",
@@ -1663,7 +1663,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "75f2d501-d2ee-499e-a5f6-c471ce6a7bab",
+                "id": "59ef9ac0-d05f-4946-8b09-ba0bf8679c99",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Notifications\", () => pm.response.to.have.status(200));",
@@ -1675,7 +1675,7 @@
           ]
         },
         {
-          "id": "a85443ec-b55b-4358-801b-9a5ad8fde846",
+          "id": "ad302355-4491-4f81-b148-e61409a18dd0",
           "name": "Link OAuth Provider",
           "request": {
             "method": "POST",
@@ -1721,7 +1721,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5d6795bb-a509-4eac-8cf1-879154a31f28",
+                "id": "d982c1d7-9e76-48e0-b7fa-f2bdf59339e9",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"401 — invalid token rejected (not 500)\", () => {",
@@ -1733,7 +1733,7 @@
           ]
         },
         {
-          "id": "e15250e7-845e-4af8-9a60-efabff4c5fe5",
+          "id": "576daca2-8780-42a8-bd10-ffbc454fad5d",
           "name": "Unlink OAuth Provider",
           "request": {
             "method": "DELETE",
@@ -1765,7 +1765,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d1b01324-8bb7-4cb8-863a-29b840cb7fbb",
+                "id": "0c675af9-4969-40a8-bb67-4d10238b90c0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"No 500 error — Unlink Provider\", () => {",
@@ -1779,11 +1779,11 @@
       ]
     },
     {
-      "id": "273b0778-3bbd-40d5-b44c-696dbc5b244d",
+      "id": "b5a10dbf-6806-47d2-b690-e380fc65d2d4",
       "name": "3️⃣ User Service — Admin Manage Users",
       "item": [
         {
-          "id": "9e18cf79-1da8-4e76-a6b8-4263b87ab45a",
+          "id": "b5693aea-6c46-46f6-acb1-1fc99f462dd2",
           "name": "System User Summary — Admin ★ NEW",
           "request": {
             "method": "GET",
@@ -1814,7 +1814,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "aa6f3746-f6e4-43f0-92ab-2b28d00597d2",
+                "id": "dd446b94-8efe-44d4-9648-222f37921003",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — System User Summary\", () => pm.response.to.have.status(200));",
@@ -1850,7 +1850,7 @@
           ]
         },
         {
-          "id": "8d1a396f-e0fc-4ba5-8d41-4e485578eab1",
+          "id": "0e6d8f79-a2b3-4f13-9924-26a71f3353c1",
           "name": "System User Summary — Leader (scoped) ★ NEW",
           "request": {
             "method": "GET",
@@ -1881,7 +1881,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "650496b0-c814-432c-bfde-e4ec720da170",
+                "id": "f0adb4bf-5f19-4cd0-92f6-758b2ae2fa18",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Leader scoped summary\", () => pm.response.to.have.status(200));",
@@ -1897,7 +1897,7 @@
           ]
         },
         {
-          "id": "f61a7d84-068f-4d16-88c3-3e4b24b28d92",
+          "id": "1aa425be-4336-4f0a-98a4-ccbbaf699237",
           "name": "System User Summary — student (expect 403) ★ NEW",
           "request": {
             "method": "GET",
@@ -1928,7 +1928,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5077e19a-2ebf-4f40-a83e-6fd63d9f4b1a",
+                "id": "a1e9aace-61a0-40c5-ad5f-38c075ba967f",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — student cannot access summary\", () => pm.response.to.have.status(403));"
@@ -1938,7 +1938,7 @@
           ]
         },
         {
-          "id": "fc5694c1-803a-42fe-9afb-6c6e69326c20",
+          "id": "a085c93c-acb9-4b1b-8873-3d1cba2689ee",
           "name": "List Users (Admin)",
           "request": {
             "method": "GET",
@@ -1975,7 +1975,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "bbdba813-c599-42d6-9c7d-6db7cdbf8896",
+                "id": "ff29f547-a8e6-4c6a-b99b-5484f1d1d80c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Users\", () => pm.response.to.have.status(200));",
@@ -1987,7 +1987,7 @@
           ]
         },
         {
-          "id": "1d77f737-bb64-4a7c-b819-402a38e36983",
+          "id": "267dd3f6-9a05-4e6c-be63-f43f9ee08ff7",
           "name": "Search Users by Name (Admin)",
           "request": {
             "method": "GET",
@@ -2024,7 +2024,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3fe12ed4-727a-49b5-b3a6-ccdd9d9083c2",
+                "id": "a5212377-a508-4cd8-8b55-8fe618d26e77",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Search Users\", () => pm.response.to.have.status(200));",
@@ -2036,7 +2036,7 @@
           ]
         },
         {
-          "id": "7e90d298-50cf-42b6-881b-e79567da0b29",
+          "id": "afecdb43-5980-4936-945c-253c9476acee",
           "name": "Search Users by Name (Leader)",
           "request": {
             "method": "GET",
@@ -2073,7 +2073,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d68436c1-5d60-44da-90c9-c6823b351e4e",
+                "id": "939666f2-41a3-49f6-97ce-2b111033bd80",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Leader Search Users\", () => pm.response.to.have.status(200));",
@@ -2090,7 +2090,7 @@
           ]
         },
         {
-          "id": "d0aa1748-996f-45ab-81a9-f629cdfc24e5",
+          "id": "d221f5de-4e92-42dc-8d3e-cb2a0d977b83",
           "name": "Search Users by Name (G12)",
           "request": {
             "method": "GET",
@@ -2127,7 +2127,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f6f838ad-680e-4bfc-9e31-14fd08852848",
+                "id": "3b00938a-a6be-4e26-a06d-975e0ed44ed3",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — G12 Search Users\", () => pm.response.to.have.status(200));",
@@ -2139,7 +2139,7 @@
           ]
         },
         {
-          "id": "4ec818bc-9119-410f-a18e-c239bc3fef52",
+          "id": "f1367606-6114-4a24-b77f-52f0df5aa214",
           "name": "Filter Users by Role + Name Prefix (Admin)",
           "request": {
             "method": "GET",
@@ -2186,7 +2186,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "161634ba-e417-4ccc-96f4-a544604f729d",
+                "id": "5b867d6a-b76c-46ee-9935-4a062d84ab3c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Filter by role + name\", () => pm.response.to.have.status(200));",
@@ -2209,7 +2209,7 @@
           ]
         },
         {
-          "id": "23c85f18-93dc-4c27-9943-c69dd9a7624a",
+          "id": "4ff5db3b-94fa-49a8-a44e-56c9e2d9bb5c",
           "name": "Create Leader — Admin caller",
           "request": {
             "method": "POST",
@@ -2253,7 +2253,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "4ea52436-f498-444a-85fe-ae53a6a3a9e3",
+                "id": "09198c2e-e070-4fd9-acc5-b9ce4a52971a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Leader\", () => pm.response.to.have.status(201));",
@@ -2277,7 +2277,7 @@
           ]
         },
         {
-          "id": "16029641-43f0-4b8e-9a4e-d68982f0c951",
+          "id": "afce8845-3444-4ded-a387-e0a8bcd8b525",
           "name": "Create G12 — G12 caller",
           "request": {
             "method": "POST",
@@ -2321,7 +2321,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "b2f94fd0-2c44-415b-8524-ef5e88cde1c3",
+                "id": "dc3a6124-31dc-4538-bbfb-5c0cc9b28988",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — G12 creates G12\", () => pm.response.to.have.status(201));",
@@ -2341,7 +2341,7 @@
           ]
         },
         {
-          "id": "9af7c4ae-45d5-4041-8d24-c7b89f2b58f4",
+          "id": "b5beb451-913c-4c3b-9648-8a1f13403d49",
           "name": "Create Leader — Super Admin caller",
           "request": {
             "method": "POST",
@@ -2385,7 +2385,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e5bcc82c-2e4d-4dc3-a73f-8178becf43e6",
+                "id": "8e52cc7c-6666-4f4b-88b7-2f975062fd0f",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Super Admin creates Leader\", () => pm.response.to.have.status(201));",
@@ -2401,7 +2401,7 @@
           ]
         },
         {
-          "id": "3a25671c-b034-4b92-a381-1d0280fae44f",
+          "id": "889b25b7-7e51-4f8b-a76a-dfc2b2aa19e2",
           "name": "Create User — Duplicate email → 409",
           "request": {
             "method": "POST",
@@ -2445,7 +2445,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "c50aee65-4276-47bd-9be9-b98cb0e13a17",
+                "id": "da32df37-58c7-473e-9d04-bc8d9e0783d4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"409 — Duplicate email rejected\", () => pm.response.to.have.status(409));",
@@ -2457,7 +2457,7 @@
           ]
         },
         {
-          "id": "6007ff38-9cb7-4b13-9cf3-5b9ffca9db64",
+          "id": "082b8fee-d07c-4af0-b635-0a063484fcf2",
           "name": "Create User — Student caller → 403",
           "request": {
             "method": "POST",
@@ -2501,7 +2501,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5da01739-2e42-4ac0-827a-c047fbd72605",
+                "id": "7dfaecfd-0cc6-4b39-a127-17c763db3d38",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — Student cannot create users\", () => pm.response.to.have.status(403));"
@@ -2511,7 +2511,7 @@
           ]
         },
         {
-          "id": "85a30b59-2417-42eb-ad65-93a6eb3a36c7",
+          "id": "9a457bdb-b8d5-4da1-ac35-a2c4d39af6cd",
           "name": "Create User — Missing role field → 400",
           "request": {
             "method": "POST",
@@ -2555,7 +2555,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "39ab4197-03a7-4074-badc-3b5778b29a68",
+                "id": "2db38569-7ec1-4653-83f6-dd226acbab75",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"400 — Missing role returns validation error\", () => pm.response.to.have.status(400));"
@@ -2565,7 +2565,7 @@
           ]
         },
         {
-          "id": "6e9478fa-0e74-4035-a97a-8b28e37cf4e9",
+          "id": "71aaf5de-80ef-4a23-bc80-04187e5abeb1",
           "name": "Get User by ID",
           "request": {
             "method": "GET",
@@ -2596,7 +2596,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "024e3a5c-0cfd-483a-b058-b4949e9e48ed",
+                "id": "2be95716-c8ad-4f70-963b-cbe502e4d48a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get User\", () => pm.response.to.have.status(200));",
@@ -2608,7 +2608,7 @@
           ]
         },
         {
-          "id": "1fead232-459b-44dd-ae1c-5621f2004edb",
+          "id": "8a34c173-e377-40ed-af45-78a13c9bd085",
           "name": "Suspend User (registeredUid)",
           "request": {
             "method": "POST",
@@ -2640,7 +2640,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "023ce0a3-2ea5-42db-b2ab-48f307993e07",
+                "id": "e4a8d80c-4ee1-4ae5-8314-d5968c6e9fab",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Suspend User (404 if register failed)\", () => { pm.expect([200, 404]).to.include(pm.response.code); });"
@@ -2650,7 +2650,7 @@
           ]
         },
         {
-          "id": "fb24dbd3-1a66-4f41-95de-f85769b12d0d",
+          "id": "c0a563bc-65d3-4517-963e-4aad3a3fc879",
           "name": "Reactivate User (registeredUid)",
           "request": {
             "method": "POST",
@@ -2682,7 +2682,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7c788aab-15e5-4696-b5c4-3e2de166f258",
+                "id": "ee8c53c7-8d7d-4b17-ad5a-306fb36b4b22",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Reactivate User (404 if register failed)\", () => { pm.expect([200, 404]).to.include(pm.response.code); });"
@@ -2692,7 +2692,7 @@
           ]
         },
         {
-          "id": "3efaaa68-05c6-49e0-b718-643a46ff0198",
+          "id": "63341b57-ae17-451e-adc7-94e887845b03",
           "name": "Delete User (Admin)",
           "request": {
             "method": "DELETE",
@@ -2723,7 +2723,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "ed7c8755-020a-4cad-9f4f-a2cf98b1b184",
+                "id": "63bafeb8-9b8a-4196-914c-73c066778e08",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — Delete User (404 if registration failed)\", () => {",
@@ -2740,7 +2740,7 @@
           ]
         },
         {
-          "id": "998c31de-b1d9-48fb-97d2-abb456fa6a19",
+          "id": "2d267b9f-195c-4771-b4eb-25c7d71dc7bb",
           "name": "Update User Roles (add student — registeredUid)",
           "request": {
             "method": "PATCH",
@@ -2786,7 +2786,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0ec7f4d5-c638-4868-be9c-d7636d9ffcea",
+                "id": "d93f5246-30a9-420c-8684-f3fcfd05882a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — Update Roles\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -2796,7 +2796,7 @@
           ]
         },
         {
-          "id": "8f429720-31c3-46a5-ae5b-2aab95e57ac9",
+          "id": "2541d24c-c5b9-4ee5-a5c2-9d4b4e56bc89",
           "name": "Promote member → leader (g12 caller, registeredUid)",
           "request": {
             "method": "POST",
@@ -2842,7 +2842,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "972b07cc-92ad-4b1e-b849-f7d0b27f8bb6",
+                "id": "e19e607b-7dc9-4bcd-8847-65ed93551be0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — g12 promotes to leader\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -2852,7 +2852,7 @@
           ]
         },
         {
-          "id": "4aa17891-d3d6-4219-b2df-7cd6797e512f",
+          "id": "d43affa3-ece7-4d54-a12c-4cdf2842a84c",
           "name": "Promote member → g12 (g12 caller, registeredUid)",
           "request": {
             "method": "POST",
@@ -2898,7 +2898,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "00ac44aa-1c9a-4b5b-8bc8-c070da48e7cd",
+                "id": "b6982adc-ff84-42e2-a104-1cb5c921e64c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — g12 promotes to g12\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -2908,7 +2908,7 @@
           ]
         },
         {
-          "id": "3190ce7e-c4a2-4bf0-a0b8-f30e3841a6bf",
+          "id": "1bf32bcb-9093-4505-8beb-abc29f59884d",
           "name": "Promote leader → g12 (leader caller, createdLeaderId)",
           "request": {
             "method": "POST",
@@ -2954,7 +2954,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8345f1c4-5586-49de-9ffd-0eff9cac68c9",
+                "id": "bb88e9a7-3c0b-49e8-97df-7f466508ed3d",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — leader promotes leader to g12\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -2964,7 +2964,7 @@
           ]
         },
         {
-          "id": "4b1f8aa7-cdc8-4548-a2a3-d8dcd9933955",
+          "id": "277c8dbe-c8e7-43e8-9546-2ad6e6f7855c",
           "name": "Leader tries promote → leader (expect 403)",
           "request": {
             "method": "POST",
@@ -3010,7 +3010,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7f6faef2-2cb7-41eb-9a5f-6e75e1a915c8",
+                "id": "016a42c8-d8ea-4928-a0c9-81516b13f53d",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — leader cannot grant leader role\", () => pm.response.to.have.status(403));"
@@ -3020,7 +3020,7 @@
           ]
         },
         {
-          "id": "726e29b2-1bb9-4a2d-89aa-86aa731b904e",
+          "id": "dcbc5587-7a22-498e-843f-f5bee3058fe2",
           "name": "Student tries promote (expect 403)",
           "request": {
             "method": "POST",
@@ -3066,7 +3066,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5f9e73b6-6ecc-49be-800c-7cac2a172320",
+                "id": "137120c6-0ac0-498d-ab2e-83d1a02897c4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — student cannot promote\", () => pm.response.to.have.status(403));"
@@ -3076,7 +3076,7 @@
           ]
         },
         {
-          "id": "1bb07105-3983-4afa-9aba-1f1f32af9dd2",
+          "id": "bf12cc70-f2f1-4910-829b-056db2bef19c",
           "name": "Demote user → remove leader role (admin caller) ★ NEW",
           "request": {
             "method": "POST",
@@ -3122,7 +3122,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8558ede3-0e6f-4e88-b753-955691b74f91",
+                "id": "09c55cb2-6a01-49d9-8654-ff8f8d9b80be",
                 "type": "text/javascript",
                 "exec": [
                   "// 204 = demoted; 404 = user not found (expected if promote was skipped)",
@@ -3133,7 +3133,7 @@
           ]
         },
         {
-          "id": "c00aeb47-9e42-4ae2-8dc2-5c578ce06678",
+          "id": "b4289400-1fe6-408e-a0ce-72b87737874e",
           "name": "Demote user → remove g12 role (admin caller) ★ NEW",
           "request": {
             "method": "POST",
@@ -3179,7 +3179,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d24fa6c4-de00-4655-a549-1bc491c4f008",
+                "id": "da52ad40-7f88-4d84-9c4b-d372b946a2a5",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — admin demotes g12\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -3189,7 +3189,7 @@
           ]
         },
         {
-          "id": "4af39241-eb68-4b33-b3d0-3b0974507b32",
+          "id": "12ec4247-a54f-48fb-9a38-ee43d72ee5bc",
           "name": "G12 demotes leader (g12 caller) — allowed",
           "request": {
             "method": "POST",
@@ -3235,7 +3235,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "c345bc2d-6fed-4fbd-8b60-3f9e872602b1",
+                "id": "0c6ba493-5bf8-4dd2-8fe9-89c20721497a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — g12 demotes leader\", () => { pm.expect([204, 404]).to.include(pm.response.code); });"
@@ -3245,7 +3245,7 @@
           ]
         },
         {
-          "id": "129d0c14-9953-4848-ac62-98f3c7b59e34",
+          "id": "4ab34e9a-dbd8-4284-8268-9c7a7303a62d",
           "name": "G12 tries to demote g12 (expect 403)",
           "request": {
             "method": "POST",
@@ -3291,7 +3291,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d3b83d09-b3ae-48c6-a00b-b3cd7791fc01",
+                "id": "49ccfdc3-5f65-4f9e-845a-c9d2c683a41e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — g12 cannot demote another g12\", () => pm.response.to.have.status(403));"
@@ -3301,7 +3301,7 @@
           ]
         },
         {
-          "id": "9dcec931-1967-448a-9634-43fe0d2a2354",
+          "id": "b21cf56e-cb18-4626-9a3c-9987c5df2586",
           "name": "Leader tries demote → leader (expect 403) ★ NEW",
           "request": {
             "method": "POST",
@@ -3347,7 +3347,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d0938c3c-1e7d-4f36-8f06-de833b36172c",
+                "id": "cf6eace3-7e05-4952-90ce-fcf9b697d81c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — leader cannot demote another leader\", () => pm.response.to.have.status(403));"
@@ -3357,7 +3357,7 @@
           ]
         },
         {
-          "id": "7e11cf7b-71a4-4335-ac66-cf77c5480d51",
+          "id": "7b49a49d-e6d0-4104-911e-b344efc1fc78",
           "name": "Student tries demote (expect 403) ★ NEW",
           "request": {
             "method": "POST",
@@ -3403,7 +3403,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "cc3e1d96-5b0f-4417-9a18-54d63bdebde2",
+                "id": "31488fb5-cf4e-4770-99cb-49522e3bda7e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — student cannot demote\", () => pm.response.to.have.status(403));"
@@ -3415,11 +3415,11 @@
       ]
     },
     {
-      "id": "bde7b3c4-bcca-4a5d-b40c-1bbe781ae15f",
+      "id": "97cfe7e7-c7df-4ed2-ae91-1954c4f6b3e4",
       "name": "4️⃣ User Service — Super Admin",
       "item": [
         {
-          "id": "b8358aa0-f604-42ba-9eb5-206a9c8ed13f",
+          "id": "1c2bdf40-31ab-4bf4-a339-a3f9232b129f",
           "name": "List Admins",
           "request": {
             "method": "GET",
@@ -3450,7 +3450,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "eb2c0d81-b993-46eb-9f11-35340896135e",
+                "id": "8ddd9ebd-cded-4909-a3c2-b1c47fff59f8",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Admins\", () => pm.response.to.have.status(200));",
@@ -3462,7 +3462,7 @@
           ]
         },
         {
-          "id": "c1a92392-4602-44d4-9e0d-d0070c84d1f3",
+          "id": "d66cc873-49a4-4eba-8cc5-2ce84b04e719",
           "name": "Create Admin",
           "request": {
             "method": "POST",
@@ -3507,7 +3507,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "908b2502-ce55-43c3-a42c-23d5b0f055b4",
+                "id": "63552f2c-c539-4536-b72c-f8f4dafba277",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 or 409 — Create Admin (409 = email exists in Auth emulator)\", () => { pm.expect([201, 409]).to.include(pm.response.code); });",
@@ -3519,7 +3519,7 @@
           ]
         },
         {
-          "id": "bbaea4b4-0a30-4f02-82d3-fe3cc49c0b16",
+          "id": "14133ddc-9f9f-4d43-81cd-48b6fbac19d6",
           "name": "Get Admin by ID",
           "request": {
             "method": "GET",
@@ -3551,7 +3551,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "086dea59-31cc-4f8b-a4ff-9886aec2b352",
+                "id": "868c1b35-4016-4a62-86f0-e1c5eaa14139",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Admin\", () => pm.response.to.have.status(200));"
@@ -3561,7 +3561,7 @@
           ]
         },
         {
-          "id": "67509fe2-48ea-4403-85e4-730cc2498bc5",
+          "id": "61f0ed27-0519-4364-a996-41a279a7f625",
           "name": "Suspend Admin",
           "request": {
             "method": "POST",
@@ -3594,7 +3594,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3d398ab5-b767-424f-90bd-7aea5abee64b",
+                "id": "75c2f714-5b75-4a41-983d-7c7e2423a0b5",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Suspend Admin\", () => pm.response.to.have.status(200));"
@@ -3604,7 +3604,7 @@
           ]
         },
         {
-          "id": "ba0f5386-304b-4504-ae1e-3388a2126936",
+          "id": "085652f6-af8f-45ee-8a99-2acb91e8b5c4",
           "name": "Reactivate Admin",
           "request": {
             "method": "POST",
@@ -3637,7 +3637,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7de1c059-8b7c-430e-ad24-76dcec5129b1",
+                "id": "51122e9b-f000-4a3f-9377-b325a08d416c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Reactivate Admin\", () => pm.response.to.have.status(200));"
@@ -3647,7 +3647,7 @@
           ]
         },
         {
-          "id": "41b81ff4-e0fc-4059-8ab4-11dac6a44f72",
+          "id": "6868394b-b6e0-401d-abf1-53841f830755",
           "name": "Make User Admin (registeredUid)",
           "request": {
             "method": "POST",
@@ -3680,7 +3680,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "b1585524-0cfe-409e-a83b-1c5047b8e8f0",
+                "id": "3301cb57-9cc5-4811-89e1-dc3638b81648",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Make Admin\", () => { pm.expect([200, 404, 409]).to.include(pm.response.code); });"
@@ -3690,7 +3690,7 @@
           ]
         },
         {
-          "id": "d53f1988-c416-465f-ba1a-41bb1b62b43b",
+          "id": "0244217b-e3d5-4df6-8871-0dfdcf3b65a2",
           "name": "Delete Admin",
           "request": {
             "method": "DELETE",
@@ -3722,7 +3722,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2fdb95b4-23f7-432f-8beb-566fc9d20ef6",
+                "id": "6b230633-c1ab-455e-ad51-1c92933db06b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete Admin\", () => pm.response.to.have.status(204));"
@@ -3734,11 +3734,11 @@
       ]
     },
     {
-      "id": "2eb73953-f1d2-4632-9c60-e49d03a1c14b",
+      "id": "cc5fa989-98b0-42e5-b728-f2cb2c890e26",
       "name": "5️⃣ Course Service — Build a Course",
       "item": [
         {
-          "id": "9f7527c8-796f-4ef1-8aec-9b0f5bae2a3d",
+          "id": "b8c18551-09e1-42d6-b254-e146ace626c1",
           "name": "Create Course",
           "request": {
             "method": "POST",
@@ -3782,7 +3782,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "6548ab9b-234e-4710-ad90-f3b2f757ebb7",
+                "id": "4a896af9-bb6e-43cb-a47d-484bcebcb234",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Course\", () => pm.response.to.have.status(201));",
@@ -3807,7 +3807,7 @@
           ]
         },
         {
-          "id": "d15924d8-8e04-4d81-baad-a02b8294c063",
+          "id": "8d616bbc-64b7-43ba-b20a-3b9aec3c2c95",
           "name": "List Courses (public)",
           "request": {
             "method": "GET",
@@ -3837,7 +3837,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d4dec7ba-5dc5-4eca-b08b-bf2709dee453",
+                "id": "1f444c17-1561-4593-8690-9233830a8b70",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Courses\", () => pm.response.to.have.status(200));"
@@ -3847,7 +3847,7 @@
           ]
         },
         {
-          "id": "17c72415-42b4-443a-b29b-439b73767b35",
+          "id": "96843d1f-668b-43d7-9d8d-7332b5e461d6",
           "name": "Search Courses by Title",
           "request": {
             "method": "GET",
@@ -3877,7 +3877,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "533800ce-a6f9-49ff-a715-927a186fb72d",
+                "id": "0398c8d7-dca8-45a5-a567-dda0878c455b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Search Courses\", () => pm.response.to.have.status(200));"
@@ -3887,7 +3887,7 @@
           ]
         },
         {
-          "id": "ea2dab2b-6f84-4349-8492-df8c2e428739",
+          "id": "fe3186dd-1f41-450c-982a-b646ca94605b",
           "name": "Get Course by ID",
           "request": {
             "method": "GET",
@@ -3918,7 +3918,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "923fbb14-d030-4d7d-b452-57bf601f1607",
+                "id": "94855686-e34d-42a5-a912-c91630166ef9",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Course\", () => pm.response.to.have.status(200));"
@@ -3928,7 +3928,7 @@
           ]
         },
         {
-          "id": "b40ba8e6-3fb0-4263-987a-e2e595f4a070",
+          "id": "7256dd83-fc78-4206-b8ea-8a61531e359d",
           "name": "Update Course",
           "request": {
             "method": "PATCH",
@@ -3973,7 +3973,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5184e329-8329-41e3-9213-26e286305e76",
+                "id": "de5bd8f8-bd84-4d95-8743-be89eccbaed6",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Course\", () => pm.response.to.have.status(200));"
@@ -3983,7 +3983,7 @@
           ]
         },
         {
-          "id": "a5903ba8-3e3b-4f8f-816b-14bd305be933",
+          "id": "668f083a-a469-4a1d-8043-f0c978bab0e2",
           "name": "Create Semester",
           "request": {
             "method": "POST",
@@ -4029,7 +4029,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2e1fa9a4-d6ba-4c09-8780-ef9a0fcfbecd",
+                "id": "06897bbc-3d2c-405a-8231-bd593bb331f1",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Semester\", () => pm.response.to.have.status(201));",
@@ -4041,7 +4041,7 @@
           ]
         },
         {
-          "id": "473761c8-0069-4028-966a-963e874c81c5",
+          "id": "e390f7d6-9ee1-4861-be01-913692a71e92",
           "name": "Update Semester",
           "request": {
             "method": "PATCH",
@@ -4086,7 +4086,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2c00cc08-cf70-4805-82e2-e1d9a0378dc2",
+                "id": "b175dc67-f033-4aab-ac87-80e4ac9c2465",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Semester\", () => pm.response.to.have.status(200));"
@@ -4096,7 +4096,7 @@
           ]
         },
         {
-          "id": "be0d54fe-7792-4d7d-ab95-e93baf040888",
+          "id": "6c2e4dea-c6f5-4ddb-a41d-ead50322774e",
           "name": "Create Subject 1",
           "request": {
             "method": "POST",
@@ -4142,7 +4142,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "37e9039d-a111-4f74-ac5d-79c6e18bb62d",
+                "id": "ab9ec658-5104-464c-b140-5ffb7af0491a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Subject 1\", () => pm.response.to.have.status(201));",
@@ -4154,7 +4154,7 @@
           ]
         },
         {
-          "id": "01ff64ef-b756-4aa2-bd5c-86baa8f73ea3",
+          "id": "67ecfe14-2e38-4651-a0ae-9a76359bee38",
           "name": "Create Subject 2",
           "request": {
             "method": "POST",
@@ -4200,7 +4200,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f80dc4fa-19ab-4d4e-86f9-77f417ffaf54",
+                "id": "14dc7fb3-d1d1-45a4-a34b-fe399ab4836f",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Subject 2\", () => pm.response.to.have.status(201));",
@@ -4212,7 +4212,7 @@
           ]
         },
         {
-          "id": "5eca7f7f-c881-4fc4-a67a-60ecf57e2469",
+          "id": "561e2c9f-590a-4c36-b859-b0af7a70e8e8",
           "name": "Update Subject",
           "request": {
             "method": "PATCH",
@@ -4257,7 +4257,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3526c053-38a8-4c8b-96be-3688ca892c66",
+                "id": "8902630c-744e-47a4-b58e-009726dceb22",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Subject\", () => pm.response.to.have.status(200));"
@@ -4267,7 +4267,7 @@
           ]
         },
         {
-          "id": "aa3ecb6d-c852-483e-b171-097103242c19",
+          "id": "0902fa64-4631-4557-aeef-9d3134b66c3d",
           "name": "List Semesters",
           "request": {
             "method": "GET",
@@ -4299,7 +4299,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "847a7ff2-1b6d-44f2-9d3d-5814182d174a",
+                "id": "04f6e858-8e49-4995-9acf-df6a034f2cab",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Semesters\", () => pm.response.to.have.status(200));"
@@ -4309,7 +4309,7 @@
           ]
         },
         {
-          "id": "796adf4e-e582-4930-8431-84f5316f6528",
+          "id": "7dc7d74d-fa3e-4c14-b5af-ce5220a78dc9",
           "name": "List Subjects",
           "request": {
             "method": "GET",
@@ -4341,7 +4341,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e1541eb3-5b25-445c-8b46-f26e29a4e2d3",
+                "id": "34f10edc-875b-41ac-a007-a8a51f4df67c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Subjects\", () => pm.response.to.have.status(200));"
@@ -4351,7 +4351,7 @@
           ]
         },
         {
-          "id": "74225d46-93f8-4aaf-a48a-2a0a00fb3f90",
+          "id": "cf4bf363-646e-4253-b6e8-8732510cb028",
           "name": "Create Lesson",
           "request": {
             "method": "POST",
@@ -4397,7 +4397,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "79386870-f1c8-4336-b7a7-1ce39d020bf2",
+                "id": "411d8b83-3f41-4e21-9c48-58dca777d6cc",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Lesson\", () => pm.response.to.have.status(201));",
@@ -4409,7 +4409,7 @@
           ]
         },
         {
-          "id": "233946fd-5c58-4534-8fe5-77abf694417d",
+          "id": "3b088e2c-65ee-4586-bca4-324a6206590d",
           "name": "Update Lesson",
           "request": {
             "method": "PATCH",
@@ -4454,7 +4454,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "1cd6c3a4-3bcf-4ddf-9f94-69c9d9c36fcd",
+                "id": "8301fcf9-76d3-4ad3-9bf8-9fab6e7de266",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Lesson\", () => pm.response.to.have.status(200));"
@@ -4464,7 +4464,7 @@
           ]
         },
         {
-          "id": "49a69e84-0328-4e52-8d56-174a6035805b",
+          "id": "3c31a975-9aeb-4ea2-80f0-e1a88afea06f",
           "name": "List Lessons",
           "request": {
             "method": "GET",
@@ -4496,7 +4496,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0daa96e8-6df1-4d4a-848e-a980b4e1dc0e",
+                "id": "45764cb7-017c-4ffd-ae59-a61883c63e80",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Lessons\", () => pm.response.to.have.status(200));"
@@ -4506,7 +4506,7 @@
           ]
         },
         {
-          "id": "3e636e30-ab2f-4a60-b3a9-2f0cd3786d89",
+          "id": "b39f0bf7-309b-4bd0-80c4-068c259059c9",
           "name": "Publish Course",
           "request": {
             "method": "POST",
@@ -4538,7 +4538,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "75ed6da6-13fa-4cca-8920-c577f0fbb02f",
+                "id": "03afba7e-b687-475f-bbb4-9dd0077da625",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Publish Course\", () => pm.response.to.have.status(200));"
@@ -4548,7 +4548,7 @@
           ]
         },
         {
-          "id": "7ecb5dec-9052-4ed3-b6da-b9bc7dc03f63",
+          "id": "49c3fe4b-c2c4-4692-90c0-75790bfcbb4d",
           "name": "Unpublish Course",
           "request": {
             "method": "POST",
@@ -4580,7 +4580,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e715a12f-9415-4d1d-9700-6526dee30a4b",
+                "id": "1196664d-9cc5-40da-a634-8e15e3371afb",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Unpublish Course\", () => pm.response.to.have.status(200));"
@@ -4590,7 +4590,7 @@
           ]
         },
         {
-          "id": "f11ab808-6962-4bd4-8239-8dfe2f36bdd5",
+          "id": "807fde14-f24f-43a6-81b9-7d821b4d9002",
           "name": "Re-publish Course",
           "request": {
             "method": "POST",
@@ -4622,7 +4622,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "ec2be706-6c67-4af9-a8ac-f4734c1f2a46",
+                "id": "7c724fa3-4b3e-4790-b4a4-8f8a672e0c66",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Re-publish Course\", () => pm.response.to.have.status(200));"
@@ -4634,11 +4634,11 @@
       ]
     },
     {
-      "id": "75384f19-9373-46ea-9264-0525787054f0",
+      "id": "25a9fcee-e183-4559-9c99-8adc71b16be3",
       "name": "6️⃣ Batches (V2)",
       "item": [
         {
-          "id": "ad1c94d6-0c34-4675-bcdc-354d35883041",
+          "id": "a89eb456-195d-46c5-aae0-98aa9763ea4a",
           "name": "Create Batch",
           "request": {
             "method": "POST",
@@ -4684,7 +4684,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "043d19f6-b49e-4ff8-9bb2-5e9f5d5535b3",
+                "id": "e6b8f0d5-63ae-4698-bdfe-4a3243fcc75e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created — Create Batch\", () => pm.response.to.have.status(201));",
@@ -4696,7 +4696,7 @@
           ]
         },
         {
-          "id": "149e0321-ac30-4b28-a351-f66ad6277980",
+          "id": "694f67f8-8942-4e68-9091-b0a8df0fe8ea",
           "name": "List Batches",
           "request": {
             "method": "GET",
@@ -4728,7 +4728,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8763122d-18d1-459b-91a3-06431cf94773",
+                "id": "d466e4b1-b00c-446e-97b0-f7dc38baaee6",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Batches\", () => pm.response.to.have.status(200));",
@@ -4740,7 +4740,7 @@
           ]
         },
         {
-          "id": "ac2c8bc9-7060-4d0d-839d-c4ee2687c592",
+          "id": "fc52e006-7e26-4753-b042-52ce2d1a37ce",
           "name": "Get Batch by ID",
           "request": {
             "method": "GET",
@@ -4771,7 +4771,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "eb66e6a6-28b8-4d76-b168-e31b4521ddca",
+                "id": "90791399-14c7-4c6c-b988-30f05df4b5bb",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Get Batch\", () => { pm.expect([200, 404]).to.include(pm.response.code); });"
@@ -4781,7 +4781,7 @@
           ]
         },
         {
-          "id": "bc422db0-fbb9-4335-a892-924b4e257a85",
+          "id": "b49ac5fc-ce8a-4ca7-81d2-2a58f495cd92",
           "name": "Update Batch",
           "request": {
             "method": "PATCH",
@@ -4826,7 +4826,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e350954f-e26b-4c09-a483-0097a128155b",
+                "id": "65d4d92a-0660-44f4-89ba-895d3de5c7fc",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Batch\", () => pm.response.to.have.status(200));"
@@ -4836,7 +4836,7 @@
           ]
         },
         {
-          "id": "f9d43963-ec26-4bb2-a417-6954432b8120",
+          "id": "1b0abb1b-f25a-4576-890d-664dea641737",
           "name": "Open Batch",
           "request": {
             "method": "POST",
@@ -4868,7 +4868,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d0a4ed14-148f-40bd-bb55-0405f29d5ceb",
+                "id": "a452517c-c511-42b8-ac4f-f5362b2118f0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 409 — Open Batch (409 = already open; scheduledOpenAt in past auto-opens)\", () => {",
@@ -4880,7 +4880,7 @@
           ]
         },
         {
-          "id": "e23d2f11-b331-4f18-8b4a-93e1688bc128",
+          "id": "cbcc42fb-b309-46b6-b484-86e1e5f76961",
           "name": "Close Batch",
           "request": {
             "method": "POST",
@@ -4912,7 +4912,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "ddcdf653-11e6-4998-9cfb-06171b980b05",
+                "id": "8db13908-122c-4a44-8a9d-9e269d8b45f8",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Close Batch\", () => pm.response.to.have.status(200));"
@@ -4924,11 +4924,11 @@
       ]
     },
     {
-      "id": "1dbaed10-67e5-4759-8b79-aed4db9892dd",
+      "id": "43cf951c-8b7b-4c3b-8155-763e6c76baa1",
       "name": "7️⃣ Enrollment",
       "item": [
         {
-          "id": "cdc2e35b-6551-413c-853b-38b4685666cf",
+          "id": "9b9e194c-2929-43f7-9f7a-c85af9a12842",
           "name": "Enroll in Course",
           "request": {
             "method": "POST",
@@ -4965,7 +4965,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "22ab4cfc-9b07-4a92-97bf-d5df4a299280",
+                "id": "ff1540c3-4bf2-4228-a1e0-5ba2f5b857ff",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 or 409 — Enroll\", () => {",
@@ -4979,7 +4979,7 @@
           ]
         },
         {
-          "id": "51a9a272-4aff-4c7b-87c0-fbf8c116977e",
+          "id": "3c1960a8-78c4-43ee-9afa-5b03b4cdf451",
           "name": "Get My Enrollments",
           "request": {
             "method": "GET",
@@ -5010,7 +5010,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "663c41ec-4a5d-45ad-91f1-65b6ecc1e2d8",
+                "id": "20e4d05a-375f-4abf-a826-a14579b0afa2",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Enrollments\", () => pm.response.to.have.status(200));",
@@ -5025,7 +5025,7 @@
           ]
         },
         {
-          "id": "9baf6aba-ad2e-4cf4-9e00-9ffa850d1b80",
+          "id": "b484f3da-d5b9-456e-9156-caf9a354019b",
           "name": "List Registrations (Admin)",
           "request": {
             "method": "GET",
@@ -5056,7 +5056,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a1d2a32e-687b-4202-829c-047c21a16f5f",
+                "id": "f57537a8-b2c9-4efe-9704-7702f42d1096",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Registrations\", () => pm.response.to.have.status(200));",
@@ -5071,7 +5071,7 @@
           ]
         },
         {
-          "id": "8bb6633b-011d-4931-b699-5d99b944414c",
+          "id": "c66d5ae4-83df-4833-9239-20948df2bdc9",
           "name": "Approve Registration",
           "request": {
             "method": "POST",
@@ -5104,7 +5104,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "dd76f421-7743-4679-97e2-0bd9c9bbda4b",
+                "id": "213f4688-89d4-43eb-89b6-dea90e36c3f7",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Approve Registration (409 = already decided)\", () => {",
@@ -5116,7 +5116,7 @@
           ]
         },
         {
-          "id": "961e8c5f-f099-4af0-b11e-d32d86f10c79",
+          "id": "1d188ad1-81fe-42c6-a0bc-9d65100efc9d",
           "name": "Reject Registration",
           "request": {
             "method": "POST",
@@ -5163,7 +5163,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3ebd0a30-bd16-4313-af2a-d65c49969517",
+                "id": "d03081e5-004c-4acd-990b-d1f90dbbbb1b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Reject Registration (409 = already decided)\", () => {",
@@ -5175,7 +5175,7 @@
           ]
         },
         {
-          "id": "5935218c-ac25-40fc-85ef-5a36076fc6e9",
+          "id": "3a338cb5-51c2-45f3-8528-918c00048a4f",
           "name": "Bulk Approve Registrations",
           "request": {
             "method": "POST",
@@ -5221,7 +5221,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "3dc17824-4b43-41bb-9567-080a5cb805ad",
+                "id": "45ebe5ba-c9d9-43f6-9bec-c21ea705651e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Bulk Approve\", () => pm.response.to.have.status(200));"
@@ -5231,7 +5231,7 @@
           ]
         },
         {
-          "id": "626a9483-d311-4f68-9d72-c35ed1cd385d",
+          "id": "25c72cbf-84f1-4fa0-88de-f2f269ae9349",
           "name": "List Enrollments (Admin)",
           "request": {
             "method": "GET",
@@ -5262,7 +5262,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "fd318a4f-a13f-4788-970f-12f4250dd543",
+                "id": "e9d318f4-5d16-4be7-b686-2a9ac8bd5c39",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Enrollments\", () => pm.response.to.have.status(200));",
@@ -5274,7 +5274,7 @@
           ]
         },
         {
-          "id": "bd738341-09cc-43f6-9476-ec8995df4290",
+          "id": "97dce918-9068-411b-b7c6-5c5bca1261b3",
           "name": "Approve Enrollment",
           "request": {
             "method": "POST",
@@ -5321,7 +5321,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d3e4a07c-46e8-4a9d-9bac-065127d3bcf3",
+                "id": "7b6f7f5a-7faf-431c-b0c4-602925a55dae",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Approve Enrollment\", () => {",
@@ -5333,7 +5333,7 @@
           ]
         },
         {
-          "id": "c82d7767-c87a-49ab-8904-9007f30f305a",
+          "id": "d4e67ac4-1ef9-49d9-9cca-d652f470d113",
           "name": "Reject Enrollment",
           "request": {
             "method": "POST",
@@ -5380,7 +5380,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "eb97877d-a9a8-4d98-8866-d7f5e60a951f",
+                "id": "03510869-fd2f-49e1-bc01-07cca277ced4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Reject Enrollment (409 = already decided)\", () => {",
@@ -5392,7 +5392,7 @@
           ]
         },
         {
-          "id": "a6c06c53-7bf5-4e5f-a66f-ec30c7cc9f08",
+          "id": "35128ade-6590-465b-9a2b-7cb606bc75ba",
           "name": "Withdraw Enrollment",
           "request": {
             "method": "POST",
@@ -5424,7 +5424,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "93ef2537-5dff-493d-8ec1-8a5ad0aeded3",
+                "id": "8cad9d39-c37d-4804-9a68-620e622c1a7b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Withdraw Enrollment\", () => {",
@@ -5436,7 +5436,7 @@
           ]
         },
         {
-          "id": "37578263-379f-4e12-a534-06fce724029c",
+          "id": "bef5d8b5-b798-4783-9061-2d06083f9b18",
           "name": "Get My Enrollments (V2 alias — /enrollments/mine)",
           "request": {
             "method": "GET",
@@ -5467,7 +5467,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8cb05e61-c3ac-464e-a7c4-debd4d0be27b",
+                "id": "09d5dc36-d3e4-4655-89ab-1d48dfa9a985",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get My Enrollments V2\", () => pm.response.to.have.status(200));",
@@ -5479,7 +5479,7 @@
           ]
         },
         {
-          "id": "df4265b6-f08c-45dc-8423-5d25b8e58ed2",
+          "id": "9af76319-7e2b-40ef-813d-7c6e1b1ac961",
           "name": "Enroll in Course V2 (POST /enrollments with batchId)",
           "request": {
             "method": "POST",
@@ -5523,7 +5523,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8b0f53cc-b591-4b32-adb9-6e92df37d781",
+                "id": "018e1800-d8c1-4120-9400-5239965702bf",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 or 409 — Enroll V2\", () => {",
@@ -5537,7 +5537,7 @@
           ]
         },
         {
-          "id": "0c15f25a-b804-44cb-87f5-d24ff786a434",
+          "id": "53839640-7441-4c2b-aa97-16c24fe8883b",
           "name": "List Enrollments Admin V2 (GET /enrollments)",
           "request": {
             "method": "GET",
@@ -5574,7 +5574,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f064bf09-329a-4438-b9a2-4356d1b24e89",
+                "id": "4b28cb40-ff98-4885-9c26-9d6928daca97",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Enrollments V2\", () => pm.response.to.have.status(200));",
@@ -5586,7 +5586,7 @@
           ]
         },
         {
-          "id": "f136b01b-301a-4297-9cfe-e9881ba1b93f",
+          "id": "ef309126-e4d2-4750-acee-3a2cac5a9ae0",
           "name": "Approve Enrollment V2 (POST /enrollments/:id/approve)",
           "request": {
             "method": "POST",
@@ -5632,7 +5632,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "b286ba21-04a0-48f0-83fd-ea5555722d6d",
+                "id": "dd6b0d1e-e9b9-45d0-a1a3-9fd0e4b72f04",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Approve Enrollment V2\", () => {",
@@ -5644,7 +5644,7 @@
           ]
         },
         {
-          "id": "671feb26-a1be-4e48-b385-70b10dbe870d",
+          "id": "349db11f-76eb-45be-85f8-7e323d636be1",
           "name": "Reject Enrollment V2 (POST /enrollments/:id/reject)",
           "request": {
             "method": "POST",
@@ -5690,7 +5690,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a44880c4-8d88-4e6e-8c0e-3ef8eef49036",
+                "id": "9575511b-2aca-42cf-a14c-0f588e15cc6e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Reject Enrollment V2\", () => {",
@@ -5704,11 +5704,11 @@
       ]
     },
     {
-      "id": "692de8e5-d2fe-4eee-8606-d65d0aa32a3b",
+      "id": "0b34271a-c89d-45bf-8235-5b3a2bf1a7fb",
       "name": "8️⃣ Role Requests (V2)",
       "item": [
         {
-          "id": "e383c257-bb39-4dcb-b108-2547ba7c2920",
+          "id": "554f8609-2019-4eb8-a910-0c670b7e6a00",
           "name": "Create Role Request",
           "request": {
             "method": "POST",
@@ -5752,7 +5752,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "851ae103-0ec9-48ce-92c0-418659cc37d5",
+                "id": "f17b9261-2743-4742-900a-bcbc3d91f7ce",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201/403/404/409 — Create Role Request\", () => {",
@@ -5774,7 +5774,7 @@
           ]
         },
         {
-          "id": "e4883e3d-1db8-4d47-b981-d64d7a20033c",
+          "id": "d3395349-1ef7-4e21-8f62-6d6507bc66c7",
           "name": "Get My Role Requests",
           "request": {
             "method": "GET",
@@ -5805,7 +5805,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5914b159-508b-4453-8386-d318945cdf8f",
+                "id": "d9b737e4-eeee-4fbc-b93b-4f84f35ff150",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get My Role Requests\", () => pm.response.to.have.status(200));",
@@ -5837,7 +5837,7 @@
           ]
         },
         {
-          "id": "a11092b9-dd3d-46c7-8943-a81e46c99ec6",
+          "id": "2880862f-6615-4c92-aff1-42cb2dffe5db",
           "name": "List Role Requests (Admin only)",
           "request": {
             "method": "GET",
@@ -5867,7 +5867,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2b21b7e7-672f-4210-b37e-e1223f7daa33",
+                "id": "0690d66c-6b96-4727-ad22-1eeb4702f9c3",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Role Requests\", () => pm.response.to.have.status(200));",
@@ -5889,7 +5889,7 @@
           ]
         },
         {
-          "id": "6cce8688-2767-41c3-be58-40e5ffdd1008",
+          "id": "65efa69d-5522-45d5-ae52-b9974514181a",
           "name": "List Role Requests — leader (expect 403)",
           "request": {
             "method": "GET",
@@ -5919,7 +5919,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e39cf9aa-75db-4335-bf6f-809de7b1ee9d",
+                "id": "4367b3e7-222e-4c61-986c-14c17290a5a0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 — leader cannot list role requests\", () => pm.response.to.have.status(403));"
@@ -5929,7 +5929,7 @@
           ]
         },
         {
-          "id": "69a10e10-e409-44e5-9711-c087fa8045dc",
+          "id": "7a8a6233-0256-4902-80f6-3124fc4bbba5",
           "name": "Get Own Role Request by ID (Member)",
           "request": {
             "method": "GET",
@@ -5960,7 +5960,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8c977d67-a284-4e8f-9a83-e81a4ad4866d",
+                "id": "bba4f669-c590-4a74-8b56-f4dce0fcda2b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Get Own Role Request (Member)\", () => {",
@@ -5993,7 +5993,7 @@
           ]
         },
         {
-          "id": "a617ad9e-f65c-4e5b-a29d-3cc58addb9b1",
+          "id": "967413ed-d829-4f32-9a3c-6698cac86878",
           "name": "Get Role Request by ID (Admin)",
           "request": {
             "method": "GET",
@@ -6024,7 +6024,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "adae8b1b-a16a-4e3e-acd3-19c0db5475ee",
+                "id": "9b046bd9-002d-462b-8a31-c8e28c859f64",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Get Role Request (Admin)\", () => {",
@@ -6077,7 +6077,7 @@
           ]
         },
         {
-          "id": "80d24c31-d7c1-482b-94d1-c27cb60195ce",
+          "id": "f99bc339-62cd-4b1d-8007-5d74b1a0b673",
           "name": "Download Qualification PDF",
           "request": {
             "method": "GET",
@@ -6109,7 +6109,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "b66deb9a-5b27-4d0d-9d6d-1a0ede8b697a",
+                "id": "41261302-1417-4f0d-8916-8300fa12a449",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Download Qualification\", () => {",
@@ -6127,7 +6127,7 @@
           ]
         },
         {
-          "id": "5c14fae8-7a43-4b36-9e50-60b8f61b9bdc",
+          "id": "da8625ff-4ff2-4ec9-aaa6-ad1c3b232e73",
           "name": "Approve Role Request",
           "request": {
             "method": "POST",
@@ -6173,7 +6173,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d764f9c0-722b-4c54-aff4-9ebda9d7e74d",
+                "id": "eb460c57-d657-4577-9d97-861b30583b53",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Approve Role Request (409 = already decided)\", () => {",
@@ -6204,7 +6204,7 @@
           ]
         },
         {
-          "id": "8d966aca-f4ba-4293-8f92-fbcbfbbd3d4a",
+          "id": "9b1f9b20-6dbb-4f43-abec-17a94b36d390",
           "name": "Reject Role Request",
           "request": {
             "method": "POST",
@@ -6250,7 +6250,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "887a0255-69a9-4831-ae7b-bf00cd29d720",
+                "id": "9f26c2a4-7e66-4325-99bb-d7aa82df5dc2",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 or 409 — Reject Role Request (409 = already decided)\", () => {",
@@ -6283,11 +6283,11 @@
       ]
     },
     {
-      "id": "29524f25-0bf4-4743-a382-51e6cd4c8670",
+      "id": "a7e053f3-e906-425c-a66d-63d48666b6ac",
       "name": "9️⃣ Progress Service",
       "item": [
         {
-          "id": "a6b48219-e926-4134-b863-8e9b6310a827",
+          "id": "81f45c69-e5cd-48de-a1de-2e8435d0f188",
           "name": "Mark Subject Complete",
           "request": {
             "method": "POST",
@@ -6334,7 +6334,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "68e0c94c-67fc-41b2-b05b-e87d6d58e0ea",
+                "id": "0c5cdc99-c52f-47e5-bbf6-a59f33e39b79",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 201 — Mark Complete\", () => {",
@@ -6346,7 +6346,7 @@
           ]
         },
         {
-          "id": "f29f7108-88d8-40d9-a103-fd6f9b2d0c93",
+          "id": "056f248b-05f8-4571-b9a7-6ec07a9116d5",
           "name": "Record Subject Access",
           "request": {
             "method": "POST",
@@ -6393,7 +6393,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d7a167f7-c333-4c01-851f-d16f9ba48313",
+                "id": "f1d998e7-6518-49e9-927a-5bfebf2d8061",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 201 — Record Access\", () => {",
@@ -6405,7 +6405,7 @@
           ]
         },
         {
-          "id": "fbddf7a3-608d-4843-bad6-2af9cf193d20",
+          "id": "881c44f2-1e2d-4ba4-81da-4b340a6f00e5",
           "name": "Get My Course Progress",
           "request": {
             "method": "GET",
@@ -6438,7 +6438,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "9bf18b84-8eaa-473d-90ae-b925428ca58a",
+                "id": "d27c5aee-59a4-4dff-81ee-fa2cf89f0be1",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Course Progress\", () => pm.response.to.have.status(200));"
@@ -6448,7 +6448,7 @@
           ]
         },
         {
-          "id": "f822e620-a562-4c75-be69-115620ec527b",
+          "id": "46a5e1ce-2235-4a9a-aa31-efbda29bd97c",
           "name": "Get My Subject Progress",
           "request": {
             "method": "GET",
@@ -6481,7 +6481,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2fa3071f-cd9c-469c-81e4-2e72970eda6c",
+                "id": "7b08aedc-dc18-4d78-97c6-ca1db8c8e6f3",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Get Subject Progress\", () => {",
@@ -6493,7 +6493,7 @@
           ]
         },
         {
-          "id": "7e4c0241-0024-49ac-9cc4-b6a1761d5da6",
+          "id": "03a267a3-a1bf-4a85-a0c5-78506bd57c48",
           "name": "Get Course Progress (Admin)",
           "request": {
             "method": "GET",
@@ -6526,7 +6526,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "fa7c2709-6475-4d25-8295-092943ccc91b",
+                "id": "7ce18ec8-59ee-4261-b25b-157d3ccdb81c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Admin Course Progress\", () => pm.response.to.have.status(200));"
@@ -6538,11 +6538,11 @@
       ]
     },
     {
-      "id": "48ba397b-30f9-4448-9073-4daa009c3327",
+      "id": "0e4d5f8f-8d32-479e-8d1a-6022d2731983",
       "name": "🔔 Notifications",
       "item": [
         {
-          "id": "01702a12-7deb-4b91-82c0-559444508c2b",
+          "id": "3ed864ad-ede7-4420-bb5d-70e3ebb5e932",
           "name": "Get My Notifications",
           "request": {
             "method": "GET",
@@ -6580,7 +6580,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "9121efd9-3aee-4ac8-8026-790d7ec2fbee",
+                "id": "d94582df-d32c-462b-8298-96205a620303",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Get Notifications\", () => pm.response.to.have.status(200));",
@@ -6595,7 +6595,7 @@
           ]
         },
         {
-          "id": "d75ae345-7582-481c-8d42-a8b0f600ef78",
+          "id": "7da49719-5157-43bc-bb19-547b5c9c2424",
           "name": "Mark Notification Read",
           "request": {
             "method": "POST",
@@ -6628,7 +6628,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e99c951c-dc2a-45b0-944c-8f1252c9c11c",
+                "id": "e5ac1852-859e-4233-8244-f6696ebb5e5f",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Mark Read\", () => {",
@@ -6640,7 +6640,7 @@
           ]
         },
         {
-          "id": "542170b7-8a5d-4925-96c6-fb2f83d9fce1",
+          "id": "0b8eb003-8dab-4f3b-941f-5f3e1f1469e5",
           "name": "Mark All Notifications Read",
           "request": {
             "method": "POST",
@@ -6672,7 +6672,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "be81d1cd-306f-4949-aef7-49a3a9d273c1",
+                "id": "68dd1478-b52d-48b3-b68d-27638fd3273a",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Read All\", () => pm.response.to.have.status(204));"
@@ -6682,7 +6682,7 @@
           ]
         },
         {
-          "id": "25e1dd3d-eee6-41fc-bb9c-24770ad553ce",
+          "id": "1d3bb18b-9386-486f-920b-383b03243b5b",
           "name": "Update Notification Preferences",
           "request": {
             "method": "PATCH",
@@ -6728,7 +6728,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "018294aa-be30-4979-a140-3d2b1143acb2",
+                "id": "fe4e39aa-c2f5-4764-870e-8f32ae149fb9",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Update Preferences\", () => pm.response.to.have.status(200));"
@@ -6740,11 +6740,11 @@
       ]
     },
     {
-      "id": "80fd5227-7724-4e68-b8a2-fa7438fa06e9",
+      "id": "24ab7ff4-48c4-43af-ab42-ae3875796621",
       "name": "📎 Storage Service",
       "item": [
         {
-          "id": "f23c2fd4-7684-4e24-bd24-7af1b98d487f",
+          "id": "b6464e97-c4fd-4d44-8ece-0b81e1908210",
           "name": "Upload Attachment (file upload — see note)",
           "request": {
             "method": "POST",
@@ -6777,7 +6777,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "538bbf26-9779-4bd7-a0e8-a5a79fe9a0e8",
+                "id": "fa17b32a-ac49-4f57-a134-27bdbe4fa076",
                 "type": "text/javascript",
                 "exec": [
                   "// Newman cannot load a file from disk — pm.response may be undefined on file-load error",
@@ -6798,7 +6798,7 @@
           ]
         },
         {
-          "id": "1ad82530-7757-4cd2-84a5-a8abafc347da",
+          "id": "3b1b3d58-35a2-4dfa-9d3b-3abe09c57912",
           "name": "Get Attachment Download URL",
           "request": {
             "method": "GET",
@@ -6830,7 +6830,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a46ea598-fbf0-4299-a4a5-87b6936b936f",
+                "id": "c3afe3ca-ba32-434c-b95f-f1e0042bb59e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 403 or 404 — Download URL\", () => {",
@@ -6842,7 +6842,7 @@
           ]
         },
         {
-          "id": "8d77d102-9d72-450d-850b-870a7f89cfd0",
+          "id": "802cef9e-2e09-4f24-ad41-96fd14165c5b",
           "name": "Delete Attachment",
           "request": {
             "method": "DELETE",
@@ -6873,7 +6873,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "c1e333d2-4d58-4cee-b6ee-dec276fb2396",
+                "id": "c7a98422-aad2-44b9-81ee-4bc12a568419",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 or 404 — Delete Attachment\", () => {",
@@ -6885,7 +6885,7 @@
           ]
         },
         {
-          "id": "a4a9e8c7-2e6c-4b9b-bff3-bfdd22acb523",
+          "id": "02a24d5e-826f-46fe-9174-4bf87edcfcd7",
           "name": "Upload Subject Image",
           "request": {
             "method": "POST",
@@ -6929,7 +6929,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "6a6ef447-f3e2-47dc-8b12-8187995203b4",
+                "id": "80d5e3e3-0da9-4738-8288-fd34d5e9f077",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"201 Created or 400/415 — Upload Subject Image\", () => {",
@@ -6943,11 +6943,11 @@
       ]
     },
     {
-      "id": "c91daba4-70c6-40b1-876d-15c3be7067d8",
+      "id": "bacff698-eef1-4214-832b-74f44c650311",
       "name": "📋 Audit Log",
       "item": [
         {
-          "id": "18f5e1c1-1195-46e5-a1a4-8b4b9be558b3",
+          "id": "34141eb5-eb0a-448d-bf45-d09a1795f236",
           "name": "List Audit Log",
           "request": {
             "method": "GET",
@@ -6984,7 +6984,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "817eeb71-1240-4ae8-96df-f8e911d264f7",
+                "id": "17d1b4d4-a2bc-408c-ba42-af7bf3a1d7ef",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — List Audit Log\", () => pm.response.to.have.status(200));",
@@ -6996,7 +6996,7 @@
           ]
         },
         {
-          "id": "314a6aaf-4b5b-4d1d-b812-385c19709e52",
+          "id": "70823f97-5662-4176-90d6-98ae30bca620",
           "name": "List Audit Log by Actor",
           "request": {
             "method": "GET",
@@ -7033,7 +7033,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "8b3d1147-2d99-4da3-b11c-a91c2455b4a4",
+                "id": "9360be21-a234-4979-8076-2b6c55313428",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Audit Log by Actor\", () => pm.response.to.have.status(200));"
@@ -7043,7 +7043,7 @@
           ]
         },
         {
-          "id": "1f6f0767-528e-4111-94c5-78040289feda",
+          "id": "9ab549ae-d540-4633-8fd6-838605cfc70e",
           "name": "Get User Audit Log",
           "request": {
             "method": "GET",
@@ -7075,7 +7075,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "ba7fa9cb-5b23-49a0-9274-a5605c0d40c7",
+                "id": "e9c039ec-40de-4ac2-bcb4-ae1e6d5c8678",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — User Audit Log\", () => pm.response.to.have.status(200));"
@@ -7087,11 +7087,11 @@
       ]
     },
     {
-      "id": "d21929d3-4bd6-4e32-863e-5734f0f667cc",
+      "id": "39659fa1-6fff-438e-a0da-28059b21b342",
       "name": "⚡ Course Lifecycle",
       "item": [
         {
-          "id": "72f018cf-1039-4353-9156-b6a9ee252aa0",
+          "id": "b582a009-93a4-4321-ac4f-8f4c1cd0002d",
           "name": "Archive Course",
           "request": {
             "method": "POST",
@@ -7123,7 +7123,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a15256e1-ce5c-41b0-9b4d-a5b7645e3b2d",
+                "id": "39281387-f091-4b2d-bbee-2effe6218ce4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Archive Course\", () => pm.response.to.have.status(200));"
@@ -7133,7 +7133,7 @@
           ]
         },
         {
-          "id": "ca14bd8e-680f-42dd-b5fe-0a4f7bd863f3",
+          "id": "c43a9218-4eac-460a-9552-1bd15ae3fb04",
           "name": "Restore Course",
           "request": {
             "method": "POST",
@@ -7165,7 +7165,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e192fba7-0e5b-4502-a84c-e5f71d9c17d2",
+                "id": "16984d8f-1b70-42f8-a2b7-1c5c2dbf217c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Restore Course\", () => pm.response.to.have.status(200));"
@@ -7175,7 +7175,7 @@
           ]
         },
         {
-          "id": "1bf80bc7-de72-4004-81ef-0d84883d8c27",
+          "id": "122db228-6f99-4c4c-a786-8ba954d6341f",
           "name": "Delete Lesson",
           "request": {
             "method": "DELETE",
@@ -7206,7 +7206,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "f60203b0-9f18-469c-b5b1-cf0c6de3f0df",
+                "id": "2ec01e34-513e-4296-b6e6-d97e66963b98",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete Lesson\", () => pm.response.to.have.status(204));"
@@ -7216,7 +7216,7 @@
           ]
         },
         {
-          "id": "7d593cc6-a63c-4302-858f-8e6be71bc0ce",
+          "id": "6a84e2e4-5d50-4051-a4fd-a0bff33f37fb",
           "name": "Delete Subject 2",
           "request": {
             "method": "DELETE",
@@ -7247,7 +7247,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "81325465-a21f-442a-af9b-b98968f6ebb4",
+                "id": "34fcc84b-aad7-44b4-9291-9292a5aeaed1",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete Subject 2\", () => pm.response.to.have.status(204));"
@@ -7257,7 +7257,7 @@
           ]
         },
         {
-          "id": "3d818ca4-bdbf-47fd-9b92-0d9e092f0ce7",
+          "id": "28eec77e-fe76-4860-a22c-60f10981f0a2",
           "name": "Delete Semester",
           "request": {
             "method": "DELETE",
@@ -7288,7 +7288,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "9fbfac43-65ae-4fcb-875b-1fafda42f8a6",
+                "id": "928d0208-a280-42c2-ad84-4bf7f34d70b5",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete Semester\", () => pm.response.to.have.status(204));"
@@ -7298,7 +7298,7 @@
           ]
         },
         {
-          "id": "452c8eed-a910-42a7-bd7b-121d1a816db7",
+          "id": "1cde8b4f-c363-4727-a55b-ae1e897cba88",
           "name": "Delete Course",
           "request": {
             "method": "DELETE",
@@ -7329,7 +7329,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "597849d7-914d-45c0-bb97-4e321a8517bb",
+                "id": "8235d098-207e-435e-b20c-1c24e23ee5df",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"204 No Content — Delete Course\", () => pm.response.to.have.status(204));"
@@ -7341,15 +7341,15 @@
       ]
     },
     {
-      "id": "a4d7e286-ef5b-46d7-acac-acbd59bbc0bf",
+      "id": "f0483536-8604-4e3e-884c-55493bcd852f",
       "name": "🏘 V2 — Cell Service",
       "item": [
         {
-          "id": "495e738a-7dbc-402a-9aed-29b7cb808248",
+          "id": "bbdd21d6-54ff-4d1a-8c6c-0fe0fec8a389",
           "name": "Member Search",
           "item": [
             {
-              "id": "32ba29b9-4ba4-46b3-9198-f9dec88b35a4",
+              "id": "14e37c85-d28a-47e4-a2a8-234518fe0916",
               "name": "Search Members by Name (Leader)",
               "request": {
                 "method": "GET",
@@ -7386,7 +7386,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "62d41283-d737-40fe-a792-a73885a7b430",
+                    "id": "f2d39dad-cdff-41bf-aefe-1e8c4ea2895f",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Leader Member Search\", () => pm.response.to.have.status(200));",
@@ -7404,7 +7404,7 @@
               ]
             },
             {
-              "id": "fce0e0ac-0f39-4d18-9af0-8082107a85df",
+              "id": "d7e42bb8-5255-40c7-b3c1-e52ef524a876",
               "name": "Search Members by Name (G12)",
               "request": {
                 "method": "GET",
@@ -7441,7 +7441,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "d048606d-5103-4c70-b545-427ba48a47df",
+                    "id": "ad763cb0-1abd-4b55-8eb7-55454015c08a",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — G12 Member Search\", () => pm.response.to.have.status(200));",
@@ -7455,11 +7455,11 @@
           ]
         },
         {
-          "id": "5cf429fd-8579-4573-a8b9-5e08f246e33d",
+          "id": "7fcc61a2-359e-4654-9446-a05ad6fee2f1",
           "name": "Cell CRUD",
           "item": [
             {
-              "id": "7006143a-667a-4732-a43f-85268f64e508",
+              "id": "383e722f-ab6a-4492-9966-b8e0f2379fb8",
               "name": "Create Cell Group",
               "request": {
                 "method": "POST",
@@ -7503,7 +7503,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "5fd8132b-27e7-4a67-a723-944073408a8e",
+                    "id": "0b13b156-f7b7-42c3-b433-ff4afe0cc9b5",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"201 Created — Create Cell\", () => pm.response.to.have.status(201));",
@@ -7515,7 +7515,7 @@
               ]
             },
             {
-              "id": "fb2fdab4-10f4-4f6b-bac7-7c7d13803716",
+              "id": "a21c79d8-f347-4aa9-ac6a-a53e5d6711fe",
               "name": "List Cell Groups (leader — active only)",
               "request": {
                 "method": "GET",
@@ -7552,7 +7552,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "8b8973ce-353c-49ad-b243-32468f90d64b",
+                    "id": "b0052b27-9766-4e8f-93e7-f211f797fba2",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — List Cells (leader)\", () => pm.response.to.have.status(200));",
@@ -7564,7 +7564,7 @@
               ]
             },
             {
-              "id": "2aca56e9-af83-48c0-a362-8f337cbfdef0",
+              "id": "d7c0d001-5081-453b-954b-389dd06c5ccc",
               "name": "List Cell Groups — Admin (all states, no filter) ★ NEW",
               "request": {
                 "method": "GET",
@@ -7601,7 +7601,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "afdd318c-d1b9-478b-a9e5-f7f4f9a60ff5",
+                    "id": "e7e678b3-bbe3-4360-9cdb-ec611d55b5dc",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Admin sees all cell states\", () => pm.response.to.have.status(200));",
@@ -7614,7 +7614,7 @@
               ]
             },
             {
-              "id": "05b0d6d2-d4a0-4a14-8ed1-4908807828e3",
+              "id": "0dfebb23-71d5-4f3e-9663-5bf7a9531b94",
               "name": "List Cell Groups — Admin filter archived ★ NEW",
               "request": {
                 "method": "GET",
@@ -7656,7 +7656,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "ae2500b0-b08a-4b4e-83cb-6ed448676ea7",
+                    "id": "e8594e10-ff3b-4385-a8b0-c58e38329e5f",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Admin filters archived cells\", () => pm.response.to.have.status(200));",
@@ -7668,7 +7668,120 @@
               ]
             },
             {
-              "id": "b2c654d8-3b85-4d89-b3a8-874eb6c47ad8",
+              "id": "f24ee4ff-75e0-4465-b96e-9eea400e1384",
+              "name": "List Cell Groups — G12 (own network only) ★ FIXED",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells?limit=20",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{g12Token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "0db17efd-e8a3-4ab2-9923-6d198c930f4d",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK — G12 list cells\", () => pm.response.to.have.status(200));",
+                      "const j = pm.response.json();",
+                      "pm.test(\"items is array\", () => pm.expect(j.items).to.be.an(\"array\"));",
+                      "pm.test(\"total is a number\", () => pm.expect(j.total).to.be.a(\"number\"));",
+                      "// Every returned cell must belong to this G12 leader's network",
+                      "const g12Uid = pm.environment.get(\"g12Id\");",
+                      "if (j.items.length > 0 && g12Uid) {",
+                      "  pm.test(\"all cells belong to G12 network (g12LeaderUid scoped)\", () => {",
+                      "    j.items.forEach(cell => {",
+                      "      pm.expect(cell.g12LeaderUid, `cell ${cell.id} g12LeaderUid`).to.eql(g12Uid);",
+                      "    });",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "f4fcac59-a5a0-473b-8d10-e071c3eeb9d5",
+              "name": "List Cell Groups — G12 archived (network-scoped) ★ FIXED",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells?limit=20&state=archived",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells"
+                  ],
+                  "query": [
+                    {
+                      "key": "limit",
+                      "value": "20",
+                      "disabled": false
+                    },
+                    {
+                      "key": "state",
+                      "value": "archived",
+                      "disabled": false
+                    }
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{g12Token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "d7b103be-4d38-456c-9d48-05b35244aab1",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test(\"200 OK — G12 archived cells\", () => pm.response.to.have.status(200));",
+                      "const j = pm.response.json();",
+                      "pm.test(\"items is array\", () => pm.expect(j.items).to.be.an(\"array\"));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "c32783d0-a0db-4866-9f39-59308ddd550d",
               "name": "Get Cell Group by ID",
               "request": {
                 "method": "GET",
@@ -7699,7 +7812,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "95e70ab7-665d-49fb-b1c6-97436adf3721",
+                    "id": "225c40b7-387c-4de8-8e8b-68d8986a8912",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Get Cell\", () => pm.response.to.have.status(200));"
@@ -7709,7 +7822,7 @@
               ]
             },
             {
-              "id": "7d0222fd-549d-4153-91b2-3f53764fe0cd",
+              "id": "59457fa5-9d2a-485d-9472-cd0d5a4612f7",
               "name": "Update Cell Group",
               "request": {
                 "method": "PATCH",
@@ -7754,7 +7867,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "7cb126a5-7679-493a-96bd-c95810099066",
+                    "id": "791a3322-45d6-4ba4-858b-7030cfa40397",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Update Cell\", () => pm.response.to.have.status(200));"
@@ -7764,7 +7877,7 @@
               ]
             },
             {
-              "id": "7c775cc9-8ebb-4ae4-9ad8-3d29937587c9",
+              "id": "56fa61a2-64bf-479a-b2d3-746d0ec64ea6",
               "name": "Get My Cell Groups",
               "request": {
                 "method": "GET",
@@ -7795,7 +7908,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "452a2389-4f11-475e-a22c-173983a7e5dc",
+                    "id": "328b1088-4705-430c-b054-081f3d996f0d",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Get My Cells\", () => pm.response.to.have.status(200));"
@@ -7807,11 +7920,11 @@
           ]
         },
         {
-          "id": "a9edae7d-11e1-4c3b-b523-b24ea7c2e47f",
+          "id": "15672fb4-7629-489e-8a40-c1512ce340ab",
           "name": "Members",
           "item": [
             {
-              "id": "ba4e3127-13ee-4e0a-8578-9bf27c631d22",
+              "id": "c0a305c1-ac65-44d8-a5f9-516ff61596fc",
               "name": "Get Network Members (G12 View)",
               "request": {
                 "method": "GET",
@@ -7843,7 +7956,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "307f89b8-dd31-49fa-8b80-f5002cbe6bc8",
+                    "id": "6bd930d1-c8de-41c6-96d0-17d73b06c5cf",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Network Members\", () => pm.response.to.have.status(200));",
@@ -7865,7 +7978,7 @@
               ]
             },
             {
-              "id": "97c3c44e-cf8c-4c5c-840b-11e4a466fdf6",
+              "id": "0a6ea8bf-d73f-47d7-a17c-e2ae2e9442f9",
               "name": "Add Member to Cell",
               "request": {
                 "method": "POST",
@@ -7911,7 +8024,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "32dacbd4-a374-4829-b845-c8eeef2abd7b",
+                    "id": "0e8af007-5c8d-490a-bf08-14d1f155cad1",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Add Member\", () => pm.response.to.have.status(200));"
@@ -7921,7 +8034,7 @@
               ]
             },
             {
-              "id": "cb5e9260-41a5-4263-99e8-8d209591e836",
+              "id": "12f85e7e-a802-4d8a-b3dd-864e6dd820cd",
               "name": "Remove Member from Cell",
               "request": {
                 "method": "DELETE",
@@ -7954,7 +8067,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "1566bd89-3d3f-428a-b36c-35fb25cc855f",
+                    "id": "936983b5-827c-497c-8db5-1d8501882eef",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Remove Member\", () => pm.response.to.have.status(200));"
@@ -7966,11 +8079,11 @@
           ]
         },
         {
-          "id": "4207309d-37af-4000-95f7-61cf5333b4cc",
+          "id": "d001f9bc-5b9f-4a2e-9f5d-4987f4293436",
           "name": "Join Requests",
           "item": [
             {
-              "id": "ba818253-3c13-4eeb-a906-f0f0c6b9fc58",
+              "id": "75912c6d-997a-47f1-909e-af4e7fe8ea20",
               "name": "Create Join Request",
               "request": {
                 "method": "POST",
@@ -8016,7 +8129,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "1857f80e-8a7f-49c9-9c32-314dcbed7d46",
+                    "id": "e7d90db6-66db-4c36-aa95-38acac2dd73a",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"201 Created — Join Request\", () => pm.response.to.have.status(201));",
@@ -8028,7 +8141,7 @@
               ]
             },
             {
-              "id": "ef7fc519-39a2-49a5-adfe-54298bc20a13",
+              "id": "8bc96d01-abd9-4f65-99cb-49ab42cf9150",
               "name": "List Join Requests",
               "request": {
                 "method": "GET",
@@ -8067,7 +8180,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "c8437a6f-0d99-4a29-b804-eedec8865a4b",
+                    "id": "a74333bc-f709-4df0-a0f7-8db9ef6704d7",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — List Join Requests\", () => pm.response.to.have.status(200));",
@@ -8079,7 +8192,7 @@
               ]
             },
             {
-              "id": "90756cd4-e4da-4b2b-b3e8-e98b207a3286",
+              "id": "0e157f6e-da83-46df-8d91-31987a2818fb",
               "name": "Approve Join Request",
               "request": {
                 "method": "POST",
@@ -8113,7 +8226,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "3f3967c3-7ede-4581-af6c-a4ecda3eb6b4",
+                    "id": "b63c813c-a8c1-4100-b817-317f6f9324e0",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 or 404 — Approve Join Request\", () => {",
@@ -8125,7 +8238,7 @@
               ]
             },
             {
-              "id": "9b6750e8-060b-4bac-86df-5036075ffbf4",
+              "id": "6f284200-0b5d-41e3-bbc6-ce526dfc7e75",
               "name": "Reject Join Request",
               "request": {
                 "method": "POST",
@@ -8173,7 +8286,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "4eb9c8de-b3d7-49c4-9096-94385d41c4dd",
+                    "id": "5c362860-18af-4f90-921c-a9c5b32530b6",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 or 404 or 409 — Reject Join Request (409 = already decided)\", () => {",
@@ -8187,11 +8300,11 @@
           ]
         },
         {
-          "id": "ddba1dad-f6e7-4c1f-b43d-1f8f3354bcd8",
+          "id": "5393b0e7-4733-4a4b-975b-79b4e5fd7f9a",
           "name": "Cell Reports",
           "item": [
             {
-              "id": "a2ed5ed8-a8ea-4a75-b158-6c5102ff4a8a",
+              "id": "216eed1e-375a-4b1b-96af-faf7d5ec6534",
               "name": "Get Network Reports — G12 view ★ NEW",
               "request": {
                 "method": "GET",
@@ -8230,7 +8343,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "43928fc4-a0d2-40d9-83c4-bf636dad7ece",
+                    "id": "c0ac4fbc-b681-4897-b301-f326ec21a194",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — G12 Network Reports\", () => pm.response.to.have.status(200));",
@@ -8243,7 +8356,7 @@
               ]
             },
             {
-              "id": "0ac3278b-00e7-46ec-b49c-0c7618a873a0",
+              "id": "4695c8b5-c641-44e5-ae6b-1b26753fef70",
               "name": "Get Network Reports — Admin (all cells) ★ NEW",
               "request": {
                 "method": "GET",
@@ -8282,7 +8395,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "9f1a3c5a-5e4c-4141-b175-974fc3d2e4af",
+                    "id": "c7d39572-f48b-43a5-b08b-111e97a78bff",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Admin Network Reports\", () => pm.response.to.have.status(200));"
@@ -8292,7 +8405,7 @@
               ]
             },
             {
-              "id": "31a0ea7c-906b-4727-8f38-5afde3567dad",
+              "id": "c18801fb-8c35-4de7-bcc4-328ee6f1be0b",
               "name": "Get Network Reports — member (expect 403) ★ NEW",
               "request": {
                 "method": "GET",
@@ -8324,7 +8437,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "5a6c63c6-c8be-4fb1-938c-1835eb46e57d",
+                    "id": "a79e9deb-8859-4c14-b2b6-85a53b853526",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"403 — student cannot access network reports\", () => pm.response.to.have.status(403));"
@@ -8334,7 +8447,7 @@
               ]
             },
             {
-              "id": "578235a3-791d-4703-b033-9994cdb19936",
+              "id": "cd0d91dc-12ec-4eca-999b-aa3acd2bf482",
               "name": "Upload Report Photos",
               "request": {
                 "method": "POST",
@@ -8378,7 +8491,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "7abe2585-ac02-4c31-8317-4b3e7d6b5636",
+                    "id": "817efe20-8c49-48ac-8a9c-e99724ce1517",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK or 400/415 — Upload Report Photos\", () => {",
@@ -8392,7 +8505,7 @@
               ]
             },
             {
-              "id": "06b4d29a-5d27-498c-af10-cfab56e32c37",
+              "id": "c684dbe5-e35f-489c-891a-fb7845293053",
               "name": "File Cell Report",
               "request": {
                 "method": "POST",
@@ -8441,7 +8554,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "323e97a4-3e12-4c30-93c9-4fd49417bc66",
+                    "id": "e328aad3-b009-4d48-a299-bc79fb093411",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"201 Created — File Cell Report\", () => pm.response.to.have.status(201));",
@@ -8453,7 +8566,7 @@
               ]
             },
             {
-              "id": "cd76ff15-1e5d-405a-a840-15489be739dc",
+              "id": "d22161ef-b417-4574-8539-452cb22adadf",
               "name": "List Cell Reports",
               "request": {
                 "method": "GET",
@@ -8492,7 +8605,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "a90935de-d504-4c46-81f7-99c78e9ed4a4",
+                    "id": "9b7d35cb-4154-44ec-b2ff-ce6fbfdb8a0b",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — List Cell Reports\", () => pm.response.to.have.status(200));",
@@ -8504,7 +8617,7 @@
               ]
             },
             {
-              "id": "c4d5a3fd-d003-41b6-94bb-1a7ba5640d20",
+              "id": "c283bc7b-bce0-4a4f-b6c3-af1e80469983",
               "name": "Get Cell Report by ID",
               "request": {
                 "method": "GET",
@@ -8537,7 +8650,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "995500ee-1191-4dfb-b3aa-a77394f5ed3d",
+                    "id": "b5d1e9c1-9d67-4586-8c0c-173cb9d03363",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Get Cell Report\", () => pm.response.to.have.status(200));"
@@ -8547,7 +8660,7 @@
               ]
             },
             {
-              "id": "6fee5646-db04-427d-8b70-aba70f1fe311",
+              "id": "d872728d-c80c-4a8d-9236-d18613b63478",
               "name": "Edit Cell Report (within 24h) ★ NEW",
               "request": {
                 "method": "PATCH",
@@ -8594,7 +8707,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "53eed12e-a8b2-428f-b586-8ca5fab1ef5f",
+                    "id": "cf9c14d8-8561-4bb3-be1a-ba32d84ca157",
                     "type": "text/javascript",
                     "exec": [
                       "// 200 = edited; 404 = no report yet; 422 = edit window expired (run >24h after filing)",
@@ -8611,7 +8724,7 @@
               ]
             },
             {
-              "id": "ed143f8b-9402-4ceb-9061-69a3ae4acfb5",
+              "id": "321ff57b-ebcc-4446-9b01-7d5817925ba8",
               "name": "Void Cell Report",
               "request": {
                 "method": "POST",
@@ -8659,7 +8772,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "519bf44b-1fc0-4a8e-8591-12f29e92b8a4",
+                    "id": "19a1d0c0-8033-4ac2-afee-2c8fffd7e8e9",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 or 404 — Void Cell Report\", () => {",
@@ -8673,11 +8786,11 @@
           ]
         },
         {
-          "id": "291df2c4-bb11-4f32-85c3-6cb8874ee9f8",
+          "id": "13c2eefa-8be3-4f2c-a31d-9a5371c876fe",
           "name": "Archive",
           "item": [
             {
-              "id": "b3c578eb-3a1f-4f93-8ba7-ddf326d66c41",
+              "id": "b0ba7662-c656-49eb-bca4-51c09f2377d1",
               "name": "Archive Cell Group",
               "request": {
                 "method": "POST",
@@ -8709,7 +8822,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "d51e2832-e2df-4183-b50f-8a41982c752f",
+                    "id": "37e4657f-9c4d-467a-ba9e-032eca7aa529",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"200 OK — Archive Cell\", () => pm.response.to.have.status(200));"
@@ -8719,7 +8832,7 @@
               ]
             },
             {
-              "id": "53c7bd13-773f-449c-bd35-7e9abd8bbb57",
+              "id": "f1175f26-2162-4c25-80f8-8b5bcfcff4a5",
               "name": "Transfer Cell Ownership (admin)",
               "request": {
                 "method": "POST",
@@ -8765,7 +8878,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "a6dda77b-5aaa-46ca-9386-1ceb73c589b4",
+                    "id": "26fa94fb-1fca-4e77-94e0-c17af308c3b9",
                     "type": "text/javascript",
                     "exec": [
                       "// 200 = transferred; 404 = cell not found; 422 = no change (same UIDs as current owners)",
@@ -8783,7 +8896,7 @@
               ]
             },
             {
-              "id": "ae88b7c8-78d0-4e4a-80a9-6e667f6aa9b7",
+              "id": "5c2b9fb2-e3b5-41ad-b583-0d8c203a6f9d",
               "name": "Transfer Cell Ownership — leader (expect 403)",
               "request": {
                 "method": "POST",
@@ -8829,7 +8942,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "c4249e31-541b-4866-9919-877819fed8e1",
+                    "id": "d6b69b4d-9cfd-427c-b90f-d563a1250be5",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"403 — leader cannot transfer ownership\", () => pm.response.to.have.status(403));"
@@ -8839,7 +8952,7 @@
               ]
             },
             {
-              "id": "a28e9b38-0783-4a17-8afd-873302343a6c",
+              "id": "19270d74-0cb1-49a4-8de1-520cfff70b20",
               "name": "Transfer Cell Ownership — g12 (expect 403)",
               "request": {
                 "method": "POST",
@@ -8885,7 +8998,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "edc93479-e521-40b6-a13e-be1dd3c0eef5",
+                    "id": "ddb91c86-eb79-4ce8-aea7-771273852e37",
                     "type": "text/javascript",
                     "exec": [
                       "pm.test(\"403 — g12 cannot transfer ownership\", () => pm.response.to.have.status(403));"
@@ -8895,7 +9008,7 @@
               ]
             },
             {
-              "id": "0e8c7f02-80bf-4fb7-b55d-8c11e411ab87",
+              "id": "80347209-82a0-4b30-b3e4-ff7a8b34127c",
               "name": "Delete Cell Group ★ NEW",
               "request": {
                 "method": "DELETE",
@@ -8926,7 +9039,7 @@
                 {
                   "listen": "test",
                   "script": {
-                    "id": "834eb303-214a-4f65-82de-0d5ad7162280",
+                    "id": "10b57d8a-f119-4bfd-a39f-e4e1482abb1a",
                     "type": "text/javascript",
                     "exec": [
                       "// 204 = deleted; 403 = not owner; 404 = already deleted or never created",
@@ -8943,11 +9056,11 @@
       ]
     },
     {
-      "id": "6930d138-5ad8-4844-9b70-d1d9e8027dd5",
+      "id": "c7f3deb8-53c6-433c-8608-ebb774ddb1c0",
       "name": "📊 V2 — Analytics Service",
       "item": [
         {
-          "id": "491589cb-4793-4484-b8cf-89264caa83a7",
+          "id": "0cfc21e0-62d9-4c9c-8de6-8a465c2cac23",
           "name": "Weekly Cell Analytics",
           "request": {
             "method": "GET",
@@ -8986,7 +9099,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5ab9585f-11dd-4acb-a473-2b480d2ed6e5",
+                "id": "80c5280a-8e7e-489a-bdcd-9cb0809c3d5c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Weekly Analytics\", () => pm.response.to.have.status(200));"
@@ -8996,7 +9109,7 @@
           ]
         },
         {
-          "id": "31e6727c-8f6b-40d8-ab15-17f4e645e241",
+          "id": "e8bcecad-f5ec-4557-b19c-8e25f318806f",
           "name": "Attendance Analytics",
           "request": {
             "method": "GET",
@@ -9027,7 +9140,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0bc0ba50-a63b-4ab1-9a0b-a4b00dd76819",
+                "id": "4f3a47b1-03c7-43ec-9e06-492b6f205c78",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Attendance Analytics\", () => pm.response.to.have.status(200));"
@@ -9037,7 +9150,7 @@
           ]
         },
         {
-          "id": "a4f5f528-610e-4923-91c8-2293b518372c",
+          "id": "bb8cbef0-3d3e-4400-883b-f854370c6a08",
           "name": "Meeting Types Analytics",
           "request": {
             "method": "GET",
@@ -9068,7 +9181,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7e8f3081-3ebc-4234-a874-569ce7d81dc0",
+                "id": "95b83b18-c9ed-4fa5-9c60-5d170aa8e174",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Meeting Types Analytics\", () => pm.response.to.have.status(200));"
@@ -9078,7 +9191,7 @@
           ]
         },
         {
-          "id": "ea3bc419-6cb8-4c0c-8aa6-f05a165f84e6",
+          "id": "19986b35-6b03-4c4c-a641-b2bdd23d5db4",
           "name": "Growth Analytics",
           "request": {
             "method": "GET",
@@ -9109,7 +9222,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5bb30b50-2749-483d-9431-b1b92ea2c14a",
+                "id": "e015e8ea-7057-45c2-96b5-1df257e40fff",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Growth Analytics\", () => pm.response.to.have.status(200));"
@@ -9119,7 +9232,7 @@
           ]
         },
         {
-          "id": "3b091b75-47bb-42ab-a8ba-31ada5b3aa32",
+          "id": "1f427f88-2a0c-4a3c-8328-ddefc809af18",
           "name": "Participation Analytics",
           "request": {
             "method": "GET",
@@ -9150,7 +9263,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "79f11cec-92bc-4b90-acf8-b59df3cb2449",
+                "id": "0074a151-964e-4b25-b090-5feb21e91997",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Participation Analytics\", () => pm.response.to.have.status(200));"
@@ -9160,7 +9273,7 @@
           ]
         },
         {
-          "id": "912459a6-5fdc-4498-8780-d23f1b9e143b",
+          "id": "a84f0917-e91d-47ef-893b-2387ca20326e",
           "name": "Export Cells-Weekly Analytics (CSV)",
           "request": {
             "method": "GET",
@@ -9199,7 +9312,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a3d51f81-ddc8-43cb-b3af-821308bc0934",
+                "id": "61fe0843-8966-491e-9137-76d828d4272e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Export Cells-Weekly CSV\", () => {",
@@ -9211,7 +9324,7 @@
           ]
         },
         {
-          "id": "af79dd44-0144-405b-abe0-590e81de226f",
+          "id": "3e085d92-f46e-4947-824b-86d0f5d64b60",
           "name": "Export Attendance Analytics (CSV)",
           "request": {
             "method": "GET",
@@ -9243,7 +9356,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a3278e92-3d60-4fbd-9a75-793d0228d165",
+                "id": "4b42ed7e-af74-4546-9ae2-f1532f157ffa",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Export Attendance CSV\", () => {",
@@ -9255,7 +9368,7 @@
           ]
         },
         {
-          "id": "f2d30d9b-dba6-4109-a1ba-fdb8b39ac5b4",
+          "id": "87175f0d-c009-4df3-ac6b-e9d6617b03d1",
           "name": "Export Meeting-Types Analytics (CSV)",
           "request": {
             "method": "GET",
@@ -9287,7 +9400,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "44d76071-0548-4c2d-a28e-f9692ec3c2f0",
+                "id": "4b8bb9af-0e95-49a4-8c06-3e215f391b0e",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Export Meeting-Types CSV\", () => {",
@@ -9299,7 +9412,7 @@
           ]
         },
         {
-          "id": "e5c18e58-06d7-4ed0-8e12-21c3ad6aabe3",
+          "id": "901be9ca-3a00-4ec6-83d8-1938aa867d48",
           "name": "Export Growth Analytics (CSV)",
           "request": {
             "method": "GET",
@@ -9331,7 +9444,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "503d64b1-1170-4a3f-9201-01d37458c203",
+                "id": "23614483-070e-49c3-98b6-5b6a5ef26e53",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Export Growth CSV\", () => {",
@@ -9343,7 +9456,7 @@
           ]
         },
         {
-          "id": "4eb08345-b6c8-42ae-ae20-a4dbdd4b5b5f",
+          "id": "36eeb6f9-5df7-4ca1-9774-19adb9705c9b",
           "name": "Export Participation Analytics (CSV)",
           "request": {
             "method": "GET",
@@ -9375,7 +9488,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2a0cbfa8-0285-49af-983a-3b36eda3eceb",
+                "id": "85fd9b99-025d-47e3-8da8-b1baa12cf93c",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Export Participation CSV\", () => {",
@@ -9389,11 +9502,11 @@
       ]
     },
     {
-      "id": "168d4efd-a633-43df-9268-e11d7d3f54dd",
+      "id": "2e6b86d6-d051-4108-bd07-bc14a7bef4e8",
       "name": "🏥 Health Checks",
       "item": [
         {
-          "id": "3cb9dd99-f6b1-4007-bdce-c32ac77e68aa",
+          "id": "bf42ff8b-52b2-46be-b061-ac6e92a50232",
           "name": "Gateway — Liveness (healthz)",
           "request": {
             "method": "GET",
@@ -9418,7 +9531,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "e7db2197-c053-4ae0-8e1a-685c51dda96b",
+                "id": "72948505-f31d-45fa-9047-2b054e4f2bd0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Liveness\", () => pm.response.to.have.status(200));"
@@ -9428,7 +9541,7 @@
           ]
         },
         {
-          "id": "da12d496-3bc3-4548-b386-8aeffc9d313d",
+          "id": "fe6bd10f-8ca2-434a-aa42-4d252a8f31ad",
           "name": "Gateway — Readiness (readyz)",
           "request": {
             "method": "GET",
@@ -9453,7 +9566,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "18299bce-abe0-46e5-9396-fa367901126f",
+                "id": "5da4b87d-d8ec-420c-847a-4768201cd887",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Readiness\", () => pm.response.to.have.status(200));"
@@ -9463,7 +9576,7 @@
           ]
         },
         {
-          "id": "7d8675d9-ec77-4ce3-a7ee-cf32897ca085",
+          "id": "4d7422f4-94ef-4193-b7b4-8fcc55c8e0df",
           "name": "Auth Service — Liveness",
           "request": {
             "method": "GET",
@@ -9488,7 +9601,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "5825fb03-8c4f-4e6f-a045-fca5f7c28a8b",
+                "id": "b5057577-243e-492c-a140-6bf4bafd5ec7",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Auth Liveness\", () => pm.response.to.have.status(200));"
@@ -9498,7 +9611,7 @@
           ]
         },
         {
-          "id": "acfa7c95-c91b-4a01-832c-82790cd4fc87",
+          "id": "f853865a-7012-4622-afba-c5b75bc06466",
           "name": "User Service — Liveness",
           "request": {
             "method": "GET",
@@ -9523,7 +9636,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "57ad0390-e948-4fce-a5a2-b21a4a0adcad",
+                "id": "890bf39e-24b4-4433-a7ca-e273e87e8420",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — User Liveness\", () => pm.response.to.have.status(200));"
@@ -9533,7 +9646,7 @@
           ]
         },
         {
-          "id": "f05ffcfb-a070-47d9-b677-3195a78470e8",
+          "id": "5dc7c961-6609-41cb-ab84-72a649382229",
           "name": "Course Service — Liveness",
           "request": {
             "method": "GET",
@@ -9558,7 +9671,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "2ea39fa8-9bd3-4d89-a90d-6b3164f0594a",
+                "id": "ede9244e-2f14-490e-9186-453aa4cb3f33",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Course Liveness\", () => pm.response.to.have.status(200));"
@@ -9568,7 +9681,7 @@
           ]
         },
         {
-          "id": "42ecd983-1d35-4ae0-b3bb-303980c76bd7",
+          "id": "5d1e0ce9-50d1-492a-a853-7e64d4f77ec5",
           "name": "Cell Service — Liveness",
           "request": {
             "method": "GET",
@@ -9593,7 +9706,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "a36538b3-8db2-4c0a-83b8-b0b3f3759bf0",
+                "id": "a40f793f-20b7-4758-8faa-9648d490e12b",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Cell Liveness\", () => pm.response.to.have.status(200));"
@@ -9603,7 +9716,7 @@
           ]
         },
         {
-          "id": "c25dba21-4552-4ada-a0b3-6f6839b0782f",
+          "id": "abe54880-e211-4712-a567-69e22478bb4b",
           "name": "Enrollment Service — Liveness",
           "request": {
             "method": "GET",
@@ -9628,7 +9741,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0cbcda86-6441-45c5-8430-3f2f0626e6db",
+                "id": "58073f51-c366-4c50-ac26-a67008dd3718",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Enrollment Liveness\", () => pm.response.to.have.status(200));"
@@ -9638,7 +9751,7 @@
           ]
         },
         {
-          "id": "79da64bd-52d2-49bc-83dd-2b684c32401f",
+          "id": "f2ae3b7f-c56c-47ee-aa3b-e76a8e8d2338",
           "name": "Progress Service — Liveness",
           "request": {
             "method": "GET",
@@ -9663,7 +9776,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "4dc2496f-a1b3-45bc-827f-57c614f8992b",
+                "id": "26704c16-6a1c-4d9a-ab7a-9015bc921890",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Progress Liveness\", () => pm.response.to.have.status(200));"
@@ -9673,7 +9786,7 @@
           ]
         },
         {
-          "id": "046c887c-cf57-4029-ba6c-2ea8057ffa54",
+          "id": "21e22cb8-5211-4ddf-bc4b-bd66e88fafb4",
           "name": "Storage Service — Liveness",
           "request": {
             "method": "GET",
@@ -9698,7 +9811,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "7ee35d79-39f7-4b9e-ae16-b31487eeb837",
+                "id": "a63fe959-4cce-40d5-98e2-50cbb26d86a4",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Storage Liveness\", () => pm.response.to.have.status(200));"
@@ -9708,7 +9821,7 @@
           ]
         },
         {
-          "id": "dc4f784d-bb1f-4c45-9244-600d3bb6e72a",
+          "id": "8980d1ef-84b6-4fb1-b031-128e97ffa425",
           "name": "Notification Service — Liveness",
           "request": {
             "method": "GET",
@@ -9733,7 +9846,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "172c4bea-ef1d-4829-98b1-d97ac48ab7c1",
+                "id": "9b0e2524-a885-4fbe-8065-62b21e002cf0",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Notification Liveness\", () => pm.response.to.have.status(200));"
@@ -9743,7 +9856,7 @@
           ]
         },
         {
-          "id": "f9b5aa36-babe-4741-88b3-fd7d59d62dd5",
+          "id": "e9e15578-8236-4137-b44e-a0509df33b36",
           "name": "Audit Service — Liveness",
           "request": {
             "method": "GET",
@@ -9768,7 +9881,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "0fb59b53-db68-4d8f-a187-bcb680aa979e",
+                "id": "59fee8e9-f86b-4fa7-9ee0-a68790a04c43",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 OK — Audit Liveness\", () => pm.response.to.have.status(200));"
@@ -9778,7 +9891,7 @@
           ]
         },
         {
-          "id": "d69c7659-c535-45e3-b27e-d13a0fd837d8",
+          "id": "cb15164b-ba6b-4b3a-88a9-858211e18f41",
           "name": "Analytics Service — Liveness",
           "request": {
             "method": "GET",
@@ -9817,7 +9930,7 @@
             {
               "listen": "test",
               "script": {
-                "id": "d8320284-56a1-4f0b-921a-008bbbe83477",
+                "id": "dc77a4a8-45a7-4455-9c79-35471f1d1653",
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"200 or 404 — Analytics Liveness (via gateway)\", () => {",

@@ -2475,6 +2475,40 @@ const cellCrudSubFolder = folder('Cell CRUD', [
       `pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
     ],
   }),
+  // G12 sees only cells in their own network (g12LeaderUid === callerUid) ★ FIXED
+  buildRequest({
+    name: 'List Cell Groups — G12 (own network only) ★ FIXED',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells?limit=20' },
+    auth: bearerAuth('g12Token'),
+    tests: [
+      `pm.test("200 OK — G12 list cells", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
+      `pm.test("total is a number", () => pm.expect(j.total).to.be.a("number"));`,
+      `// Every returned cell must belong to this G12 leader's network`,
+      `const g12Uid = pm.environment.get("g12Id");`,
+      `if (j.items.length > 0 && g12Uid) {`,
+      `  pm.test("all cells belong to G12 network (g12LeaderUid scoped)", () => {`,
+      `    j.items.forEach(cell => {`,
+      `      pm.expect(cell.g12LeaderUid, \`cell \${cell.id} g12LeaderUid\`).to.eql(g12Uid);`,
+      `    });`,
+      `  });`,
+      `}`,
+    ],
+  }),
+  // G12 can also browse archived cells in their own network ★ FIXED
+  buildRequest({
+    name: 'List Cell Groups — G12 archived (network-scoped) ★ FIXED',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells?limit=20&state=archived' },
+    auth: bearerAuth('g12Token'),
+    tests: [
+      `pm.test("200 OK — G12 archived cells", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
+    ],
+  }),
   buildRequest({
     name: 'Get Cell Group by ID',
     method: 'GET',
