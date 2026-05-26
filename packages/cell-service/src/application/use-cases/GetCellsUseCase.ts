@@ -42,8 +42,9 @@ export class GetCellsUseCase {
     if (isAdmin) {
       result = await this.cellRepo.findAll({ ...opts });
     } else if (isG12) {
-      // G12 — see all cells (active by default, can pass ?state=archived)
-      result = await this.cellRepo.findAll({ ...opts, state: opts.state ?? 'active' });
+      // G12 — see only cells in their own network (g12LeaderUid === callerUid)
+      // active by default; pass ?state=archived to see archived network cells
+      result = await this.cellRepo.findAll({ ...opts, g12LeaderUid: callerUid, state: opts.state ?? 'active' });
     } else if (isLeader) {
       // Leader — see only their own cells
       result = await this.cellRepo.findAll({ ...opts, leaderUid: callerUid, state: opts.state ?? 'active' });

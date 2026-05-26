@@ -2484,11 +2484,16 @@ Admin view. Supports `?batchId` to scope to one intake.
 
 ### 13.1 `GET /cells`
 
-List cell groups. Scope auto-applied by role:
-- **Member/Student** → sees all `active` cells only
-- **Leader** → sees only cells they lead (`active` by default)
-- **G12** → sees all cells in their network (`active` by default, can pass `?state=archived`)
-- **Admin/Super Admin** → sees **ALL cells across ALL states** (active + archived) by default; can filter with `?state=active|archived` ★ Updated
+List cell groups. Scope is **automatically enforced by role** — callers cannot override their own scope:
+
+| Role | Cells returned |
+|------|---------------|
+| **Member / Student** | All `active` cells (discovery — to find one to join) |
+| **Leader** | Only cells where `leaderUid === caller` (`active` by default) |
+| **G12** | Only cells where `g12LeaderUid === caller` — i.e. their own network (`active` by default, pass `?state=archived` for archived) |
+| **Admin / Super Admin** | All cells, all states by default; filter with `?state=active\|archived` |
+
+> **G12 network scope:** A G12 leader only sees cells they personally oversee (`g12LeaderUid` matches their UID). They cannot see cells outside their network. This is consistent with `GET /cells/network/members` and `GET /cells/network/reports`.
 
 **Authentication:** Bearer required | **Roles:** Any authenticated
 
@@ -2497,9 +2502,8 @@ List cell groups. Scope auto-applied by role:
 | `search` | Partial match on cell name |
 | `type` | `g12` \| `care` \| `children` \| `outreach` |
 | `area` | Exact match on area |
-| `state` | `active` \| `archived` — default varies by role: `admin`/`super_admin` see **all states** when omitted; all others default to `active` ★ Updated |
-
-| `leaderUid` | Filter by leader (admin/g12 only) |
+| `state` | `active` \| `archived` — admin/super_admin see all states when omitted; all other roles default to `active` |
+| `leaderUid` | Filter by specific leader UID — **admin only** (ignored for leader/g12 callers, whose scope is already forced) |
 | `limit`, `cursor` | Pagination |
 
 **`200 OK`**
