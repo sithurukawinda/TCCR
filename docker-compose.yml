@@ -17,6 +17,10 @@ services:
       SERVICE_AUDIT_URL:        http://audit-service:3008
       SERVICE_CELL_URL:         http://cell-service:3009
       SERVICE_ANALYTICS_URL:    http://analytics-service:3011
+      # Per-user rate limits (trust proxy must be set in app.ts so the real
+      # client IP is read from X-Forwarded-For, not the Nginx proxy IP)
+      RATE_LIMIT_MAX:           500
+      AUTH_RATE_LIMIT_MAX:      20
     depends_on:
       - auth-service
       - user-service
