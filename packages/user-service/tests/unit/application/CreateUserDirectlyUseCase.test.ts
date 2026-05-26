@@ -24,6 +24,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   create:      jest.fn(),
   update:      jest.fn(),
   softDelete:  jest.fn(),
+  hardDelete:  jest.fn(),
 });
 
 const makeAuthClient = (): jest.Mocked<FirebaseAuthClient> => ({

@@ -1,10 +1,10 @@
-import { DeregisterFcmTokenUseCase } from '../../../src/application/use-cases/DeregisterFcmTokenUseCase';
+﻿import { DeregisterFcmTokenUseCase } from '../../../src/application/use-cases/DeregisterFcmTokenUseCase';
 import { IUserRepository }           from '../../../src/domain/repositories/IUserRepository';
 import { User }                      from '../../../src/domain/entities/User';
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeUser = (fcmTokens: string[] = ['token-abc', 'token-xyz']): User =>
@@ -36,7 +36,7 @@ describe('DeregisterFcmTokenUseCase', () => {
     }));
   });
 
-  it('is idempotent — no update when token not present', async () => {
+  it('is idempotent â€” no update when token not present', async () => {
     repo.findById.mockResolvedValue(makeUser(['token-xyz']));
 
     await useCase.execute('uid-1', 'token-not-found');
@@ -53,3 +53,4 @@ describe('DeregisterFcmTokenUseCase', () => {
     expect(repo.update).not.toHaveBeenCalled();
   });
 });
+

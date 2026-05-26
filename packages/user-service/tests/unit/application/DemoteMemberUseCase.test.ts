@@ -1,10 +1,10 @@
-import { DemoteMemberUseCase }  from '../../../src/application/use-cases/DemoteMemberUseCase';
+﻿import { DemoteMemberUseCase }  from '../../../src/application/use-cases/DemoteMemberUseCase';
 import { IUserRepository }      from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }   from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { OutboxEventPublisher } from '@shared/events';
 import { User, UserRole }       from '../../../src/domain/entities/User';
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const makeUser = (roles: UserRole[] = ['member', 'leader']) =>
   new User({
@@ -19,7 +19,7 @@ const makeUser = (roles: UserRole[] = ['member', 'leader']) =>
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
@@ -30,7 +30,7 @@ const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>
 
 const BASE = { targetUid: 'target-uid', role: 'leader' as const, callerUid: 'caller-uid', requestId: 'req-1' };
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 describe('DemoteMemberUseCase', () => {
   let repo:    jest.Mocked<IUserRepository>;
@@ -46,9 +46,9 @@ describe('DemoteMemberUseCase', () => {
     useCase = new DemoteMemberUseCase(repo, auth, outbox);
   });
 
-  // ── Happy paths — all 4 caller roles ─────────────────────────────────────
+  // â”€â”€ Happy paths â€” all 4 caller roles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  it('admin can demote leader → member', async () => {
+  it('admin can demote leader â†’ member', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'leader']));
     repo.update.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
@@ -60,7 +60,7 @@ describe('DemoteMemberUseCase', () => {
     expect(auth.removeRoleFromUser).toHaveBeenCalledWith('target-uid', 'leader');
   });
 
-  it('super_admin can demote g12 → member', async () => {
+  it('super_admin can demote g12 â†’ member', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'g12']));
     repo.update.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
@@ -71,7 +71,7 @@ describe('DemoteMemberUseCase', () => {
     expect(auth.removeRoleFromUser).toHaveBeenCalledWith('target-uid', 'g12');
   });
 
-  it('admin can demote student → member', async () => {
+  it('admin can demote student â†’ member', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'student']));
     repo.update.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
@@ -82,7 +82,7 @@ describe('DemoteMemberUseCase', () => {
     expect(auth.removeRoleFromUser).toHaveBeenCalledWith('target-uid', 'student');
   });
 
-  it('g12 can demote leader → member', async () => {
+  it('g12 can demote leader â†’ member', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'leader']));
     repo.update.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
@@ -128,10 +128,10 @@ describe('DemoteMemberUseCase', () => {
     );
   });
 
-  // ── Idempotent ────────────────────────────────────────────────────────────
+  // â”€â”€ Idempotent â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   it('returns silently when user does not have the role (idempotent)', async () => {
-    // User is only member — has no leader role
+    // User is only member â€” has no leader role
     repo.findById.mockResolvedValue(makeUser(['member']));
 
     await useCase.execute({ ...BASE, role: 'leader', callerRoles: ['admin'] as UserRole[] });
@@ -140,7 +140,7 @@ describe('DemoteMemberUseCase', () => {
     expect(auth.removeRoleFromUser).not.toHaveBeenCalled();
   });
 
-  // ── 403 — self-demote ─────────────────────────────────────────────────────
+  // â”€â”€ 403 â€” self-demote â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   it('throws 403 FORBIDDEN when caller tries to demote themselves', async () => {
     await expect(
@@ -148,7 +148,7 @@ describe('DemoteMemberUseCase', () => {
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
   });
 
-  // ── 403 — caller role restrictions ───────────────────────────────────────
+  // â”€â”€ 403 â€” caller role restrictions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   it('throws 403 when leader tries to demote a leader (only g12 allowed for leader)', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'leader']));
@@ -174,9 +174,9 @@ describe('DemoteMemberUseCase', () => {
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
   });
 
-  // ── 403 — cannot demote admin/super_admin ─────────────────────────────────
+  // â”€â”€ 403 â€” cannot demote admin/super_admin â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
-  it('throws 403 when target is an admin — cannot demote via this endpoint', async () => {
+  it('throws 403 when target is an admin â€” cannot demote via this endpoint', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'admin'] as UserRole[]));
 
     await expect(
@@ -184,7 +184,7 @@ describe('DemoteMemberUseCase', () => {
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
   });
 
-  it('throws 403 when target is a super_admin — cannot demote via this endpoint', async () => {
+  it('throws 403 when target is a super_admin â€” cannot demote via this endpoint', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'super_admin'] as UserRole[]));
 
     await expect(
@@ -192,7 +192,7 @@ describe('DemoteMemberUseCase', () => {
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
   });
 
-  // ── 404 ───────────────────────────────────────────────────────────────────
+  // â”€â”€ 404 â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
   it('throws 404 USER_NOT_FOUND when target does not exist', async () => {
     repo.findById.mockResolvedValue(null);
@@ -202,3 +202,4 @@ describe('DemoteMemberUseCase', () => {
     ).rejects.toMatchObject({ status: 404, errorCode: 'USER_NOT_FOUND' });
   });
 });
+

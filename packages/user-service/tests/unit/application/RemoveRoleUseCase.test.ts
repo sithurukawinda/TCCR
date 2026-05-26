@@ -1,4 +1,4 @@
-import { RemoveRoleUseCase }     from '../../../src/application/use-cases/RemoveRoleUseCase';
+﻿import { RemoveRoleUseCase }     from '../../../src/application/use-cases/RemoveRoleUseCase';
 import { IUserRepository }       from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }    from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { User }                  from '../../../src/domain/entities/User';
@@ -9,7 +9,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findAll:   jest.fn(),
   create:    jest.fn(),
   update:    jest.fn(),
-  softDelete: jest.fn(),
+  softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
@@ -48,7 +48,7 @@ describe('RemoveRoleUseCase', () => {
     expect(auth.removeRoleFromUser).toHaveBeenCalledWith('uid-1', 'student');
   });
 
-  it('is idempotent — no write when user does not have the role', async () => {
+  it('is idempotent â€” no write when user does not have the role', async () => {
     repo.findById.mockResolvedValue(makeUser(['member']));
 
     await useCase.execute('uid-1', 'leader');
@@ -92,3 +92,4 @@ describe('RemoveRoleUseCase', () => {
     }));
   });
 });
+

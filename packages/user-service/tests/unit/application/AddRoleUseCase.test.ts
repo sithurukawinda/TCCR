@@ -1,4 +1,4 @@
-import { AddRoleUseCase }       from '../../../src/application/use-cases/AddRoleUseCase';
+﻿import { AddRoleUseCase }       from '../../../src/application/use-cases/AddRoleUseCase';
 import { IUserRepository }      from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }   from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { User }                 from '../../../src/domain/entities/User';
@@ -9,7 +9,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findAll:   jest.fn(),
   create:    jest.fn(),
   update:    jest.fn(),
-  softDelete: jest.fn(),
+  softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
@@ -48,7 +48,7 @@ describe('AddRoleUseCase', () => {
     expect(auth.addRoleToUser).toHaveBeenCalledWith('uid-1', 'student');
   });
 
-  it('is idempotent — no write when user already has the role', async () => {
+  it('is idempotent â€” no write when user already has the role', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'student']));
 
     await useCase.execute('uid-1', 'student');
@@ -93,3 +93,4 @@ describe('AddRoleUseCase', () => {
     expect(auth.addRoleToUser).toHaveBeenCalledWith('uid-1', 'g12');
   });
 });
+

@@ -71,7 +71,7 @@ export class UsersController {
     } catch (err) { next(err); }
   };
 
-  // DELETE /users/:uid — admin soft-deletes a regular (non-admin) user
+  // DELETE /users/:uid — admin permanently hard-deletes a regular (non-admin) user
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const callerUid = (req as AuthenticatedRequest).principal.uid;
