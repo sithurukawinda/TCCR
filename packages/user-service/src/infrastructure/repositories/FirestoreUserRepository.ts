@@ -1,6 +1,6 @@
-import { getFirestore }                                   from 'firebase-admin/firestore';
-import { User, UserRole, UserProps, NotificationPreferences } from '../../domain/entities/User';
-import { IUserRepository, FindAllOptions, FindAllResult } from '../../domain/repositories/IUserRepository';
+import { getFirestore }                                                      from 'firebase-admin/firestore';
+import { User, UserRole, UserProps, NotificationPreferences, Qualification, Gender } from '../../domain/entities/User';
+import { IUserRepository, FindAllOptions, FindAllResult }                   from '../../domain/repositories/IUserRepository';
 
 function toUser(id: string, data: FirebaseFirestore.DocumentData): User {
   const role = data.role as UserRole;
@@ -15,12 +15,20 @@ function toUser(id: string, data: FirebaseFirestore.DocumentData): User {
     profilePhotoUrl:   (data.profilePhotoUrl as string | null) ?? null,
     phoneNumber:       (data.phoneNumber as string | null | undefined) ?? null,
     preferredLanguage: (data.preferredLanguage as string | undefined) ?? 'en',
-    fcmTokens:                (data.fcmTokens as string[] | undefined) ?? [],
-    notificationPreferences:  (data.notificationPreferences as NotificationPreferences | undefined) ?? { email: true, push: true },
-    providers:                (data.providers as string[] | undefined) ?? ['password'],
-    createdAt:                data.createdAt as string,
-    updatedAt:         data.updatedAt as string,
-    deletedAt:         (data.deletedAt as string | null) ?? null,
+    fcmTokens:                  (data.fcmTokens as string[] | undefined) ?? [],
+    notificationPreferences:    (data.notificationPreferences as NotificationPreferences | undefined) ?? { email: true, push: true },
+    providers:                  (data.providers as string[] | undefined) ?? ['password'],
+    // Extended profile fields
+    dateOfBirth:                (data.dateOfBirth as string | null | undefined) ?? null,
+    gender:                     (data.gender as Gender | null | undefined) ?? null,
+    address:                    (data.address as string | null | undefined) ?? null,
+    qualifications:             (data.qualifications as Qualification[] | undefined) ?? [],
+    qualificationTitle:         (data.qualificationTitle as string | null | undefined) ?? null,
+    qualificationUrl:           (data.qualificationUrl as string | null | undefined) ?? null,
+    qualificationStoragePath:   (data.qualificationStoragePath as string | null | undefined) ?? null,
+    createdAt:                  data.createdAt as string,
+    updatedAt:                  data.updatedAt as string,
+    deletedAt:                  (data.deletedAt as string | null) ?? null,
   });
 }
 
