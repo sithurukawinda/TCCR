@@ -905,19 +905,29 @@ Use this when a G12 leader, admin, or super admin needs to on-board a cell leade
 
 ```json
 {
-  "uid":             "firebase-uid-abc123",
-  "email":           "saman@tccr.lk",
-  "firstName":       "Saman",
-  "lastName":        "Silva",
-  "role":            "leader",
-  "roles":           ["member", "leader"],
-  "status":          "approved",
-  "profilePhotoUrl": null,
-  "phoneNumber":     null,
-  "preferredLanguage": "en",
-  "createdAt":       "2026-05-19T08:00:00.000Z",
-  "updatedAt":       "2026-05-19T08:00:00.000Z",
-  "deletedAt":       null
+  "uid":                     "firebase-uid-abc123",
+  "email":                   "saman@tccr.lk",
+  "firstName":               "Saman",
+  "lastName":                "Silva",
+  "role":                    "leader",
+  "roles":                   ["member", "leader"],
+  "status":                  "approved",
+  "profilePhotoUrl":         null,
+  "phoneNumber":             null,
+  "preferredLanguage":       "en",
+  "fcmTokens":               [],
+  "notificationPreferences": { "email": true, "push": true },
+  "providers":               ["password"],
+  "dateOfBirth":             null,
+  "gender":                  null,
+  "address":                 null,
+  "qualifications":          [],
+  "qualificationTitle":      null,
+  "qualificationUrl":        null,
+  "qualificationStoragePath": null,
+  "createdAt":               "2026-05-19T08:00:00.000Z",
+  "updatedAt":               "2026-05-19T08:00:00.000Z",
+  "deletedAt":               null
 }
 ```
 
@@ -1370,7 +1380,7 @@ Grants the requested role — adds `student` to `roles[]` and updates Firebase c
 
 | Field | Type | Required | Validation |
 |-------|------|:--------:|-----------|
-| `note` | string | No | 1–500 chars — shown in the approval email sent to the student |
+| `note` | string | No | max 500 chars — shown in the approval email sent to the student |
 
 #### Side Effects (on `200`)
 
@@ -1443,7 +1453,7 @@ Rejects the role application (FR-ENR-005).
 
 | Field | Type | Required | Validation |
 |-------|------|:--------:|-----------|
-| `note` | string | No | 1–500 chars |
+| `note` | string | No | max 500 chars |
 
 #### Side Effects (on `200`)
 
@@ -1504,12 +1514,17 @@ List courses. Member/Student/public see `published` only. Admin sees all states.
 ```json
 {
   "items": [{
-    "id": "course-abc", "title": "Bible Foundations",
-    "description": "An introduction to the Bible.",
-    "coverImageUrl": null, "state": "published",
+    "id":           "course-abc",
+    "title":        "Bible Foundations",
+    "description":  "An introduction to the Bible.",
+    "coverImageUrl": null,
+    "state":        "published",
+    "createdBy":    "admin-uid-xyz",
     "semesterCount": 3,
-    "createdAt": "2026-01-01T08:00:00.000Z",
-    "updatedAt": "2026-05-01T09:00:00.000Z"
+    "publishedAt":  "2026-02-01T08:00:00.000Z",
+    "deletedAt":    null,
+    "createdAt":    "2026-01-01T08:00:00.000Z",
+    "updatedAt":    "2026-05-01T09:00:00.000Z"
   }],
   "nextCursor": null, "total": 5
 }
@@ -1526,12 +1541,17 @@ Get course with semester and subject tree. Student/public get `404` if draft or 
 **`200 OK`**
 ```json
 {
-  "id": "course-abc", "title": "Bible Foundations",
-  "description": "An introduction to the Bible.",
-  "coverImageUrl": null, "state": "published",
+  "id":           "course-abc",
+  "title":        "Bible Foundations",
+  "description":  "An introduction to the Bible.",
+  "coverImageUrl": null,
+  "state":        "published",
+  "createdBy":    "admin-uid-xyz",
   "semesterCount": 2,
-  "createdAt": "2026-01-01T08:00:00.000Z",
-  "updatedAt": "2026-05-01T09:00:00.000Z",
+  "publishedAt":  "2026-02-01T08:00:00.000Z",
+  "deletedAt":    null,
+  "createdAt":    "2026-01-01T08:00:00.000Z",
+  "updatedAt":    "2026-05-01T09:00:00.000Z",
   "semesters": [{
     "id": "sem-001", "title": "Semester 1 — Foundations",
     "order": 1, "openDate": "2026-07-01", "endDate": "2026-09-30",
@@ -2246,14 +2266,18 @@ Mark subject complete. **Idempotent** — already-completed returns existing rec
 **`200 OK`**
 ```json
 {
-  "id": "Xf3aBC..._sub-001", "userUid": "Xf3aBC...",
-  "subjectId": "sub-001", "courseId": "course-abc",
-  "semesterId": "sem-001",
-  "status": "completed",
-  "completedAt": "2026-05-07T14:00:00.000Z",
+  "id":             "Xf3aBC..._sub-001",
+  "studentUid":     "Xf3aBC...",
+  "subjectId":      "sub-001",
+  "courseId":       "course-abc",
+  "semesterId":     "sem-001",
+  "state":          "completed",
+  "completedAt":    "2026-05-07T14:00:00.000Z",
   "lastAccessedAt": "2026-05-07T14:00:00.000Z"
 }
 ```
+
+> **Field note:** The progress status field is named `state` (not `status`). Values: `not_started` | `in_progress` | `completed`.
 
 **`403`** → `SEMESTER_DISABLED` (FR-STU-005)
 
@@ -2282,9 +2306,13 @@ Course-level progress aggregate (FR-LRN-004).
 **`200 OK`**
 ```json
 {
-  "courseId": "course-abc", "batchId": "batch-xyz", "userUid": "Xf3aBC...",
-  "completedCount": 4, "pendingCount": 6, "totalSubjects": 10,
-  "completionPercent": 40.0, "lastAccessedSubjectId": "sub-003"
+  "courseId":              "course-abc",
+  "studentUid":            "Xf3aBC...",
+  "completedCount":        4,
+  "pendingCount":          6,
+  "totalSubjects":         10,
+  "completionPercent":     40.0,
+  "lastAccessedSubjectId": "sub-003"
 }
 ```
 
@@ -2546,13 +2574,15 @@ Member applies to join a cell group. Admin or Super Admin must approve before th
 **`201 Created`**
 ```json
 {
-  "id":          "jreq-001",
-  "cellId":      "cell-001",
-  "cellName":    "Rathmalana West G12",
+  "id":           "jreq-001",
+  "cellId":       "cell-001",
   "requesterUid": "usr-mem1",
-  "message":     "I would like to join this cell group.",
-  "status":      "pending",
-  "createdAt":   "2026-05-16T09:00:00.000Z"
+  "message":      "I would like to join this cell group.",
+  "status":       "pending",
+  "decidedByUid": null,
+  "decisionNote": null,
+  "createdAt":    "2026-05-16T09:00:00.000Z",
+  "decidedAt":    null
 }
 ```
 
@@ -2575,15 +2605,15 @@ List all pending join requests for a cell.
 ```json
 {
   "items": [{
-    "id":            "jreq-001",
-    "cellId":        "cell-001",
-    "requesterUid":  "usr-mem1",
-    "requesterName": "Sapna Nethmini",
-    "message":       "I would like to join this cell group.",
-    "status":        "pending",
-    "createdAt":     "2026-05-16T09:00:00.000Z",
-    "decidedAt":     null,
-    "decisionNote":  null
+    "id":           "jreq-001",
+    "cellId":       "cell-001",
+    "requesterUid": "usr-mem1",
+    "message":      "I would like to join this cell group.",
+    "status":       "pending",
+    "decidedByUid": null,
+    "decisionNote": null,
+    "createdAt":    "2026-05-16T09:00:00.000Z",
+    "decidedAt":    null
   }],
   "nextCursor": null, "total": 3
 }
@@ -3375,13 +3405,15 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 |-------|------|-------|
 | `id` | string | Auto UUID |
 | `title` | string | Unique (incl. soft-deleted) |
-| `description` | string | Max 500 chars |
+| `description` | string | Max 500 chars; defaults to `""` |
 | `coverImageUrl` | string or null | |
 | `state` | string | `draft` \| `published` \| `archived` |
-| `semesterCount` | number | |
+| `createdBy` | string | UID of the user who created the course |
+| `semesterCount` | number | Denormalised count maintained by create/delete semester use cases |
+| `publishedAt` | string or null | ISO 8601; set when course is first published; reset to `null` on unpublish |
+| `deletedAt` | string or null | Non-null = soft-deleted |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
-| `deletedAt` | string or null | |
 
 ---
 
@@ -3492,13 +3524,12 @@ Live member profile included in `GET /role-requests/:id` responses **for admin a
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `id` | string | `${userUid}_${subjectId}` |
-| `userUid` | string | |
-| `subjectId` | string | |
-| `courseId` | string | |
-| `semesterId` | string | |
-| `batchId` | string | **NEW V2** — enables cohort-level progress reporting |
-| `status` | string | `not_started` \| `in_progress` \| `completed` |
+| `id` | string | `${studentUid}_${subjectId}` |
+| `studentUid` | string | FK → users |
+| `subjectId` | string | FK → subjects |
+| `courseId` | string | FK → courses |
+| `semesterId` | string | FK → semesters |
+| `state` | string | `not_started` \| `in_progress` \| `completed` |
 | `completedAt` | string or null | ISO 8601; immutable once set |
 | `lastAccessedAt` | string or null | ISO 8601; updated on lesson open |
 
