@@ -2,14 +2,17 @@ import { IUserRepository }  from '../../domain/repositories/IUserRepository';
 import { User }             from '../../domain/entities/User';
 import { Role }             from '@shared/auth-middleware';
 
-/** Lightweight profile returned for each user in the summary. */
+/** Profile returned for each user on the summary page. */
 export interface SummaryProfile {
   uid:             string;
   firstName:       string;
   lastName:        string;
   displayName:     string;
   email:           string;
+  roles:           string[];       // full roles array — use for role badge display
+  phoneNumber:     string | null;  // contact number for directory view
   profilePhotoUrl: string | null;
+  createdAt:       string;         // ISO — use for "joined on" display
 }
 
 export interface UserSummaryResult {
@@ -127,6 +130,9 @@ function toProfile(user: User): SummaryProfile {
     lastName,
     displayName:     `${firstName} ${lastName}`.trim() || user.email,
     email:           user.email,
+    roles:           user.roles ?? [],
+    phoneNumber:     user.phoneNumber ?? null,
     profilePhotoUrl: user.profilePhotoUrl,
+    createdAt:       user.createdAt,
   };
 }

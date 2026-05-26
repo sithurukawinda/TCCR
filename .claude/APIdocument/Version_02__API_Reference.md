@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.24.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.25.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.24.0
+**Version:** 2.25.0
 **Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.23.0 (26 May 2026)
+**Supersedes:** Version 2.24.0 (27 May 2026)
+**Change in 2.25.0:** Developed `GET /users/summary` (§4.11) — enriched `SummaryProfile` with `roles[]`, `phoneNumber`, `createdAt`; added Frontend Integration Guide; 10 unit tests added.
 **Change in 2.24.0:** PDF file inputs made optional across all upload endpoints (§3.5, §10.1):
 - §3.5 `POST /me/qualification`: `qualification` field now optional — omitting it returns `{ fileUrl: null }`
 - §10.1 `POST /subjects/:id/attachments`: `file` field now optional — omitting it returns `200 { message }`
@@ -1125,11 +1126,11 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 
 ### 4.11 `GET /users/summary` ★ NEW
 
-Returns **all approved users grouped by their highest role** with full names in a single response. Designed as a one-page system overview — no pagination needed.
+Returns **all approved users grouped by their highest role** with full profiles in a single response. Designed as a one-page system roster — no pagination needed.
 
 **Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`
 
-> **Scope:** `leader` and `g12` callers follow the same scoped-access rule as `GET /users` — they see only approved non-admin users. The `superAdmins` and `admins` groups will be empty for these callers. `admin` / `super_admin` callers see all groups.
+> **Scope:** `leader` and `g12` callers follow the same scoped-access rule as `GET /users` — they see only approved non-admin users. The `superAdmins` and `admins` arrays will be empty for these callers. `admin` / `super_admin` callers see all groups.
 
 #### Role Grouping Logic
 
@@ -1139,7 +1140,7 @@ Each user appears in **exactly one group** — their highest role in this hierar
 super_admin > admin > g12 > leader > student > member
 ```
 
-A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are sorted alphabetically by `displayName` within each group.
+A user with `roles: ["member", "student", "leader"]` appears in **leaders** only. Users are sorted **A→Z by `displayName`** within each group.
 
 #### Response `200 OK`
 
@@ -1152,7 +1153,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "Jayasinghe",
       "displayName":     "Pastor Jayasinghe",
       "email":           "pastor@tccr.lk",
-      "profilePhotoUrl": null
+      "roles":           ["super_admin"],
+      "phoneNumber":     "+94711234567",
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-01-10T08:00:00.000Z"
     }
   ],
   "admins": [
@@ -1162,7 +1166,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "User",
       "displayName":     "Admin User",
       "email":           "admin@tccr.lk",
-      "profilePhotoUrl": null
+      "roles":           ["admin"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-02-01T08:00:00.000Z"
     }
   ],
   "g12": [
@@ -1172,7 +1179,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "Leader",
       "displayName":     "G12 Leader",
       "email":           "g12leader@tccr.lk",
-      "profilePhotoUrl": "https://firebasestorage.googleapis.com/.../avatars/G12001.jpg"
+      "roles":           ["member", "g12"],
+      "phoneNumber":     "+94771234567",
+      "profilePhotoUrl": "https://firebasestorage.googleapis.com/.../avatars/G12001.jpg",
+      "createdAt":       "2025-03-01T08:00:00.000Z"
     }
   ],
   "leaders": [
@@ -1182,7 +1192,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "Leader",
       "displayName":     "Cell Leader",
       "email":           "leader@tccr.lk",
-      "profilePhotoUrl": null
+      "roles":           ["member", "leader"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-04-01T08:00:00.000Z"
     }
   ],
   "students": [
@@ -1192,7 +1205,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "Weerasinghe",
       "displayName":     "Viruli Weerasinghe",
       "email":           "viruli@example.com",
-      "profilePhotoUrl": null
+      "roles":           ["member", "student"],
+      "phoneNumber":     "+94761234567",
+      "profilePhotoUrl": null,
+      "createdAt":       "2026-01-15T08:00:00.000Z"
     }
   ],
   "members": [
@@ -1202,7 +1218,10 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
       "lastName":        "Perera",
       "displayName":     "Nimal Perera",
       "email":           "nimal@example.com",
-      "profilePhotoUrl": null
+      "roles":           ["member"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2026-03-20T08:00:00.000Z"
     }
   ],
   "totals": {
@@ -1229,23 +1248,59 @@ A user with `roles: ["member", "leader"]` appears in **leaders** only. Users are
 | `members[]` | `SummaryProfile[]` | Base members — hold only the `member` role |
 | `totals.total` | number | Sum of all groups (= total approved system users) |
 
-**`SummaryProfile` shape:**
+**`SummaryProfile` shape — every profile in every group:**
 
-| Field | Type | Description |
+| Field | Type | Frontend use |
 |-------|------|-------------|
-| `uid` | string | Firebase Auth UID |
-| `firstName` | string | |
-| `lastName` | string | |
-| `displayName` | string | `firstName + ' ' + lastName` — falls back to email if both names are empty |
-| `email` | string | Registered email |
-| `profilePhotoUrl` | string \| null | Firebase Storage URL |
+| `uid` | string | Firebase Auth UID — use as unique key |
+| `firstName` | string | Given name |
+| `lastName` | string | Family name |
+| `displayName` | string | `firstName + ' ' + lastName`; falls back to `email` if both names are empty |
+| `email` | string | Registered email — contact / login identifier |
+| `roles` | string[] | Full roles array — use to render role badges (e.g. `["member","leader"]`) |
+| `phoneNumber` | string \| null | Contact phone — show in contact directory; `null` if not set |
+| `profilePhotoUrl` | string \| null | Firebase Storage download URL for avatar — `null` if no photo |
+| `createdAt` | string | ISO 8601 — use for "Joined on …" display |
+
+#### Frontend Summary Page — Integration Guide
+
+```
+GET /api/v1/users/summary
+Authorization: Bearer <admin-or-leader-token>
+```
+
+**Render the page:**
+```
+totals.total        → "179 Total Members"
+totals.superAdmins  → Super Admin count card
+totals.admins       → Admin count card
+totals.g12          → G12 Leaders count card
+totals.leaders      → Cell Leaders count card
+totals.students     → Students count card
+totals.members      → Members count card
+
+leaders[]           → Render leader cards (displayName, email, phoneNumber, profilePhotoUrl)
+students[]          → Render student table (displayName, email, createdAt)
+members[]           → Render member list
+roles[]             → Show role badge chips per profile
+```
+
+**Scoped view for leader/g12 callers:**
+```
+superAdmins → [] (empty — hidden)
+admins      → [] (empty — hidden)
+g12         → visible
+leaders     → visible
+students    → visible
+members     → visible
+```
 
 #### Notes
 
-- **Suspended users are excluded** — only `status: "approved"` users appear.
-- **Deleted users are excluded** — soft-deleted (`deletedAt != null`) users never appear.
-- **No pagination** — the entire roster is returned in one call. For systems with thousands of active users, consider adding a `?roles=` filter param in a future version.
-- Response time is proportional to the total number of approved users; at TCCR's target scale (≤ 10 000 users) this will remain under 800 ms (NFR-PER-001).
+- **No pagination** — entire roster returned in one call. Internally paginates Firestore (100/page) until exhausted.
+- **Suspended users excluded** — only `status: "approved"` users appear.
+- **Deleted users excluded** — `deletedAt != null` users never appear.
+- Response time is proportional to total approved users; at TCCR's scale (≤ 10 000 users) stays under 800 ms (NFR-PER-001).
 
 #### Errors
 
