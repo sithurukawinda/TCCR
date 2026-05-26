@@ -2367,18 +2367,49 @@ List cell groups. Scope auto-applied by role:
 **`200 OK`**
 ```json
 {
-  "items": [{
-    "id": "cell-001", "name": "Rathmalana West G12",
-    "type": "g12", "area": "Rathmalana",
-    "leaderUid": "usr-leader1", "leaderName": "Sithuru Kavinda",
-    "g12LeaderUid": "usr-g12-1", "g12LeaderName": "Ushani Amanda",
-    "memberCount": 8, "reportCount": 12,
-    "state": "active", "createdAt": "2026-01-15T00:00:00.000Z",
-    "updatedAt": "2026-05-14T00:00:00.000Z"
-  }],
+  "items": [
+    {
+      "id":           "cell-001",
+      "name":         "Rathmalana West G12",
+      "type":         "g12",
+      "area":         "Rathmalana",
+      "leaderUid":    "usr-leader1",
+      "g12LeaderUid": "usr-g12-1",
+      "members": [
+        {
+          "uid":         "usr-mem1",
+          "firstName":   "Saman",
+          "lastName":    "Silva",
+          "displayName": "Saman Silva"
+        },
+        {
+          "uid":         "usr-mem2",
+          "firstName":   "Nimal",
+          "lastName":    "Perera",
+          "displayName": "Nimal Perera"
+        }
+      ],
+      "memberCount":  8,
+      "reportCount":  12,
+      "state":        "active",
+      "createdAt":    "2026-01-15T00:00:00.000Z",
+      "updatedAt":    "2026-05-14T00:00:00.000Z"
+    }
+  ],
   "nextCursor": null, "total": 3
 }
 ```
+
+**`members[]` object shape:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `uid` | string | Firebase Auth UID of the member |
+| `firstName` | string | First name from user-service profile (empty string if user deleted or service unavailable) |
+| `lastName` | string | Last name from user-service profile |
+| `displayName` | string | `firstName + " " + lastName` — trimmed convenience field |
+
+> **Member name enrichment:** Member UIDs are deduplicated across all cells in the response and resolved in a single parallel batch call to user-service. Profile lookups are **non-fatal** — if a user has been deleted or user-service is temporarily unavailable, that member is returned with empty name fields rather than failing the entire request.
 
 ---
 

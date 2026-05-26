@@ -36,7 +36,7 @@ const userClient    = new UserServiceClient();
 
 // Cell Group use cases
 const createCellUC   = new CreateCellGroupUseCase(cellRepo, outbox);
-const getCellsUC     = new GetCellsUseCase(cellRepo);
+const getCellsUC     = new GetCellsUseCase(cellRepo, userClient);
 const getMyCellsUC   = new GetMyCellsUseCase(cellRepo);
 const getCellByIdUC  = new GetCellByIdUseCase(cellRepo, userClient);
 const updateCellUC   = new UpdateCellGroupUseCase(cellRepo);
