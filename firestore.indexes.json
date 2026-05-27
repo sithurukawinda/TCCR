@@ -350,6 +350,23 @@
       "collectionGroup": "cell_groups",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "g12LeaderUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cell_groups",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "g12LeaderUid", "order": "ASCENDING" },
+        { "fieldPath": "state",        "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "cell_groups",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "state",     "order": "ASCENDING" },
         { "fieldPath": "type",      "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
