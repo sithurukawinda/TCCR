@@ -48,36 +48,6 @@ export class UserRegisteredHandler {
     const loginUrl        = payload.appUrl ?? 'https://cms.bethelnet.au/login';
     const verificationLink = payload.verificationLink ?? null;
 
-    const verifySection = verificationLink
-      ? `<!-- Verify button — primary CTA -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
-              <tr>
-                <td align="center">
-                  <a href="${verificationLink}"
-                     style="display:inline-block;background:#27ae60;color:#ffffff;
-                            text-decoration:none;font-size:16px;font-weight:bold;
-                            padding:16px 48px;border-radius:6px;letter-spacing:0.3px;">
-                    Verify My Email &rarr;
-                  </a>
-                </td>
-              </tr>
-              <tr>
-                <td align="center" style="padding-top:10px;">
-                  <p style="margin:0;font-size:12px;color:#999;">
-                    Or copy this link into your browser:<br>
-                    <a href="${verificationLink}" style="color:#27ae60;word-break:break-all;">${verificationLink}</a>
-                  </p>
-                </td>
-              </tr>
-            </table>
-            <p style="font-size:13px;color:#888;text-align:center;margin:0 0 28px;">
-              This link expires in <strong>24 hours</strong>.
-              After verifying you can log in using your credentials below.
-            </p>`
-      : `<p style="font-size:14px;color:#444;margin:0 0 24px;">
-             Your account is ready. Use the credentials below to log in.
-           </p>`;
-
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -85,104 +55,67 @@ export class UserRegisteredHandler {
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
     <tr><td align="center">
-      <table width="560" cellpadding="0" cellspacing="0"
+      <table width="520" cellpadding="0" cellspacing="0"
              style="background:#ffffff;border-radius:8px;overflow:hidden;
                     box-shadow:0 2px 8px rgba(0,0,0,0.08);">
 
         <!-- Header -->
         <tr>
-          <td style="background:#1a73e8;padding:32px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:24px;letter-spacing:0.5px;">
+          <td style="background:#1a73e8;padding:28px 40px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:22px;letter-spacing:0.5px;">
               The Christian Center Rathmalana
             </h1>
-            <p style="margin:6px 0 0;color:#d0e8ff;font-size:14px;">TCCR Member Portal</p>
+            <p style="margin:4px 0 0;color:#d0e8ff;font-size:13px;">TCCR Member Portal</p>
           </td>
         </tr>
 
         <!-- Body -->
         <tr>
-          <td style="padding:36px 40px;">
+          <td style="padding:36px 40px;text-align:center;">
 
-            <p style="margin:0 0 16px;font-size:16px;color:#1a1a1a;">
-              Hi <strong>${fullName}</strong>,
+            <p style="margin:0 0 8px;font-size:18px;font-weight:bold;color:#1a1a1a;">
+              Welcome, ${fullName}! 👋
             </p>
 
-            <p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.6;">
-              Welcome to <strong>The Christian Center Rathmalana (TCCR)</strong>!
-              Your account has been created. One last step — please verify your
-              email address to activate your account.
+            <p style="margin:0 0 32px;font-size:14px;color:#666;line-height:1.7;">
+              Your TCCR account has been created successfully.<br>
+              Please verify your email address to activate your account<br>
+              and start using the portal.
             </p>
 
-            ${verifySection}
+            ${verificationLink ? `
+            <!-- Verify button -->
+            <a href="${verificationLink}"
+               style="display:inline-block;background:#27ae60;color:#ffffff;
+                      text-decoration:none;font-size:15px;font-weight:bold;
+                      padding:14px 44px;border-radius:6px;margin-bottom:12px;">
+              ✅ &nbsp;Verify My Email
+            </a>
+            <p style="margin:0 0 32px;font-size:12px;color:#999;">
+              Link expires in 24 hours
+            </p>` : ''}
 
-            <!-- Login credentials box -->
-            <table width="100%" cellpadding="0" cellspacing="0"
-                   style="background:#f8faff;border:1px solid #d0e0ff;
-                          border-radius:6px;margin:0 0 28px;">
-              <tr>
-                <td style="padding:20px 24px;">
-                  <p style="margin:0 0 12px;font-size:13px;color:#555;
-                             text-transform:uppercase;letter-spacing:0.8px;">
-                    Your Login Details
-                  </p>
-                  <table cellpadding="6" cellspacing="0" width="100%">
-                    <tr>
-                      <td style="font-size:14px;color:#666;width:90px;">Email</td>
-                      <td style="font-size:14px;color:#1a1a1a;font-weight:bold;">
-                        ${payload.email}
-                      </td>
-                    </tr>
-                    <tr>
-                      <td style="font-size:14px;color:#666;">Password</td>
-                      <td style="font-size:14px;color:#1a1a1a;font-family:monospace;
-                                 background:#eef2ff;padding:4px 8px;border-radius:4px;">
-                        ${payload.password ?? '(the password you set during registration)'}
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-            </table>
+            <!-- Login button -->
+            <a href="${loginUrl}"
+               style="display:inline-block;background:#1a73e8;color:#ffffff;
+                      text-decoration:none;font-size:15px;font-weight:bold;
+                      padding:14px 44px;border-radius:6px;margin-bottom:32px;">
+              Log in to TCCR &rarr;
+            </a>
 
-            <!-- Login button (secondary CTA — after verification) -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
-              <tr>
-                <td align="center">
-                  <a href="${loginUrl}"
-                     style="display:inline-block;background:#1a73e8;color:#ffffff;
-                            text-decoration:none;font-size:15px;font-weight:bold;
-                            padding:14px 40px;border-radius:6px;">
-                    Log in to TCCR &rarr;
-                  </a>
-                </td>
-              </tr>
-            </table>
-
-            <!-- Warning -->
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td style="background:#fff8e1;border-left:4px solid #f9a825;
-                           padding:12px 16px;border-radius:0 4px 4px 0;">
-                  <p style="margin:0;font-size:13px;color:#7a5800;">
-                    ⚠ &nbsp;<strong>Security tip:</strong> Please change your password
-                    after your first login via <em>My Profile → Change Password</em>.
-                  </p>
-                </td>
-              </tr>
-            </table>
+            <p style="margin:0;font-size:12px;color:#aaa;line-height:1.6;">
+              If you did not create this account, please ignore this email or contact
+              <a href="mailto:support@tccr.lk" style="color:#1a73e8;">support@tccr.lk</a>
+            </p>
 
           </td>
         </tr>
 
         <!-- Footer -->
         <tr>
-          <td style="background:#f8f9fa;padding:20px 40px;
+          <td style="background:#f8f9fa;padding:16px 40px;
                      border-top:1px solid #eee;text-align:center;">
-            <p style="margin:0;font-size:12px;color:#aaa;">
-              If you did not create this account, please contact us at
-              <a href="mailto:support@tccr.lk" style="color:#1a73e8;">support@tccr.lk</a>
-            </p>
-            <p style="margin:8px 0 0;font-size:12px;color:#ccc;">
+            <p style="margin:0;font-size:12px;color:#ccc;">
               &copy; ${new Date().getFullYear()} The Christian Center Rathmalana
             </p>
           </td>
