@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.25.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.26.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.25.0
+**Version:** 2.26.0
 **Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.24.0 (27 May 2026)
+**Supersedes:** Version 2.25.0 (27 May 2026)
+**Change in 2.26.0:** Added lesson-level progress endpoints (§12.6, §12.7) and extended `GET /me/progress/courses/:courseId` (§12.3) with `completedLessonIds[]`, `totalLessons`, `lessonCompletionPercent`, and `lastAccessedAt`. New Firestore collection: `lesson_progress`.
 **Change in 2.25.0:** Developed `GET /users/summary` (§4.11) — enriched `SummaryProfile` with `roles[]`, `phoneNumber`, `createdAt`; added Frontend Integration Guide; 10 unit tests added.
 **Change in 2.24.0:** PDF file inputs made optional across all upload endpoints (§3.5, §10.1):
 - §3.5 `POST /me/qualification`: `qualification` field now optional — omitting it returns `{ fileUrl: null }`
@@ -54,6 +55,9 @@
 10. [Attachment & Image Endpoints](#10-attachment--image-endpoints)
 11. [Enrollment Endpoints](#11-enrollment-endpoints)
 12. [Progress Endpoints](#12-progress-endpoints)
+    - 12.1 [Mark Subject Complete](#121-post-progresssubjectsidcomplete) · 12.2 [Subject Access](#122-post-progresssubjectsidaccess) · 12.3 [My Course Progress](#123-get-meprogress-coursescourseid)
+    - 12.4 [My Subject Progress](#124-get-meprogresssubjectssubjectid) · 12.5 [Admin Course Progress](#125-get-adminprogresscoursescourseid)
+    - **12.6 [Mark Lesson Complete ★ NEW](#126-post-progresslessonslessionidcomplete--new) · 12.7 [Unmark Lesson ★ NEW](#127-delete-progresslessonslessonidcomplete--new)**
 13. [Cell Group Endpoints — NEW V2](#13-cell-group-endpoints--new-v2)
     - 13.1 [List Cells](#131-get-cells)
     - 13.2 [My Cells](#132-get-cellsmine)
@@ -2523,15 +2527,34 @@ Course-level progress aggregate (FR-LRN-004).
 **`200 OK`**
 ```json
 {
-  "courseId":              "course-abc",
-  "studentUid":            "Xf3aBC...",
-  "completedCount":        4,
-  "pendingCount":          6,
-  "totalSubjects":         10,
-  "completionPercent":     40.0,
-  "lastAccessedSubjectId": "sub-003"
+  "courseId":               "course-abc",
+  "studentUid":             "Xf3aBC...",
+  "completedCount":         4,
+  "pendingCount":           6,
+  "totalSubjects":          10,
+  "completionPercent":      40.0,
+  "lastAccessedSubjectId":  "sub-003",
+  "lastAccessedAt":         "2026-05-27T11:30:00.000Z",
+
+  "completedLessonIds":     ["les-001", "les-002", "les-005"],
+  "totalLessons":           9,
+  "lessonCompletionPercent": 33
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `completedCount` | number | Subjects fully completed |
+| `pendingCount` | number | Subjects not yet completed (`totalSubjects − completedCount`) |
+| `totalSubjects` | number | Total non-deleted subjects in the course |
+| `completionPercent` | number | Subject-weighted percent — one decimal place e.g. `66.7`. **Dashboard uses this field.** |
+| `lastAccessedSubjectId` | string \| null | Most-recently accessed subject UID |
+| `lastAccessedAt` | string \| null | ISO 8601 timestamp of the most-recent subject access |
+| `completedLessonIds` | string[] | IDs of every lesson the student has marked complete — use to rehydrate lesson tick-boxes in the course viewer |
+| `totalLessons` | number | Total non-deleted lessons across all subjects in the course |
+| `lessonCompletionPercent` | number | `Math.round(completedLessons / totalLessons * 100)` — integer percent. **Course-viewer progress bar uses this field.** |
+
+> **Backwards compatibility:** `completedCount`, `pendingCount`, `totalSubjects`, and `completionPercent` are unchanged. The Dashboard should continue reading `completionPercent` (subject-weighted). The course-viewer progress bar should switch to `lessonCompletionPercent`.
 
 ---
 
@@ -2555,6 +2578,98 @@ Admin view. Supports `?batchId` to scope to one intake.
 | `limit`, `cursor` | Pagination |
 
 **`200 OK`** — Paginated per-student progress aggregates.
+
+---
+
+### 12.6 `POST /progress/lessons/:lessonId/complete` ★ NEW
+
+Mark an individual lesson complete. **Idempotent** — calling again for the same lesson returns `200` with the original `completedAt` unchanged.
+
+**Auto-rollup:** When every lesson in the parent subject is now complete, the backend automatically marks the subject complete — the frontend does **not** need to make a second call to `POST /progress/subjects/:id/complete`.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`  
+**Content-Type:** `application/json`
+
+#### Request Body
+
+```json
+{
+  "courseId":   "course-abc",
+  "subjectId":  "sub-001",
+  "semesterId": "sem-001",
+  "batchId":    "batch-xyz"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `courseId` | string | ✅ | Must match the lesson's parent course |
+| `subjectId` | string | ✅ | Must match the lesson's parent subject |
+| `semesterId` | string | ✅ | Must match the lesson's parent semester |
+| `batchId` | string | ➖ | Student's enrollment batch — optional |
+
+#### Validation Rules
+
+| Condition | Error |
+|-----------|-------|
+| Caller has no approved enrollment in `courseId` | `403 NOT_ENROLLED` |
+| `lessonId` does not exist | `404 LESSON_NOT_FOUND` |
+| `lessonId` does not belong to stated `courseId` / `subjectId` | `400 LESSON_MISMATCH` |
+
+#### Responses
+
+**`200 OK`** — Lesson marked complete (or already was complete — idempotent).
+```json
+{
+  "lessonId":             "les-001",
+  "subjectId":            "sub-001",
+  "courseId":             "course-abc",
+  "completedAt":          "2026-05-27T11:45:00.000Z",
+  "subjectAutoCompleted": true
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lessonId` | string | The lesson that was marked complete |
+| `subjectId` | string | Parent subject |
+| `courseId` | string | Parent course |
+| `completedAt` | string | ISO 8601 — server timestamp of first completion; unchanged on repeated calls |
+| `subjectAutoCompleted` | boolean | `true` if this lesson completion triggered an auto-rollup of the parent subject; `false` otherwise (including idempotent calls) |
+
+**`400 Bad Request`** → `LESSON_MISMATCH`
+```json
+{ "error": { "code": "LESSON_MISMATCH", "message": "lessonId does not belong to the stated courseId / subjectId." }, "requestId": "..." }
+```
+
+**`403 Forbidden`** → `NOT_ENROLLED`
+```json
+{ "error": { "code": "NOT_ENROLLED", "message": "An approved enrollment is required to mark lessons complete." }, "requestId": "..." }
+```
+
+**`404 Not Found`** → `LESSON_NOT_FOUND`
+```json
+{ "error": { "code": "LESSON_NOT_FOUND", "message": "Lesson not found." }, "requestId": "..." }
+```
+
+---
+
+### 12.7 `DELETE /progress/lessons/:lessonId/complete` ★ NEW
+
+Unmark a lesson as complete — removes the completion record. Intended for mistakes or video re-watch flows.
+
+**Auto-revert:** If the parent subject was previously auto-completed (via §12.6 rollup), and removing this lesson means not all lessons are done, the subject is automatically reverted to `in_progress`.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`
+
+#### Responses
+
+**`204 No Content`** — Lesson completion removed.
+
+**`404 Not Found`** → `LESSON_PROGRESS_NOT_FOUND` — No completion record exists for this lesson and caller.
+```json
+{ "error": { "code": "LESSON_PROGRESS_NOT_FOUND", "message": "No completion record found for this lesson." }, "requestId": "..." }
+```
 
 ---
 
