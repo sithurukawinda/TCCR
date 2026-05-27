@@ -2131,6 +2131,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
 // ---------------------------------------------------------------------------
 
 const progressFolder = folder('9️⃣ Progress Service', [
+  // ── Subject-level progress ────────────────────────────────────────────────
   buildRequest({
     name: 'Mark Subject Complete',
     method: 'POST',
@@ -2140,7 +2141,7 @@ const progressFolder = folder('9️⃣ Progress Service', [
     // API ref §12.1 — batchId added in V2 for cohort-level progress reporting
     body: jsonBody({ courseId: '{{courseId}}', semesterId: '{{semesterId}}', batchId: '{{batchId}}' }),
     tests: [
-      `pm.test("200 or 201 — Mark Complete", () => {`,
+      `pm.test("200 or 201 — Mark Subject Complete", () => {`,
       `  pm.expect([200, 201]).to.include(pm.response.code);`,
       `});`,
     ],
@@ -2154,18 +2155,168 @@ const progressFolder = folder('9️⃣ Progress Service', [
     // API ref §12.2 — batchId added in V2
     body: jsonBody({ courseId: '{{courseId}}', semesterId: '{{semesterId}}', batchId: '{{batchId}}' }),
     tests: [
-      `pm.test("200 or 201 — Record Access", () => {`,
+      `pm.test("200 or 201 — Record Subject Access", () => {`,
       `  pm.expect([200, 201]).to.include(pm.response.code);`,
       `});`,
     ],
   }),
+
+  // ── Lesson-level progress (V2) ★ NEW ─────────────────────────────────────
   buildRequest({
-    name: 'Get My Course Progress',
+    name: 'Mark Lesson Complete ★ NEW',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/complete' },
+    auth: bearerAuth('student2Token'),
+    headers: jsonHeader(),
+    // API ref §12.6 — courseId, subjectId, semesterId required; batchId optional
+    body: jsonBody({
+      courseId:   '{{courseId}}',
+      subjectId:  '{{subjectId}}',
+      semesterId: '{{semesterId}}',
+      batchId:    '{{batchId}}',
+    }),
+    description: [
+      'Mark an individual lesson complete. Idempotent — same lesson returns 200 unchanged.',
+      '',
+      'Auto-rollup: when ALL lessons in the parent subject are done, the subject is',
+      'automatically marked complete (subjectAutoCompleted: true). No second call needed.',
+      '',
+      'Requires an approved enrollment in the course (403 if not enrolled).',
+      'Validates lessonId belongs to the stated subjectId/courseId (400 LESSON_MISMATCH).',
+      '',
+      'API ref §12.6',
+    ].join('\n'),
+    tests: [
+      `// 200 = lesson marked (or already was); 403 = no enrollment; 404 = lesson not found`,
+      `pm.test("200 or 403 — Mark Lesson Complete (403 = no enrollment for student2)", () => {`,
+      `  pm.expect([200, 403]).to.include(pm.response.code);`,
+      `});`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("lessonId matches request",    () => pm.expect(j.lessonId).to.be.a("string").and.not.empty);`,
+      `  pm.test("subjectId present",           () => pm.expect(j.subjectId).to.be.a("string").and.not.empty);`,
+      `  pm.test("courseId present",            () => pm.expect(j.courseId).to.be.a("string").and.not.empty);`,
+      `  pm.test("completedAt is ISO string",   () => pm.expect(j.completedAt).to.be.a("string").and.not.empty);`,
+      `  pm.test("subjectAutoCompleted is bool", () => pm.expect(j.subjectAutoCompleted).to.be.a("boolean"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Mark Lesson Complete — Idempotent (same lesson) ★ NEW',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/complete' },
+    auth: bearerAuth('student2Token'),
+    headers: jsonHeader(),
+    body: jsonBody({
+      courseId:   '{{courseId}}',
+      subjectId:  '{{subjectId}}',
+      semesterId: '{{semesterId}}',
+      batchId:    '{{batchId}}',
+    }),
+    description: 'Second call with the same lessonId. Must return 200 with the original completedAt unchanged and subjectAutoCompleted: false.',
+    tests: [
+      `pm.test("200 or 403 — Idempotent lesson mark", () => {`,
+      `  pm.expect([200, 403]).to.include(pm.response.code);`,
+      `});`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("subjectAutoCompleted is false on idempotent call", () => pm.expect(j.subjectAutoCompleted).to.equal(false));`,
+      `  pm.test("completedAt is present", () => pm.expect(j.completedAt).to.be.a("string").and.not.empty);`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Mark Lesson Complete — Missing body field → 400 ★ NEW',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/complete' },
+    auth: bearerAuth('student2Token'),
+    headers: jsonHeader(),
+    // subjectId intentionally omitted to trigger Zod validation error
+    body: jsonBody({ courseId: '{{courseId}}', semesterId: '{{semesterId}}' }),
+    description: 'Omit subjectId to verify Zod validation returns 400 VALIDATION_ERROR.',
+    tests: [
+      `pm.test("400 — missing subjectId returns VALIDATION_ERROR", () => {`,
+      `  pm.expect([400, 403]).to.include(pm.response.code);`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Unmark Lesson Complete ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/complete' },
+    auth: bearerAuth('student2Token'),
+    description: [
+      'Remove a lesson completion record. Returns 204 on success.',
+      '',
+      'Auto-revert: if the parent subject was auto-completed and removing this lesson',
+      'means not all lessons are done, the subject is reverted to in_progress.',
+      '',
+      'API ref §12.7',
+    ].join('\n'),
+    tests: [
+      `// 204 = unmarked; 404 = no completion record (if Mark Lesson was skipped / 403 above)`,
+      `pm.test("204 or 404 — Unmark Lesson (404 if lesson was never marked)", () => {`,
+      `  pm.expect([204, 404]).to.include(pm.response.code);`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Unmark Lesson — Not Found → 404 ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/complete' },
+    auth: bearerAuth('student2Token'),
+    description: 'Second DELETE for the same lesson — record already removed. Must return 404 LESSON_PROGRESS_NOT_FOUND.',
+    tests: [
+      `pm.test("404 — second unmark returns LESSON_PROGRESS_NOT_FOUND", () => {`,
+      `  pm.expect([404]).to.include(pm.response.code);`,
+      `});`,
+      `if (pm.response.code === 404) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code is LESSON_PROGRESS_NOT_FOUND", () => pm.expect(j.error.code).to.equal("LESSON_PROGRESS_NOT_FOUND"));`,
+      `}`,
+    ],
+  }),
+
+  // ── Course / subject progress queries ─────────────────────────────────────
+  buildRequest({
+    name: 'Get My Course Progress (with lesson fields) ★ UPDATED',
     method: 'GET',
     url: { raw: '{{baseUrl}}/me/progress/courses/{{courseId}}' },
     auth: bearerAuth('student2Token'),
-    tests: [`pm.test("200 OK — Get Course Progress", () => pm.response.to.have.status(200));`],
+    description: [
+      'Returns subject-level AND lesson-level progress in one call.',
+      '',
+      'New V2 fields (API ref §12.3):',
+      '  completedLessonIds[]      — IDs of every completed lesson (use to rehydrate tick-boxes)',
+      '  totalLessons              — total non-deleted lessons in the course',
+      '  lessonCompletionPercent   — integer % (course-viewer progress bar)',
+      '  lastAccessedAt            — ISO 8601 of most-recent subject access',
+      '',
+      'Existing fields unchanged:',
+      '  completionPercent         — subject-weighted (Dashboard uses this)',
+      '  completedCount, pendingCount, totalSubjects, lastAccessedSubjectId',
+    ].join('\n'),
+    tests: [
+      `pm.test("200 OK — Get Course Progress", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `// Existing fields`,
+      `pm.test("courseId present",          () => pm.expect(j.courseId).to.be.a("string").and.not.empty);`,
+      `pm.test("completedCount is number",  () => pm.expect(j.completedCount).to.be.a("number"));`,
+      `pm.test("pendingCount is number",    () => pm.expect(j.pendingCount).to.be.a("number"));`,
+      `pm.test("totalSubjects is number",   () => pm.expect(j.totalSubjects).to.be.a("number"));`,
+      `pm.test("completionPercent is number", () => pm.expect(j.completionPercent).to.be.a("number"));`,
+      `// New V2 lesson-level fields`,
+      `pm.test("completedLessonIds is array ★ NEW",     () => pm.expect(j.completedLessonIds).to.be.an("array"));`,
+      `pm.test("totalLessons is number ★ NEW",          () => pm.expect(j.totalLessons).to.be.a("number"));`,
+      `pm.test("lessonCompletionPercent is number ★ NEW", () => pm.expect(j.lessonCompletionPercent).to.be.a("number"));`,
+      `pm.test("lastAccessedAt present ★ NEW",          () => pm.expect(j).to.have.property("lastAccessedAt"));`,
+    ],
   }),
+
   buildRequest({
     name: 'Get My Subject Progress',
     method: 'GET',
