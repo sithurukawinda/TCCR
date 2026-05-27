@@ -100,7 +100,7 @@ node scripts/seed-new-g12.js
 node scripts/seed-new-g12-online.js
 
 # Regenerate the Postman collection from source (overwrites postman/CMP_Backend.postman_collection.json)
-# Run this after adding new endpoints — generates 209 requests across 17 folders
+# Run this after adding new endpoints — generates 220 requests across 17 folders
 node scripts/build-postman-collection.js
 
 # Audit the Postman collection against implemented routes â€” reports missing/extra requests
@@ -921,7 +921,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 
 **Firebase emulator ports** (from `firebase.json`): Auth `9099`, Firestore `8080`, Storage `9199`, UI `4000` (`http://localhost:4000`).
 
-**Postman:** Import `postman/CMP_Backend.postman_collection.json` (209 requests across 17 folders) with one of the two environment files:
+**Postman:** Import `postman/CMP_Backend.postman_collection.json` (220 requests across 17 folders) with one of the two environment files:
 
 | Environment file | `baseUrl` | `authBaseUrl` | `firebaseWebApiKey` |
 |-----------------|-----------|--------------|-------------------|
@@ -947,7 +947,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 | 12 | ðŸ“‹ Audit Log | 3 |
 | 13 | âš¡ Course Lifecycle | 6 |
 | 14 | ðŸ˜ V2 â€” Cell Service (sub-folders: Member Search, Cell CRUD, Members, Join Requests, Cell Reports, Archive) | 42 |
-| 15 | ðŸ“Š V2 â€” Analytics Service | 10 |
+| 15 | ðŸ“Š V2 â€” Analytics Service | 21 |
 | 16 | ðŸ¥ Health Checks | 12 |
 
 **Collection-managed variables** (auto-set by test scripts, do not set manually): `superAdminToken`, `superAdminId`, `adminToken`, `adminId`, `leaderToken`, `leaderId`, `g12Token`, `g12Id`, `studentToken`, `student2Token`, `student2Id`, `student1Token`, `student1Id`, `userId`, `runId`, `registeredUid`, `tempMemberToken`, `federatedToken`, `adminUserId`, `promotedAdminId`, `createdLeaderId`, `createdG12Id`, `courseId`, `semesterId`, `subjectId`, `subjectId2`, `lessonId`, `batchId`, `draftBatchId`, `enrollmentId`, `enrollmentId2`, `registrationId`, `roleRequestId`, `notificationId`, `attachmentId`, `imageAttachmentId`, `cellId`, `joinRequestId`, `cellReportId`, `reportPhotoUrls`, `foundMemberUid`.
