@@ -97,9 +97,14 @@ export class GetNetworkReportsUseCase {
       ),
     );
 
-    // ── Merge and sort by date descending ─────────────────────────────────────
-    const allReports = (reportPages.flat() as (CellReport & { cellName: string })[])
+    // ── Merge, filter by report-level cellType if requested, sort by date desc ──
+    let allReports = (reportPages.flat() as (CellReport & { cellName: string })[])
       .sort((a, b) => b.date.localeCompare(a.date));
+
+    // Secondary guard: ensure report.cellType matches the requested type.
+    // A cell's registered type and the cellType stored on a report can differ
+    // when a leader inadvertently files with a wrong type.
+    if (opts.type) allReports = allReports.filter(r => r.cellType === opts.type);
 
     return {
       items:      allReports,
