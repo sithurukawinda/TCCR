@@ -18,16 +18,143 @@ export class EmailClient {
       : `"TCCR" <noreply@tccr.lk>`;
   }
 
-  async sendOtp(to: string, otp: string): Promise<void> {
+  /**
+   * Sends a password reset email containing BOTH:
+   * - A 6-digit OTP for in-app verification
+   * - A direct Firebase reset link for one-click browser reset
+   */
+  async sendPasswordResetEmail(to: string, otp: string, resetLink: string | null): Promise<void> {
+    const resetLinkSection = resetLink
+      ? `
+        <!-- Direct reset link button -->
+        <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+          <tr>
+            <td align="center">
+              <a href="${resetLink}"
+                 style="display:inline-block;background:#1a73e8;color:#ffffff;
+                        text-decoration:none;font-size:15px;font-weight:bold;
+                        padding:14px 40px;border-radius:6px;letter-spacing:0.3px;">
+                Reset My Password &rarr;
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td align="center" style="padding-top:10px;">
+              <p style="margin:0;font-size:12px;color:#999;">
+                Or copy this link:<br>
+                <a href="${resetLink}" style="color:#1a73e8;word-break:break-all;">${resetLink}</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+        <p style="font-size:13px;color:#888;text-align:center;">
+          This link expires in <strong>1 hour</strong>.
+        </p>
+        <hr style="border:none;border-top:1px solid #eee;margin:28px 0;">
+        <p style="font-size:13px;color:#555;text-align:center;">
+          <strong>Or use the in-app verification code:</strong>
+        </p>`
+      : `<p style="font-size:14px;color:#444;margin:0 0 20px;">
+           Use the verification code below in the TCCR app:
+         </p>`;
+
+    const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
+    <tr><td align="center">
+      <table width="560" cellpadding="0" cellspacing="0"
+             style="background:#ffffff;border-radius:8px;overflow:hidden;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+
+        <!-- Header -->
+        <tr>
+          <td style="background:#1a73e8;padding:32px 40px;text-align:center;">
+            <h1 style="margin:0;color:#ffffff;font-size:24px;letter-spacing:0.5px;">
+              The Christian Center Rathmalana
+            </h1>
+            <p style="margin:6px 0 0;color:#d0e8ff;font-size:14px;">TCCR Member Portal</p>
+          </td>
+        </tr>
+
+        <!-- Body -->
+        <tr>
+          <td style="padding:36px 40px;">
+            <p style="margin:0 0 8px;font-size:16px;color:#1a1a1a;">
+              <strong>Password Reset Request</strong>
+            </p>
+            <p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.6;">
+              We received a request to reset your TCCR account password.
+              Choose either option below:
+            </p>
+
+            ${resetLinkSection}
+
+            <!-- OTP code box -->
+            <div style="background:#f0f4ff;border:2px solid #1a73e8;border-radius:12px;
+                        padding:24px;text-align:center;margin:20px 0;">
+              <p style="margin:0 0 8px;font-size:13px;color:#555;
+                         letter-spacing:1px;text-transform:uppercase;">
+                In-App Verification Code
+              </p>
+              <h1 style="margin:0;font-size:48px;font-weight:bold;color:#1a73e8;
+                         letter-spacing:12px;font-family:monospace;">
+                ${otp}
+              </h1>
+              <p style="margin:8px 0 0;font-size:12px;color:#888;">
+                Expires in <strong>15 minutes</strong>
+              </p>
+            </div>
+
+            <!-- Security warning -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+              <tr>
+                <td style="background:#fff8e1;border-left:4px solid #f9a825;
+                           padding:12px 16px;border-radius:0 4px 4px 0;">
+                  <p style="margin:0;font-size:13px;color:#7a5800;">
+                    ⚠ &nbsp;If you did not request a password reset, ignore this email.
+                    Your password will remain unchanged.
+                  </p>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+
+        <!-- Footer -->
+        <tr>
+          <td style="background:#f8f9fa;padding:20px 40px;
+                     border-top:1px solid #eee;text-align:center;">
+            <p style="margin:0;font-size:12px;color:#aaa;">
+              Questions? Contact us at
+              <a href="mailto:support@tccr.lk" style="color:#1a73e8;">support@tccr.lk</a>
+            </p>
+            <p style="margin:8px 0 0;font-size:12px;color:#ccc;">
+              &copy; ${new Date().getFullYear()} The Christian Center Rathmalana
+            </p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`.trim();
+
     await this.transport.sendMail({
       from:    this.fromAddress,
       to,
-      subject: 'Your Password Reset Code — TCCR',
-      html:    `<p>Your password reset verification code is:</p>
-                <h2 style="letter-spacing:4px">${otp}</h2>
-                <p>This code expires in <strong>15 minutes</strong>.</p>
-                <p>If you did not request this, ignore this email.</p>`,
+      subject: 'Reset Your TCCR Password',
+      html,
     });
+  }
+
+  /** @deprecated Use sendPasswordResetEmail instead */
+  async sendOtp(to: string, otp: string): Promise<void> {
+    await this.sendPasswordResetEmail(to, otp, null);
   }
 
   async sendVerificationEmail(
