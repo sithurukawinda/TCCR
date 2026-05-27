@@ -79,7 +79,7 @@ function monthLabel(month: string): string {
  * Computes the full reporting summary for the Reports page.
  *
  * Scope rules (same as GetNetworkReportsUseCase):
- *   G12 leader  → only cells where g12LeaderUid === callerUid
+ *   G12 leader  → ALL active cells (org-wide read access)
  *   Cell leader → only their own cell
  *   Admin/SA    → all active cells
  */
@@ -105,8 +105,9 @@ export class GetNetworkSummaryUseCase {
 
     // ── 1. Resolve scope ───────────────────────────────────────────────────────
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
-    if (!isAdmin) {
-      cellFilter = isG12 ? { g12LeaderUid: callerUid } : { leaderUid: callerUid };
+    if (!isAdmin && !isG12) {
+      // G12 — org-wide read access (same as admin); leader still scoped to own cell
+      cellFilter = { leaderUid: callerUid };
     }
 
     const cellResult = await this.cellRepo.findAll({ limit: 100, state: 'active', ...cellFilter });

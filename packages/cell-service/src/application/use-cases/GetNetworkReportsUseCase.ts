@@ -23,7 +23,7 @@ export interface NetworkReportsResult {
  * Returns all cell reports across every cell in the caller's G12 network.
  *
  * Scope by role:
- *   G12         → reports from all cells where g12LeaderUid === callerUid
+ *   G12         → reports from ALL active cells (org-wide read access)
  *   Leader      → reports from their own cell (leaderUid === callerUid)
  *   Admin/SA    → reports from ALL active cells (no UID filter)
  *
@@ -65,7 +65,7 @@ export class GetNetworkReportsUseCase {
     if (isAdmin) {
       cellFilter = {}; // all cells — no restriction
     } else if (isG12) {
-      cellFilter = { g12LeaderUid: callerUid }; // only cells under this G12
+      cellFilter = {}; // G12 — org-wide read access (all cells)
     } else {
       cellFilter = { leaderUid: callerUid }; // only the leader's own cell
     }

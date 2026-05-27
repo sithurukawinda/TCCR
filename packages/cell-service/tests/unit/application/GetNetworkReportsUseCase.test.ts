@@ -12,6 +12,7 @@ const makeRepo = (): jest.Mocked<ICellGroupRepository> => ({
 
 const makeReportRepo = (): jest.Mocked<ICellReportRepository> => ({
   findById: jest.fn(), findByClientReqId: jest.fn(), findAll: jest.fn(),
+  findByPeriod: jest.fn(),
   create: jest.fn(), update: jest.fn(),
 });
 
@@ -51,15 +52,18 @@ describe('GetNetworkReportsUseCase', () => {
     useCase    = new GetNetworkReportsUseCase(cellRepo, reportRepo);
   });
 
-  // ── G12 — sees only their network ────────────────────────────────────────
+  // ── G12 — org-wide read access (all cells) ───────────────────────────────
 
-  it('G12 queries cells filtered by their g12LeaderUid', async () => {
+  it('G12 queries ALL cells with no g12LeaderUid scope (org-wide)', async () => {
     cellRepo.findAll.mockResolvedValue({ items: [], nextCursor: null, total: 0 });
 
     await useCase.execute(OPTS, 'g12-1', ['g12'] as Role[]);
 
     expect(cellRepo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ g12LeaderUid: 'g12-1', state: 'active' }),
+      expect.objectContaining({ state: 'active' }),
+    );
+    expect(cellRepo.findAll).toHaveBeenCalledWith(
+      expect.not.objectContaining({ g12LeaderUid: expect.anything() }),
     );
   });
 

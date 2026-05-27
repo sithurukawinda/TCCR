@@ -25,7 +25,7 @@ export interface NetworkMembersResult {
  * grouped by cell so the G12 can see which members belong to each leader.
  *
  * Scope by role:
- *   G12         → members from all cells where g12LeaderUid === callerUid
+ *   G12         → members from ALL active cells (org-wide read access)
  *   Leader      → members from their own cell only (leaderUid === callerUid)
  *   Admin/SA    → members from ALL active cells (no UID filter)
  */
@@ -57,7 +57,7 @@ export class GetNetworkMembersUseCase {
     if (isAdmin) {
       cellFilter = {}; // all cells
     } else if (isG12) {
-      cellFilter = { g12LeaderUid: callerUid }; // only cells under this G12
+      cellFilter = {}; // G12 — org-wide read access (all cells)
     } else {
       cellFilter = { leaderUid: callerUid }; // leader sees their own cell
     }
