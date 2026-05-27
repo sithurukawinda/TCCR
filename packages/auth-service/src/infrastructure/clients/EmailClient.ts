@@ -19,45 +19,10 @@ export class EmailClient {
   }
 
   /**
-   * Sends a password reset email containing BOTH:
-   * - A 6-digit OTP for in-app verification
-   * - A direct Firebase reset link for one-click browser reset
+   * Sends a TCCR-branded password reset email with a direct Firebase reset link.
+   * The user clicks the button and is taken directly to the Firebase password reset page.
    */
-  async sendPasswordResetEmail(to: string, otp: string, resetLink: string | null): Promise<void> {
-    const resetLinkSection = resetLink
-      ? `
-        <!-- Direct reset link button -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="margin:24px 0;">
-          <tr>
-            <td align="center">
-              <a href="${resetLink}"
-                 style="display:inline-block;background:#1a73e8;color:#ffffff;
-                        text-decoration:none;font-size:15px;font-weight:bold;
-                        padding:14px 40px;border-radius:6px;letter-spacing:0.3px;">
-                Reset My Password &rarr;
-              </a>
-            </td>
-          </tr>
-          <tr>
-            <td align="center" style="padding-top:10px;">
-              <p style="margin:0;font-size:12px;color:#999;">
-                Or copy this link:<br>
-                <a href="${resetLink}" style="color:#1a73e8;word-break:break-all;">${resetLink}</a>
-              </p>
-            </td>
-          </tr>
-        </table>
-        <p style="font-size:13px;color:#888;text-align:center;">
-          This link expires in <strong>1 hour</strong>.
-        </p>
-        <hr style="border:none;border-top:1px solid #eee;margin:28px 0;">
-        <p style="font-size:13px;color:#555;text-align:center;">
-          <strong>Or use the in-app verification code:</strong>
-        </p>`
-      : `<p style="font-size:14px;color:#444;margin:0 0 20px;">
-           Use the verification code below in the TCCR app:
-         </p>`;
-
+  async sendPasswordResetEmail(to: string, resetLink: string): Promise<void> {
     const html = `
 <!DOCTYPE html>
 <html lang="en">
@@ -85,31 +50,39 @@ export class EmailClient {
             <p style="margin:0 0 8px;font-size:16px;color:#1a1a1a;">
               <strong>Password Reset Request</strong>
             </p>
-            <p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.6;">
+            <p style="margin:0 0 28px;font-size:15px;color:#444;line-height:1.6;">
               We received a request to reset your TCCR account password.
-              Choose either option below:
+              Click the button below to choose a new password.
             </p>
 
-            ${resetLinkSection}
+            <!-- Reset link button -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+              <tr>
+                <td align="center">
+                  <a href="${resetLink}"
+                     style="display:inline-block;background:#1a73e8;color:#ffffff;
+                            text-decoration:none;font-size:16px;font-weight:bold;
+                            padding:16px 48px;border-radius:6px;letter-spacing:0.3px;">
+                    Reset My Password &rarr;
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding-top:12px;">
+                  <p style="margin:0;font-size:12px;color:#999;">
+                    Or copy this link into your browser:<br>
+                    <a href="${resetLink}" style="color:#1a73e8;word-break:break-all;">${resetLink}</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
 
-            <!-- OTP code box -->
-            <div style="background:#f0f4ff;border:2px solid #1a73e8;border-radius:12px;
-                        padding:24px;text-align:center;margin:20px 0;">
-              <p style="margin:0 0 8px;font-size:13px;color:#555;
-                         letter-spacing:1px;text-transform:uppercase;">
-                In-App Verification Code
-              </p>
-              <h1 style="margin:0;font-size:48px;font-weight:bold;color:#1a73e8;
-                         letter-spacing:12px;font-family:monospace;">
-                ${otp}
-              </h1>
-              <p style="margin:8px 0 0;font-size:12px;color:#888;">
-                Expires in <strong>15 minutes</strong>
-              </p>
-            </div>
+            <p style="font-size:13px;color:#888;text-align:center;margin:0 0 24px;">
+              This link expires in <strong>1 hour</strong>.
+            </p>
 
             <!-- Security warning -->
-            <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="background:#fff8e1;border-left:4px solid #f9a825;
                            padding:12px 16px;border-radius:0 4px 4px 0;">
@@ -120,7 +93,6 @@ export class EmailClient {
                 </td>
               </tr>
             </table>
-
           </td>
         </tr>
 
@@ -150,11 +122,6 @@ export class EmailClient {
       subject: 'Reset Your TCCR Password',
       html,
     });
-  }
-
-  /** @deprecated Use sendPasswordResetEmail instead */
-  async sendOtp(to: string, otp: string): Promise<void> {
-    await this.sendPasswordResetEmail(to, otp, null);
   }
 
   async sendVerificationEmail(
