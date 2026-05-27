@@ -823,6 +823,8 @@ The `requestId` is at the root of error responses (not nested inside `error`) so
 
 Copy `.env.example` to `.env` (gitignored). Required variables:
 
+> **Gateway port override:** The gateway has its own env file at `.env.gateway` (loaded by `npm run dev --workspace=packages/gateway` via the `dotenv -e` flag). It must contain `PORT=3000`. If this file is missing or has a different port the gateway binds to the wrong port and all API traffic fails silently. Firebase emulator UI also uses port 4000 — do not set `PORT=4000` in `.env.gateway`.
+
 ```
 # Service identity
 SERVICE_NAME, SERVICE_VERSION, PORT, NODE_ENV, LOG_LEVEL
@@ -1022,4 +1024,15 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`_sprints/`** â€” Per-sprint markdown files broken down from a `_plan/` file. Each subdirectory contains individual phase files and a `next-sprint.sh` automation helper. Created by `/create-sprints`, executed by `/run-sprint`.
 
 
+## API Documentation Updates
 
+When creating a new API endpoint or modifying an existing one, update **only the affected endpoint's section** in `.claude/API_Document/Version_02_API_Reference.md`.
+
+- For a **new endpoint**: add a new section for it in the appropriate place. Do not modify unrelated sections.
+- For an **updated endpoint**: edit only that endpoint's existing section (path, method, parameters, request/response schema, examples, status codes, error responses).
+- Do **not** rewrite, reformat, or "clean up" other endpoints' documentation, even if they look inconsistent or outdated.
+- Do **not** restructure the document's overall layout, table of contents, or section ordering.
+- Do **not** touch other files in `.claude/API_Document/` (e.g. older version files like `Version_01_*`). Only `Version_02_API_Reference.md` is the active reference.
+- If a change affects a shared schema or type used by multiple endpoints, update the shared definition once and reference it from the affected endpoint's section — but still do not rewrite the other endpoints that also use it.
+
+Preserve the existing tone, heading style, and formatting conventions of the surrounding document.
