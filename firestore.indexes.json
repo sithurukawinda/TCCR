@@ -283,6 +283,14 @@
       ]
     },
     {
+      "collectionGroup": "batches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state",     "order": "ASCENDING" },
+        { "fieldPath": "intakeEnd", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "role_requests",
       "queryScope": "COLLECTION",
       "fields": [

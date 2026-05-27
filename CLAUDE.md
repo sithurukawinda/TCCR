@@ -100,7 +100,7 @@ node scripts/seed-new-g12.js
 node scripts/seed-new-g12-online.js
 
 # Regenerate the Postman collection from source (overwrites postman/CMP_Backend.postman_collection.json)
-# Run this after adding new endpoints — generates 199 requests across 17 folders
+# Run this after adding new endpoints — generates 209 requests across 17 folders
 node scripts/build-postman-collection.js
 
 # Audit the Postman collection against implemented routes â€” reports missing/extra requests
@@ -220,6 +220,14 @@ node scripts/test-promote.js
 # (super_admin/admin → student/leader/g12; g12 → leader only; leader → g12 only)
 # Requires all services running with online Firebase credentials
 node scripts/test-demote.js
+
+# -- Analytics --
+
+# Manually trigger the analytics snapshotJob against online Firebase
+# Use when analytics shows all zeros because scheduled-jobs weekly job (Sunday 02:00 UTC) has not fired yet
+# Or when no cell groups have a g12LeaderUid assigned (see output warnings)
+# Reads credentials from .env.local -- services do NOT need to be running
+node scripts/trigger-snapshot.js
 
 # -- One-time migrations / TCCR seeds --
 
@@ -356,7 +364,7 @@ Controllers are thin â€” they call one use case and delegate errors with `n
 
 - `notification-service` â€” has `src/application/handlers/` (e.g. `UserRegisteredHandler`) that call a `NotificationDispatcher` service. Email dispatch retries 3Ã— with exponential backoff (1 s â†’ 2 s â†’ 4 s); failure is logged but never thrown. Push notifications are best-effort â€” a failure logs a warning and is silently swallowed. The service still exposes `/notifications` read endpoints for the frontend via the standard route â†’ controller path.
 - `audit-service` â€” has `src/application/handlers/` that write append-only entries to `audit_log` via a repository. No HTTP creation endpoint exists; entries are only created by event handlers. `GET /audit-log` supports `?actorUid=:uid` for per-user timeline filtering; `GET /users/:uid/audit-log` is the per-user timeline endpoint (admin + super_admin).
-- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells` is role-scoped: G12 callers see only cells where `g12LeaderUid === callerUid` (their own network, `active` by default — pass `?state=archived` for archived); leaders see only cells where `leaderUid === callerUid`; members/students see all active cells; admins see all cells across all states. `GET /cells/network/reports` follows the same G12 scoping rule. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
+- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells` is role-scoped: **G12 and leader callers see all active cells** (`active` by default — pass `?state=archived` for archived); members/students see all active cells; admins see all cells across all states. (Note: network endpoints `GET /cells/network/reports` and `GET /cells/network/members` remain scoped to the G12 leader's own network.) `GET /cells/network/reports` follows the same G12 scoping rule. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
 - `analytics-service` (:3011, V2) â€” reads `analytics_snapshots` written by scheduled-jobs. Exposes 6 read-only endpoints (weekly cells, attendance, meeting types, growth, participation, CSV export). No writes. Background workers (scheduled-jobs) are the sole writers to `analytics_snapshots`.
 - `scheduled-jobs` (no HTTP port, V2) â€” background worker running 3 `setInterval` loops: `batchSweepJob` (opens/closes batches by schedule), `semesterSweepJob` (disables semesters past `endDate`, runs once per day), `snapshotJob` (aggregates cell reports into `analytics_snapshots`, runs weekly). All jobs are wrapped in `safeRun()` â€” failures log and continue. Direct Firestore reads (exempt from the cross-service HTTP rule, same as outbox-worker). **Job deduplication (in-memory, resets on restart):** `semesterSweepJob` uses a `YYYY-MM-DD` UTC date key so it runs at most once per UTC day regardless of restart; `snapshotJob` uses an ISO week key (`YYYY-WNN`, Monday-start) so restarting mid-week does not re-run the snapshot. `batchSweepJob` has no deduplication â€” it is safe to run repeatedly.
 
@@ -913,7 +921,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 
 **Firebase emulator ports** (from `firebase.json`): Auth `9099`, Firestore `8080`, Storage `9199`, UI `4000` (`http://localhost:4000`).
 
-**Postman:** Import `postman/CMP_Backend.postman_collection.json` (199 requests across 17 folders) with one of the two environment files:
+**Postman:** Import `postman/CMP_Backend.postman_collection.json` (209 requests across 17 folders) with one of the two environment files:
 
 | Environment file | `baseUrl` | `authBaseUrl` | `firebaseWebApiKey` |
 |-----------------|-----------|--------------|-------------------|
@@ -925,20 +933,20 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 | # | Folder | Requests |
 |---|--------|----------|
 | 0 | ðŸ” Sign In (**run first** â€” populates all `*Token` and `*Id` vars) | 6 |
-| 1 | 1ï¸âƒ£ Auth Service | 17 |
-| 2 | 2ï¸âƒ£ User Service â€” Me | 10 |
-| 3 | 3ï¸âƒ£ User Service â€” User Management (Admin / Leader / G12) | 25 |
+| 1 | 1ï¸âƒ£ Auth Service | 16 |
+| 2 | 2ï¸âƒ£ User Service â€” Me | 11 |
+| 3 | 3ï¸âƒ£ User Service â€” Admin Manage Users | 30 |
 | 4 | 4ï¸âƒ£ User Service â€” Super Admin | 7 |
 | 5 | 5ï¸âƒ£ Course Service â€” Build a Course | 18 |
 | 6 | 6ï¸âƒ£ Batches (V2) | 6 |
 | 7 | 7ï¸âƒ£ Enrollment | 15 |
-| 8 | 8ï¸âƒ£ Role Requests (V2) | 8 |
-| 9 | 9ï¸âƒ£ Progress Service | 5 |
+| 8 | 8ï¸âƒ£ Role Requests (V2) | 9 |
+| 9 | 9ï¸âƒ£ Progress Service | 10 |
 | 10 | ðŸ”” Notifications | 4 |
 | 11 | ðŸ“Ž Storage Service | 4 |
 | 12 | ðŸ“‹ Audit Log | 3 |
 | 13 | âš¡ Course Lifecycle | 6 |
-| 14 | ðŸ˜ V2 â€” Cell Service (sub-folders: Member Search, Cell CRUD, Members, Join Requests, Cell Reports, Archive) | 19 |
+| 14 | ðŸ˜ V2 â€” Cell Service (sub-folders: Member Search, Cell CRUD, Members, Join Requests, Cell Reports, Archive) | 42 |
 | 15 | ðŸ“Š V2 â€” Analytics Service | 10 |
 | 16 | ðŸ¥ Health Checks | 12 |
 

@@ -122,8 +122,9 @@ services:
     ports: ['3009:3009']
     env_file: .env
     environment:
-      SERVICE_NAME: cell-service
-      PORT:         3009
+      SERVICE_NAME:     cell-service
+      PORT:             3009
+      SERVICE_USER_URL: http://user-service:3002
 
   analytics-service:
     build: { context: ., dockerfile: packages/analytics-service/Dockerfile }
