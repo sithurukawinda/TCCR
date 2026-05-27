@@ -247,7 +247,7 @@ packages/
   user-service/         # :3002  User profiles, admin management, account lifecycle
   course-service/       # :3003  Courses â†’ Semesters â†’ Subjects â†’ Lessons, course lifecycle state machine; V2: batches
   enrollment-service/   # :3004  Registration queue, enrollment approvals, bulk operations; V2: role_requests
-  progress-service/     # :3005  Subject completion (idempotent), course progress aggregates
+  progress-service/     # :3005  Subject completion (idempotent), lesson completion (idempotent), course progress aggregates; V2: lesson-level tracking with auto subject rollup
   storage-service/      # :3006  File upload/download, signed URLs; attachments: PDF/DOC/DOCX max 25 MB; subject images: PNG/JPEG max 10 MB
   notification-service/ # :3007  In-app notifications, email (3-retry backoff), push (best-effort)
   audit-service/        # :3008  Append-only audit_log; purely event-driven
@@ -604,6 +604,7 @@ No service reads another service's Firestore collections directly. Cross-service
 | `role_requests` | enrollment-service | auto UUID â€” V2; tracks role grants for non-member roles; state machine: `pending â†’ approved / rejected` |
 | `enrollments` | enrollment-service | `${studentUid}_${courseId}` |
 | `progress` | progress-service | `${studentUid}_${subjectId}` |
+| `lesson_progress` | progress-service | `${studentUid}_${lessonId}` — V2; fields: `studentUid`, `lessonId`, `subjectId`, `courseId`, `semesterId`, `batchId?`, `completedAt`, `createdAt`, `updatedAt`; two composite indexes: `(courseId, studentUid)` and `(subjectId, studentUid)` |
 | `notifications` | notification-service | auto UUID |
 | `audit_log` | audit-service | auto UUID (append-only, immutable) |
 | `outbox` | all services (write) / outbox-worker (read) | auto UUID |
@@ -742,9 +743,13 @@ No external cache (Redis) is required. The cache lives on the static property `l
 
 ### Progress Idempotency
 
-`MarkSubjectCompleteUseCase` is idempotent â€” if a subject is already `completed`, it returns the existing record unchanged. `completedAt` is immutable once set.
+`MarkSubjectCompleteUseCase` is idempotent — if a subject is already `completed`, it returns the existing record unchanged. `completedAt` is immutable once set.
 
-`ComputeCourseProgressUseCase` calculates `completionPercent` as `Math.round((completedCount / totalSubjects) * 1000) / 10` â€” one decimal place (e.g. 66.7%). Returns `0` when `totalSubjects === 0`. The response also includes `lastAccessedSubjectId` (the most-recently touched subject by ISO sort on `lastAccessedAt`).
+`MarkLessonCompleteUseCase` (V2) is idempotent — if the lesson is already complete, returns the existing `lesson_progress` record unchanged. On first completion it checks whether every lesson in the parent subject is now done; if so, it calls `MarkSubjectCompleteUseCase` directly (auto-rollup) — the frontend does not need a second request. Requires an approved enrollment (`EnrollmentServiceClient.isEnrolled`) and validates that the `lessonId` belongs to the stated `subjectId`/`courseId` via an internal call to course-service (`GET /internal/lessons/:id`).
+
+`UnmarkLessonCompleteUseCase` (V2) deletes the `lesson_progress` record and, if the parent subject was previously auto-completed, reverts it to `in_progress` via `IProgressRepository.revertCompletion()` — but only when the remaining completed lessons are fewer than the total (`getLessonCount` from course-service).
+
+`ComputeCourseProgressUseCase` calculates `completionPercent` as `Math.round((completedCount / totalSubjects) * 1000) / 10` — one decimal place (e.g. 66.7%). Returns `0` when `totalSubjects === 0`. The response also includes `lastAccessedSubjectId`, `lastAccessedAt` (the most-recently touched subject by ISO sort on `lastAccessedAt`), and three new V2 fields: `completedLessonIds[]` (IDs of all completed lessons for this student+course), `totalLessons` (total non-deleted lessons in the course via `getCourseLessonCount`), and `lessonCompletionPercent` (`Math.round(completedLessons / totalLessons * 100)` — integer, used by the course-viewer progress bar; Dashboard continues to use `completionPercent` subject-weighted).
 
 ### Login is Client-Side
 
@@ -790,7 +795,11 @@ Synchronous calls use `createInternalClient(serviceUrl, INTERNAL_SERVICE_KEY)`, 
 | auth-service | enrollment-service | Create registration record after user creation (fire-and-forget) |
 | enrollment-service | user-service | Update account status on approve/reject |
 | enrollment-service | course-service | Verify course is PUBLISHED before enrollment |
-| progress-service | course-service | Get total subject count for progress % |
+| progress-service | course-service | Get total subject count for progress % — `GET /internal/courses/:id/subject-count` |
+| progress-service | course-service | Validate lesson exists + get its subjectId/courseId/semesterId — `GET /internal/lessons/:id` (V2) |
+| progress-service | course-service | Get lesson count per subject for auto-rollup threshold — `GET /internal/subjects/:id/lesson-count` (V2) |
+| progress-service | course-service | Get total lesson count in course for `lessonCompletionPercent` — `GET /internal/courses/:id/lesson-count` (V2) |
+| progress-service | enrollment-service | Check approved enrollment before marking lesson complete — `GET /internal/enrollments/status` (V2) |
 | storage-service | course-service | Verify subject exists before upload |
 | outbox-worker | user-service | Approve user account on `registration.approved` event |
 | enrollment-service | user-service | Grant role on `role_requests/:id/approve` via `POST /internal/users/add-role` (V2) |
