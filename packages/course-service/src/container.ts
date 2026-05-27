@@ -80,6 +80,6 @@ export const container = {
   semesterController:       new SemesterController(createSemester, updateSemester, deleteSemester, semesterRepo),
   subjectController:        new SubjectController(createSubject, updateSubject, deleteSubject, subjectRepo),
   lessonController:         new LessonController(lessonRepo, createLesson, updateLesson, deleteLesson),
-  internalCourseController: new InternalCourseController(getSubjectCount, courseRepo, subjectRepo),
+  internalCourseController: new InternalCourseController(getSubjectCount, courseRepo, subjectRepo, lessonRepo),
   batchController:          new BatchController(createBatch, getBatches, getBatch, updateBatch, openBatch, closeBatch),
 };
