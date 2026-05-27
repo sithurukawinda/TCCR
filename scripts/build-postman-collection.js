@@ -3253,6 +3253,58 @@ const analyticsFolder = folder('📊 V2 — Analytics Service', [
       `});`,
     ],
   }),
+
+  // ── Filter param requests ─────────────────────────────────────────────────
+
+  buildRequest({
+    name: 'Weekly Cells — cellType=care filter',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/cells/weekly?weeks=12&cellType=care' },
+    auth: bearerAuth('g12Token'),
+    tests: [`pm.test("200 or 401 — Weekly Cells cellType=care", () => { pm.expect([200, 401]).to.include(pm.response.code); });`],
+  }),
+  buildRequest({
+    name: 'Attendance — cellType=children filter',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?cellType=children' },
+    auth: bearerAuth('g12Token'),
+    tests: [`pm.test("200 or 401 — Attendance cellType=children", () => { pm.expect([200, 401]).to.include(pm.response.code); });`],
+  }),
+  buildRequest({
+    name: 'Attendance — leaderUid filter (admin)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?leaderUid={{leaderId}}' },
+    auth: bearerAuth('adminToken'),
+    tests: [`pm.test("200 OK — Attendance leaderUid filter", () => pm.response.to.have.status(200));`],
+  }),
+  buildRequest({
+    name: 'Attendance — g12Uid filter (admin)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?g12Uid={{g12Id}}' },
+    auth: bearerAuth('adminToken'),
+    tests: [`pm.test("200 OK — Attendance g12Uid filter", () => pm.response.to.have.status(200));`],
+  }),
+  buildRequest({
+    name: 'Meeting Types — cellType=outreach filter',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/meeting-types?cellType=outreach' },
+    auth: bearerAuth('g12Token'),
+    tests: [`pm.test("200 or 401 — Meeting Types cellType=outreach", () => { pm.expect([200, 401]).to.include(pm.response.code); });`],
+  }),
+  buildRequest({
+    name: 'Participation — leaderUid filter (admin)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/participation?leaderUid={{leaderId}}' },
+    auth: bearerAuth('adminToken'),
+    tests: [`pm.test("200 OK — Participation leaderUid filter", () => pm.response.to.have.status(200));`],
+  }),
+  buildRequest({
+    name: 'Attendance — invalid cellType (expect 400)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?cellType=invalid' },
+    auth: bearerAuth('adminToken'),
+    tests: [`pm.test("400 — invalid cellType rejected", () => pm.response.to.have.status(400));`],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
