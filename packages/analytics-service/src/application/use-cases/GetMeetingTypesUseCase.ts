@@ -1,5 +1,5 @@
 import { IAnalyticsRepository } from '../../domain/repositories/IAnalyticsRepository';
-import { resolveScope, getISOWeekKey } from '../helpers/scope';
+import { resolveScope, getISOWeekKey, AnalyticsFilters } from '../helpers/scope';
 import { Role } from '@shared/auth-middleware';
 
 export interface MeetingTypesResponse {
@@ -11,8 +11,8 @@ export interface MeetingTypesResponse {
 export class GetMeetingTypesUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[]): Promise<MeetingTypesResponse> {
-    const scope    = resolveScope(uid, roles);
+  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters): Promise<MeetingTypesResponse> {
+    const scope    = resolveScope(uid, roles, filters);
     const snapshot = await this.repo.findLatestByScope(scope);
     const period   = snapshot?.periodKey ?? getISOWeekKey(new Date());
 

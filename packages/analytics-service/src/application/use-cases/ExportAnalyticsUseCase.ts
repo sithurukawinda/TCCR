@@ -1,5 +1,5 @@
 import { IAnalyticsRepository } from '../../domain/repositories/IAnalyticsRepository';
-import { resolveScope, lastNWeekKeys } from '../helpers/scope';
+import { resolveScope, lastNWeekKeys, AnalyticsFilters } from '../helpers/scope';
 import { createHttpError }  from '@shared/errors';
 import { Role }             from '@shared/auth-middleware';
 
@@ -9,12 +9,13 @@ export class ExportAnalyticsUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
   async execute(
-    chart:  ChartType,
-    uid:    string,
-    roles:  Role[],
-    params: Record<string, string | undefined>,
+    chart:    ChartType,
+    uid:      string,
+    roles:    Role[],
+    params:   Record<string, string | undefined>,
+    filters?: AnalyticsFilters,
   ): Promise<string> {
-    const scope = resolveScope(uid, roles);
+    const scope = resolveScope(uid, roles, filters);
 
     switch (chart) {
       case 'cells-weekly': {

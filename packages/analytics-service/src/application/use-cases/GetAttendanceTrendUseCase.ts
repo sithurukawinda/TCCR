@@ -1,5 +1,5 @@
 import { IAnalyticsRepository } from '../../domain/repositories/IAnalyticsRepository';
-import { resolveScope }          from '../helpers/scope';
+import { resolveScope, AnalyticsFilters } from '../helpers/scope';
 import { Role }                  from '@shared/auth-middleware';
 
 export interface AttendanceTrendResponse {
@@ -17,8 +17,14 @@ export interface AttendanceTrendResponse {
 export class GetAttendanceTrendUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[], from?: string, to?: string): Promise<AttendanceTrendResponse> {
-    const scope     = resolveScope(uid, roles);
+  async execute(
+    uid:      string,
+    roles:    Role[],
+    from?:    string,
+    to?:      string,
+    filters?: AnalyticsFilters,
+  ): Promise<AttendanceTrendResponse> {
+    const scope     = resolveScope(uid, roles, filters);
     const snapshots = await this.repo.findByScope(scope, from, to, 52);
 
     const data = snapshots.map(s => ({

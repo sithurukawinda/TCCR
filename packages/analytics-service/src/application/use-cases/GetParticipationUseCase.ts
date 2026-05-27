@@ -1,5 +1,5 @@
 import { IAnalyticsRepository } from '../../domain/repositories/IAnalyticsRepository';
-import { resolveScope }          from '../helpers/scope';
+import { resolveScope, AnalyticsFilters } from '../helpers/scope';
 import { Role }                  from '@shared/auth-middleware';
 
 export interface ParticipationResponse {
@@ -15,8 +15,8 @@ export interface ParticipationResponse {
 export class GetParticipationUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[]): Promise<ParticipationResponse> {
-    const scope    = resolveScope(uid, roles);
+  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters): Promise<ParticipationResponse> {
+    const scope    = resolveScope(uid, roles, filters);
     const snapshot = await this.repo.findLatestByScope(scope);
 
     return {

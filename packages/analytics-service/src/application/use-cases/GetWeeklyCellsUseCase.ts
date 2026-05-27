@@ -1,5 +1,5 @@
 import { IAnalyticsRepository } from '../../domain/repositories/IAnalyticsRepository';
-import { resolveScope, lastNWeekKeys } from '../helpers/scope';
+import { resolveScope, lastNWeekKeys, AnalyticsFilters } from '../helpers/scope';
 import { Role } from '@shared/auth-middleware';
 
 export interface WeeklyCellsResponse {
@@ -16,8 +16,13 @@ export interface WeeklyCellsResponse {
 export class GetWeeklyCellsUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[], weeks: number): Promise<WeeklyCellsResponse> {
-    const scope    = resolveScope(uid, roles);
+  async execute(
+    uid:     string,
+    roles:   Role[],
+    weeks:   number,
+    filters?: AnalyticsFilters,
+  ): Promise<WeeklyCellsResponse> {
+    const scope    = resolveScope(uid, roles, filters);
     const weekKeys = lastNWeekKeys(Math.min(weeks, 52));
     const from     = weekKeys[0];
     const to       = weekKeys[weekKeys.length - 1];
