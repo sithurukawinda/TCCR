@@ -12,6 +12,8 @@ export interface AdminCreatedPayload {
   role?:            string;
   /** Firebase password-reset URL — included in the welcome email for new accounts. */
   passwordResetUrl?: string | null;
+  /** Firebase email verification link — user clicks to activate their account. */
+  verificationLink?: string | null;
   /** Front-end system URL shown in the welcome email. */
   systemUrl?:       string | null;
 }
@@ -45,20 +47,41 @@ export class AdminCreatedHandler {
     const roleLabel = (payload.role && ROLE_LABELS[payload.role]) ?? 'Admin';
     const isLeaderOrG12 = payload.role === 'leader' || payload.role === 'g12';
 
-    // New account creation — leader / g12: dedicated welcome email with credentials + reset link
+    // New account creation — leader / g12: dedicated welcome email with credentials + verify + reset link
     if (isLeaderOrG12) {
       const subject = `Your ${roleLabel} Account has been Created — TCCR`;
+
+      const verifySection = payload.verificationLink
+        ? `<p style="margin:24px 0 8px;font-size:14px;color:#444;">
+             <strong>Step 1 — Verify your email address to activate your account:</strong>
+           </p>
+           <p style="margin:0 0 4px;">
+             <a href="${payload.verificationLink}"
+                style="display:inline-block;background:#27ae60;color:#fff;
+                       padding:12px 28px;border-radius:4px;text-decoration:none;
+                       font-weight:bold;font-size:14px;">
+               ✅ Verify My Email
+             </a>
+           </p>
+           <p style="font-size:12px;color:#888;margin:4px 0 24px;">
+             This link expires in 24 hours.
+           </p>`
+        : '';
+
       const resetSection = payload.passwordResetUrl
-        ? `<p style="margin:20px 0;">
+        ? `<p style="margin:16px 0 8px;font-size:14px;color:#444;">
+             <strong>Step 2 — Set a permanent password:</strong>
+           </p>
+           <p style="margin:0 0 4px;">
              <a href="${payload.passwordResetUrl}"
-                style="background:#1a73e8;color:#fff;padding:10px 20px;border-radius:4px;
-                       text-decoration:none;font-weight:bold;display:inline-block;">
+                style="display:inline-block;background:#1a73e8;color:#fff;
+                       padding:12px 28px;border-radius:4px;text-decoration:none;
+                       font-weight:bold;font-size:14px;">
                Set Your Password →
              </a>
            </p>
-           <p style="font-size:12px;color:#666;">
-             This link expires in 1 hour. If it has expired, use the <em>Forgot Password</em>
-             link on the login page to request a new one.
+           <p style="font-size:12px;color:#888;margin:4px 0 0;">
+             This link expires in 1 hour. Use <em>Forgot Password</em> on the login page if expired.
            </p>`
         : `<p>Please change your temporary password after your first login via <em>My Profile → Change Password</em>.</p>`;
 
@@ -67,7 +90,7 @@ export class AdminCreatedHandler {
         <p>A <strong>${roleLabel}</strong> account has been created for you on
            <strong>The Christian Center Rathmalana (TCCR)</strong> portal.</p>
         <p>Your login credentials are:</p>
-        <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif;">
+        <table cellpadding="8" style="border-collapse:collapse;font-family:sans-serif;margin-bottom:8px;">
           <tr style="background:#f5f5f5;">
             <td style="border:1px solid #ddd;padding:8px 16px;"><strong>Email</strong></td>
             <td style="border:1px solid #ddd;padding:8px 16px;">${payload.email}</td>
@@ -79,12 +102,10 @@ export class AdminCreatedHandler {
             </td>
           </tr>
         </table>
-        <p style="color:#c0392b;font-weight:bold;">
-          ⚠ Please update your password immediately after your first login.
-        </p>
+        ${verifySection}
         ${resetSection}
         ${payload.systemUrl
-          ? `<p>Access the TCCR portal at:
+          ? `<p style="margin-top:20px;">Access the TCCR portal at:
                <a href="${payload.systemUrl}" style="color:#1a73e8;">${payload.systemUrl}</a>
              </p>`
           : ''}
