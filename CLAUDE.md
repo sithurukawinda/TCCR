@@ -211,6 +211,16 @@ node scripts/test-login.js
 # Online system health test -- verifies key endpoints on the deployed backend (cms.api.bethelnet.au)
 node scripts/test-online.js
 
+# Live promote function test -- validates POST /users/:uid/promote role-based caller restrictions
+# (g12/admin/super_admin → leader or g12; leader → g12 only; targeting admin/super_admin → 403)
+# Requires all services running with online Firebase credentials
+node scripts/test-promote.js
+
+# Live demote function test -- validates POST /users/:uid/demote caller-role matrix
+# (super_admin/admin → student/leader/g12; g12 → leader only; leader → g12 only)
+# Requires all services running with online Firebase credentials
+node scripts/test-demote.js
+
 # -- One-time migrations / TCCR seeds --
 
 # One-time: send email-verification links to all existing unverified Firebase Auth users
@@ -612,7 +622,7 @@ The `User` domain entity (`packages/user-service/src/domain/entities/User.ts`) g
 - `fcmTokens: string[]` â€” device FCM tokens for push notifications; updated via `POST /me/fcm-token`.
 - `notificationPreferences: { email: boolean; push: boolean }` â€” per-user notification opt-in flags; defaults `true` for both.
 
-**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which soft-deletes instead), and `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`).
+**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `POST /users/:uid/demote` (remove a non-member role â€” `authorize('leader', 'g12', 'admin', 'super_admin')`; caller-role matrix enforced inside use case, see **Demote caller-role matrix** below), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which soft-deletes instead), `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`), and `GET /users/summary` (all users grouped by highest role â€” `authorize('leader', 'g12', 'admin')`; non-admin callers are scoped to exclude admin/super_admin profiles; no pagination; response shape: `{ superAdmins[], admins[], g12[], leaders[], students[], members[], totals: { superAdmins, admins, g12, leaders, students, members, total } }` â€” each user includes `uid`, `firstName`, `lastName`, `displayName`, `email`, `roles[]`, `phoneNumber`, `profilePhotoUrl`, `createdAt`).
 
 **`GET /users` query filters:** `?limit`, `?cursor`, `?role=<UserRole>`, `?status=<UserStatus>`, `?name=<prefix>` (case-sensitive prefix search on `firstName` only â€” not lastName). Accessible to `leader`, `g12`, and `admin` (super_admin inherits). **Scoped access:** when the caller holds only `leader` or `g12` (no admin/super_admin), `GetUsersUseCase` filters results to approved non-admin users only. The list cache key includes the caller's roles to prevent cross-role data leakage.
 
@@ -1002,7 +1012,7 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/blueprint/Backend_Blueprint.md`** â€” V1 architecture specification, implementation patterns, all use case code samples, security requirements traceability.
 - **`.claude/blueprint/Version_02__Backend_Blueprint.md`** â€” V2 companion blueprint covering cell-service, analytics-service, scheduled-jobs, and extended service patterns.
 - **`.claude/APIdocument/API_Document.md`** â€” Complete V1 REST API reference (all endpoints, request/response schemas, error codes). Audited and corrected to match the actual implementation.
-- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.20.0.
+- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.25.0.
 - **`.claude/APIdocument/authapi.md`** — Standalone auth-service reference: all 13 `/auth/*` endpoints, error codes, lockout rules, password policy, env vars, and quick-start flow guides.
 - **`.claude/tracker/tracker.md`** â€” Phase-by-phase implementation checklist (Phases 0â€”21). Update `[ ]` â†’ `[x]` as work completes. Check this before starting any phase to understand what’s done and what’s blocked.
 - **`.claude/plan/implementation-plan.md`** â€” Detailed implementation plan with phase dependencies and sequencing.
