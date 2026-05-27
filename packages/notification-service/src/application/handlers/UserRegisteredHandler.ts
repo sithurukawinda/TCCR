@@ -11,12 +11,10 @@ export interface UserRegisteredPayload {
   lastName:  string;
   /** Plain-text password included so the welcome email can show login credentials. */
   password?: string;
-  /** System URL used as the fallback login link if no verification link is available. */
+  /** System URL for the login page — used as fallback CTA. */
   appUrl?:   string;
-  /** 6-digit OTP for email verification — user enters this on the TCCR app. */
-  verificationOtp?: string;
-  /** ISO expiry timestamp for the OTP — shown in the email for clarity. */
-  otpExpiresAt?: string;
+  /** Firebase email verification link — user clicks this to activate their account. */
+  verificationLink?: string | null;
 }
 
 export class UserRegisteredHandler {
@@ -46,20 +44,47 @@ export class UserRegisteredHandler {
     ));
 
     // ── Welcome email to the new member ────────────────────────────────────────
-    const subject = 'Welcome to TCCR — Your Account is Ready';
+    const subject         = 'Welcome to TCCR — Please Verify Your Email';
+    const loginUrl        = payload.appUrl ?? 'https://cms.bethelnet.au/login';
+    const verificationLink = payload.verificationLink ?? null;
 
-    const loginUrl = payload.appUrl ?? 'https://cms.bethelnet.au/login';
+    const verifySection = verificationLink
+      ? `<!-- Verify button — primary CTA -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+              <tr>
+                <td align="center">
+                  <a href="${verificationLink}"
+                     style="display:inline-block;background:#27ae60;color:#ffffff;
+                            text-decoration:none;font-size:16px;font-weight:bold;
+                            padding:16px 48px;border-radius:6px;letter-spacing:0.3px;">
+                    Verify My Email &rarr;
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding-top:10px;">
+                  <p style="margin:0;font-size:12px;color:#999;">
+                    Or copy this link into your browser:<br>
+                    <a href="${verificationLink}" style="color:#27ae60;word-break:break-all;">${verificationLink}</a>
+                  </p>
+                </td>
+              </tr>
+            </table>
+            <p style="font-size:13px;color:#888;text-align:center;margin:0 0 28px;">
+              This link expires in <strong>24 hours</strong>.
+              After verifying you can log in using your credentials below.
+            </p>`
+      : `<p style="font-size:14px;color:#444;margin:0 0 24px;">
+             Your account is ready. Use the credentials below to log in.
+           </p>`;
 
     const html = `
 <!DOCTYPE html>
 <html lang="en">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
 <body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
-
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f6f9;padding:40px 0;">
     <tr><td align="center">
-
-      <!-- Card -->
       <table width="560" cellpadding="0" cellspacing="0"
              style="background:#ffffff;border-radius:8px;overflow:hidden;
                     box-shadow:0 2px 8px rgba(0,0,0,0.08);">
@@ -84,9 +109,11 @@ export class UserRegisteredHandler {
 
             <p style="margin:0 0 24px;font-size:15px;color:#444;line-height:1.6;">
               Welcome to <strong>The Christian Center Rathmalana (TCCR)</strong>!
-              Your account has been created successfully.
-              Use the button below to log in to the portal.
+              Your account has been created. One last step — please verify your
+              email address to activate your account.
             </p>
+
+            ${verifySection}
 
             <!-- Login credentials box -->
             <table width="100%" cellpadding="0" cellspacing="0"
@@ -117,31 +144,22 @@ export class UserRegisteredHandler {
               </tr>
             </table>
 
-            <!-- CTA Button -->
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td align="center" style="padding:4px 0 28px;">
-                  <a href="${loginUrl}"
-                     style="display:inline-block;background:#1a73e8;color:#ffffff;
-                            text-decoration:none;font-size:16px;font-weight:bold;
-                            padding:16px 48px;border-radius:6px;letter-spacing:0.3px;">
-                    Log in to TCCR &rarr;
-                  </a>
-                </td>
-              </tr>
+            <!-- Login button (secondary CTA — after verification) -->
+            <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:28px;">
               <tr>
                 <td align="center">
-                  <p style="margin:0;font-size:12px;color:#999;">
-                    Or copy this link into your browser:<br>
-                    <a href="${loginUrl}" style="color:#1a73e8;">${loginUrl}</a>
-                  </p>
+                  <a href="${loginUrl}"
+                     style="display:inline-block;background:#1a73e8;color:#ffffff;
+                            text-decoration:none;font-size:15px;font-weight:bold;
+                            padding:14px 40px;border-radius:6px;">
+                    Log in to TCCR &rarr;
+                  </a>
                 </td>
               </tr>
             </table>
 
             <!-- Warning -->
-            <table width="100%" cellpadding="0" cellspacing="0"
-                   style="margin-top:28px;">
+            <table width="100%" cellpadding="0" cellspacing="0">
               <tr>
                 <td style="background:#fff8e1;border-left:4px solid #f9a825;
                            padding:12px 16px;border-radius:0 4px 4px 0;">
@@ -171,11 +189,8 @@ export class UserRegisteredHandler {
         </tr>
 
       </table>
-      <!-- /Card -->
-
     </td></tr>
   </table>
-
 </body>
 </html>`.trim();
 
