@@ -71,9 +71,12 @@ export class InternalController {
   // GET /internal/users/:uid — returns full member profile for internal callers
   // Used by enrollment-service to: (1) enrich approval email payload, (2) build
   // the live memberProfile block in GET /role-requests/:id for admin review.
+  // Also used by cell-service to enrich member rosters with firstName/lastName.
+  // Pass 'super_admin' so GetUserByIdUseCase does NOT apply the leader/g12 admin-visibility
+  // restriction — internal callers must be able to look up any UID including admins.
   getById = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const user = await this.getUserById.execute(req.params.uid);
+      const user = await this.getUserById.execute(req.params.uid, ['super_admin']);
       sendSuccess(res, {
         uid:               user.uid,
         email:             user.email,

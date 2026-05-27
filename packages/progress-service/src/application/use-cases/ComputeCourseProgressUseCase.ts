@@ -1,26 +1,35 @@
-import { IProgressRepository }  from '../../domain/repositories/IProgressRepository';
-import { CourseServiceClient }  from '../../infrastructure/clients/CourseServiceClient';
+import { IProgressRepository }        from '../../domain/repositories/IProgressRepository';
+import { ILessonProgressRepository }  from '../../domain/repositories/ILessonProgressRepository';
+import { CourseServiceClient }        from '../../infrastructure/clients/CourseServiceClient';
 
 export interface CourseProgressResult {
-  courseId:              string;
-  studentUid:            string;
-  completedCount:        number;
-  pendingCount:          number;
-  totalSubjects:         number;
-  completionPercent:     number;
-  lastAccessedSubjectId: string | null;
+  courseId:                string;
+  studentUid:              string;
+  completedCount:          number;
+  pendingCount:            number;
+  totalSubjects:           number;
+  completionPercent:       number;
+  lastAccessedSubjectId:   string | null;
+  lastAccessedAt:          string | null;
+  // Lesson-level fields (V2)
+  completedLessonIds:      string[];
+  totalLessons:            number;
+  lessonCompletionPercent: number;
 }
 
 export class ComputeCourseProgressUseCase {
   constructor(
-    private readonly progressRepo: IProgressRepository,
-    private readonly courseClient: CourseServiceClient,
+    private readonly progressRepo:       IProgressRepository,
+    private readonly lessonProgressRepo: ILessonProgressRepository,
+    private readonly courseClient:       CourseServiceClient,
   ) {}
 
   async execute(studentUid: string, courseId: string): Promise<CourseProgressResult> {
-    const [records, totalSubjects] = await Promise.all([
+    const [records, totalSubjects, lessonRecords, totalLessons] = await Promise.all([
       this.progressRepo.findByCourseAndStudent(courseId, studentUid),
       this.courseClient.getSubjectCount(courseId),
+      this.lessonProgressRepo.findByCourseAndStudent(courseId, studentUid),
+      this.courseClient.getCourseLessonCount(courseId),
     ]);
 
     const completedCount = records.filter(r => r.state === 'completed').length;
@@ -33,6 +42,11 @@ export class ComputeCourseProgressUseCase {
       .filter(r => r.lastAccessedAt !== null)
       .sort((a, b) => (b.lastAccessedAt ?? '').localeCompare(a.lastAccessedAt ?? ''))[0];
 
+    const completedLessonIds      = lessonRecords.map(r => r.lessonId);
+    const lessonCompletionPercent = totalLessons === 0
+      ? 0
+      : Math.round((completedLessonIds.length / totalLessons) * 100);
+
     return {
       courseId,
       studentUid,
@@ -40,7 +54,11 @@ export class ComputeCourseProgressUseCase {
       pendingCount,
       totalSubjects,
       completionPercent,
-      lastAccessedSubjectId: lastAccessed?.subjectId ?? null,
+      lastAccessedSubjectId:   lastAccessed?.subjectId  ?? null,
+      lastAccessedAt:          lastAccessed?.lastAccessedAt ?? null,
+      completedLessonIds,
+      totalLessons,
+      lessonCompletionPercent,
     };
   }
 }

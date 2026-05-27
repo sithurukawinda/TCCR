@@ -25,6 +25,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   create:      jest.fn(),
   update:      jest.fn(),
   softDelete:  jest.fn(),
+  hardDelete:  jest.fn(),
 });
 
 const makeAuthClient = (): jest.Mocked<FirebaseAuthClient> =>
@@ -57,58 +58,69 @@ describe('DeleteUserUseCase', () => {
 
   // ── happy paths ─────────────────────────────────────────────────────────────
 
-  it('soft-deletes a member and disables their Firebase account', async () => {
+  it('permanently deletes a member from Firestore and Firebase Auth', async () => {
     repo.findById.mockResolvedValue(makeUser({ uid: TARGET, roles: ['member'] }));
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
-    expect(repo.softDelete).toHaveBeenCalledWith(TARGET);
-    expect(authClient.disableUser).toHaveBeenCalledWith(TARGET);
+    expect(repo.hardDelete).toHaveBeenCalledWith(TARGET);
+    expect(authClient.deleteUser).toHaveBeenCalledWith(TARGET);
   });
 
-  it('soft-deletes a student', async () => {
+  it('permanently deletes a student', async () => {
     repo.findById.mockResolvedValue(makeUser({ uid: TARGET, role: 'student', roles: ['member', 'student'] }));
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
-    expect(repo.softDelete).toHaveBeenCalledWith(TARGET);
-    expect(authClient.disableUser).toHaveBeenCalledWith(TARGET);
+    expect(repo.hardDelete).toHaveBeenCalledWith(TARGET);
+    expect(authClient.deleteUser).toHaveBeenCalledWith(TARGET);
   });
 
-  it('soft-deletes a leader', async () => {
+  it('permanently deletes a leader', async () => {
     repo.findById.mockResolvedValue(makeUser({ uid: TARGET, role: 'leader', roles: ['member', 'leader'] }));
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
-    expect(repo.softDelete).toHaveBeenCalledWith(TARGET);
-    expect(authClient.disableUser).toHaveBeenCalledWith(TARGET);
+    expect(repo.hardDelete).toHaveBeenCalledWith(TARGET);
+    expect(authClient.deleteUser).toHaveBeenCalledWith(TARGET);
   });
 
-  it('soft-deletes a g12 user', async () => {
+  it('permanently deletes a g12 user', async () => {
     repo.findById.mockResolvedValue(makeUser({ uid: TARGET, role: 'g12', roles: ['member', 'g12'] }));
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
-    expect(repo.softDelete).toHaveBeenCalledWith(TARGET);
+    expect(repo.hardDelete).toHaveBeenCalledWith(TARGET);
+    expect(authClient.deleteUser).toHaveBeenCalledWith(TARGET);
   });
 
-  it('calls softDelete before disableUser', async () => {
+  it('calls hardDelete before deleteUser', async () => {
     const callOrder: string[] = [];
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockImplementation(async () => { callOrder.push('softDelete'); });
-    authClient.disableUser.mockImplementation(async () => { callOrder.push('disableUser'); });
+    repo.hardDelete.mockImplementation(async () => { callOrder.push('hardDelete'); });
+    authClient.deleteUser.mockImplementation(async () => { callOrder.push('deleteUser'); });
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
-    expect(callOrder).toEqual(['softDelete', 'disableUser']);
+    expect(callOrder).toEqual(['hardDelete', 'deleteUser']);
+  });
+
+  it('never calls softDelete', async () => {
+    repo.findById.mockResolvedValue(makeUser());
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
+
+    await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
+
+    expect(repo.softDelete).not.toHaveBeenCalled();
   });
 
   // ── error: self-delete ───────────────────────────────────────────────────────
@@ -119,7 +131,7 @@ describe('DeleteUserUseCase', () => {
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
 
     expect(repo.findById).not.toHaveBeenCalled();
-    expect(repo.softDelete).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
   // ── error: user not found ────────────────────────────────────────────────────
@@ -131,8 +143,8 @@ describe('DeleteUserUseCase', () => {
       useCase.execute({ targetUid: 'ghost-uid', callerUid: CALLER }),
     ).rejects.toMatchObject({ status: 404, errorCode: 'USER_NOT_FOUND' });
 
-    expect(repo.softDelete).not.toHaveBeenCalled();
-    expect(authClient.disableUser).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
+    expect(authClient.deleteUser).not.toHaveBeenCalled();
   });
 
   // ── error: admin/super_admin target ─────────────────────────────────────────
@@ -144,8 +156,8 @@ describe('DeleteUserUseCase', () => {
       useCase.execute({ targetUid: TARGET, callerUid: CALLER }),
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
 
-    expect(repo.softDelete).not.toHaveBeenCalled();
-    expect(authClient.disableUser).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
+    expect(authClient.deleteUser).not.toHaveBeenCalled();
   });
 
   it('throws 403 FORBIDDEN when trying to delete a super_admin user', async () => {
@@ -155,50 +167,48 @@ describe('DeleteUserUseCase', () => {
       useCase.execute({ targetUid: TARGET, callerUid: CALLER }),
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
 
-    expect(repo.softDelete).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
   it('throws 403 FORBIDDEN for a user with member+admin roles (admin flag check uses roles[])', async () => {
-    // Edge case: user somehow has both member and admin in roles[]
     repo.findById.mockResolvedValue(makeUser({ uid: TARGET, role: 'admin', roles: ['member', 'admin'] }));
 
     await expect(
       useCase.execute({ targetUid: TARGET, callerUid: CALLER }),
     ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
 
-    expect(repo.softDelete).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
   // ── error: Firebase failure ──────────────────────────────────────────────────
 
-  it('propagates errors thrown by disableUser', async () => {
+  it('propagates errors thrown by deleteUser', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockRejectedValue(new Error('Firebase Auth error'));
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockRejectedValue(new Error('Firebase Auth error'));
 
     await expect(
       useCase.execute({ targetUid: TARGET, callerUid: CALLER }),
     ).rejects.toThrow('Firebase Auth error');
   });
 
-  it('propagates errors thrown by softDelete', async () => {
+  it('propagates errors thrown by hardDelete and does not call deleteUser', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockRejectedValue(new Error('Firestore write failed'));
+    repo.hardDelete.mockRejectedValue(new Error('Firestore delete failed'));
 
     await expect(
       useCase.execute({ targetUid: TARGET, callerUid: CALLER }),
-    ).rejects.toThrow('Firestore write failed');
+    ).rejects.toThrow('Firestore delete failed');
 
-    // disableUser must not be called if softDelete failed
-    expect(authClient.disableUser).not.toHaveBeenCalled();
+    expect(authClient.deleteUser).not.toHaveBeenCalled();
   });
 
   // ── repository interaction ───────────────────────────────────────────────────
 
   it('calls findById exactly once', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 
@@ -208,8 +218,8 @@ describe('DeleteUserUseCase', () => {
 
   it('never calls create or update', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute({ targetUid: TARGET, callerUid: CALLER });
 

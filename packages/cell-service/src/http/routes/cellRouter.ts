@@ -32,6 +32,10 @@ cellRouter.post('/cells/:id/join-requests/:rid/reject',    authenticate(), autho
 cellRouter.get( '/cells/network/members', authenticate(), authorize('leader', 'g12', 'admin', 'super_admin'), container.cellGroupController.networkMembers);
 
 // ── Cell Reports ──────────────────────────────────────────────────────────────
+// Network summary — must be registered BEFORE /cells/network/reports and /cells/:id routes
+// Returns aggregated stats for the Reports page (stat cards, charts, by-leader table)
+cellRouter.get( '/cells/network/summary', authenticate(), authorize('leader', 'g12', 'admin', 'super_admin'), container.cellReportController.networkSummary);
+
 // Network reports — must be registered BEFORE /cells/:id/reports to avoid :id matching "network"
 // G12: all reports from cells where g12LeaderUid===callerUid | Leader: own cell | Admin: all
 cellRouter.get( '/cells/network/reports', authenticate(), authorize('leader', 'g12', 'admin', 'super_admin'), container.cellReportController.networkReports);

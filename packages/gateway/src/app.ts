@@ -13,6 +13,11 @@ import { config } from './config';
 
 export const app = express();
 
+// Trust the first hop reverse proxy (Nginx/load balancer) so express-rate-limit
+// keys on the real client IP from X-Forwarded-For, not the proxy's IP.
+// Without this, ALL users share one rate-limit bucket (the proxy IP).
+app.set('trust proxy', 1);
+
 app.use(helmet());
 app.use(cors({
   origin: config.allowedOrigins,

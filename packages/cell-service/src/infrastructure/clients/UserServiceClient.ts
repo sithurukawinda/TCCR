@@ -37,14 +37,25 @@ export class UserServiceClient {
         const firstName = d.firstName ?? '';
         const lastName  = d.lastName  ?? '';
         return {
-          uid:         d.uid,
+          uid:         d.uid ?? uids[i],
           firstName,
           lastName,
           displayName: `${firstName} ${lastName}`.trim(),
         };
       }
-      // Lookup failed (user deleted or service unavailable) — return placeholder
-      logger.warn({ uid: uids[i] }, 'cell-service: member profile lookup failed — returning placeholder');
+      // Lookup failed — log the actual error so it is diagnosable in the service logs.
+      // Common causes: SERVICE_USER_URL misconfigured, INTERNAL_SERVICE_KEY mismatch,
+      // user-service unreachable, or user has no Firestore doc (404).
+      const err = result.reason as { response?: { status: number; data?: unknown }; message?: string };
+      logger.warn(
+        {
+          uid:    uids[i],
+          status: err?.response?.status,
+          body:   err?.response?.data,
+          msg:    err?.message,
+        },
+        'cell-service: member profile lookup failed — returning placeholder',
+      );
       return { uid: uids[i], firstName: '', lastName: '', displayName: '' };
     });
   }

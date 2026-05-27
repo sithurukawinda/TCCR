@@ -65,6 +65,10 @@ export class FirebaseAuthClient {
     return getAuth().generatePasswordResetLink(email);
   }
 
+  async generateEmailVerificationLink(email: string): Promise<string> {
+    return getAuth().generateEmailVerificationLink(email);
+  }
+
   async addRoleToUser(uid: string, role: string): Promise<void> {
     const record  = await getAuth().getUser(uid);
     const claims  = record.customClaims ?? {};

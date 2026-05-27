@@ -295,6 +295,216 @@ describe('Super Admin — suspend / reactivate / delete admin', () => {
 
 });
 
+// ─── DELETE /users/:uid ───────────────────────────────────────────────────────
+
+describe('DELETE /users/:uid', () => {
+
+  // helper: seed a fresh deletable user for each test
+  async function createDeletableUser(email: string, role: string, roles: string[]) {
+    const user = await createTestUser(email, 'Test@12345', role as never, roles as never);
+    await seedUserDoc(user.uid, roles, email);
+    return user;
+  }
+
+  // ── happy paths ─────────────────────────────────────────────────────────────
+
+  it('204 — admin permanently deletes a member', async () => {
+    const { uid } = await createDeletableUser(`del-member-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    // Firestore doc must be GONE (hard delete — not just deletedAt set)
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    expect(snap.exists).toBe(false);
+  });
+
+  it('204 — admin permanently deletes a student', async () => {
+    const { uid } = await createDeletableUser(`del-student-${Date.now()}@mgmt.test`, 'student', ['member', 'student']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    expect(snap.exists).toBe(false);
+  });
+
+  it('204 — admin permanently deletes a leader', async () => {
+    const { uid } = await createDeletableUser(`del-leader-${Date.now()}@mgmt.test`, 'leader', ['member', 'leader']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    expect(snap.exists).toBe(false);
+  });
+
+  it('204 — admin permanently deletes a g12 user', async () => {
+    const { uid } = await createDeletableUser(`del-g12-${Date.now()}@mgmt.test`, 'g12', ['member', 'g12']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    expect(snap.exists).toBe(false);
+  });
+
+  it('204 — super_admin can also delete a regular user', async () => {
+    const { uid } = await createDeletableUser(`del-sa-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${superAdminToken}`)
+      .expect(204);
+
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    expect(snap.exists).toBe(false);
+  });
+
+  it('204 response body is empty', async () => {
+    const { uid } = await createDeletableUser(`del-body-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    const res = await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    expect(res.body).toEqual({});
+    expect(res.text).toBe('');
+  });
+
+  // ── verify hard delete — not a soft delete ──────────────────────────────────
+
+  it('Firestore doc is fully removed, not soft-deleted (no deletedAt field)', async () => {
+    const { uid } = await createDeletableUser(`del-hard-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    const snap = await getFirestore().collection('users').doc(uid).get();
+    // Hard delete: document does not exist at all
+    expect(snap.exists).toBe(false);
+    // (soft delete would leave the doc with deletedAt set — this confirms it's gone)
+  });
+
+  it('deleted user returns 404 on subsequent GET /users/:uid', async () => {
+    const { uid } = await createDeletableUser(`del-404-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    // Confirm the user is truly gone — second call must 404
+    await request(app)
+      .get(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+  });
+
+  // ── auth / role guards ──────────────────────────────────────────────────────
+
+  it('401 — unauthenticated request rejected', async () => {
+    await request(app)
+      .delete(`/users/${studentUid}`)
+      .expect(401);
+  });
+
+  it('403 — student cannot delete users', async () => {
+    await request(app)
+      .delete(`/users/${studentUid}`)
+      .set('Authorization', `Bearer ${studentToken}`)
+      .expect(403);
+  });
+
+  // ── business rule guards ────────────────────────────────────────────────────
+
+  it('403 — admin cannot delete themselves', async () => {
+    // Derive admin UID from a GET /me call
+    const meRes = await request(app)
+      .get('/me')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(200);
+
+    const adminUid = meRes.body.uid as string;
+
+    await request(app)
+      .delete(`/users/${adminUid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(403);
+  });
+
+  it('403 — cannot delete an admin user via this endpoint (use /super-admin/admins/:uid)', async () => {
+    // Get an admin UID from the super-admin list
+    const listRes = await request(app)
+      .get('/super-admin/admins')
+      .set('Authorization', `Bearer ${superAdminToken}`);
+
+    const adminUid = listRes.body.items?.find((u: { roles: string[] }) => u.roles.includes('admin'))?.uid as string | undefined;
+    if (!adminUid) return; // skip if no non-self admin exists
+
+    const res = await request(app)
+      .delete(`/users/${adminUid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(403);
+
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('403 — cannot delete a super_admin user via this endpoint', async () => {
+    // super_admin UID — try to delete via /users/:uid
+    const meRes = await request(app)
+      .get('/me')
+      .set('Authorization', `Bearer ${superAdminToken}`)
+      .expect(200);
+
+    const saUid = meRes.body.uid as string;
+
+    const res = await request(app)
+      .delete(`/users/${saUid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(403);
+
+    expect(res.body.error.code).toBe('FORBIDDEN');
+  });
+
+  it('404 — user not found', async () => {
+    const res = await request(app)
+      .delete('/users/non-existent-uid-xyz')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+
+    expect(res.body.error.code).toBe('USER_NOT_FOUND');
+  });
+
+  it('404 — already deleted user returns 404 (idempotent)', async () => {
+    const { uid } = await createDeletableUser(`del-idem-${Date.now()}@mgmt.test`, 'member', ['member']);
+
+    // First delete — succeeds
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(204);
+
+    // Second delete — user is gone so 404
+    await request(app)
+      .delete(`/users/${uid}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .expect(404);
+  });
+
+});
+
 // ─── POST /super-admin/users/:uid/make-admin ─────────────────────────────────
 
 describe('POST /super-admin/users/:uid/make-admin', () => {

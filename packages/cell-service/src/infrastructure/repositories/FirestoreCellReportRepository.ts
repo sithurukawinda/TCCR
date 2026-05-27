@@ -50,6 +50,16 @@ export class FirestoreCellReportRepository implements ICellReportRepository {
     return { items, nextCursor: snap.docs.length === opts.limit && last ? last.id : null, total };
   }
 
+  async findByPeriod(cellId: string, from: string, to: string): Promise<CellReport[]> {
+    const snap = await this.col(cellId)
+      .where('voided', '==', false)
+      .where('date',   '>=', from)
+      .where('date',   '<=', to)
+      .orderBy('date', 'desc')
+      .get();
+    return snap.docs.map(d => toEntity(d.id, d.data() as Omit<CellReportProps, 'id'>));
+  }
+
   async create(report: CellReport): Promise<void> {
     const { id, ...doc } = { ...report } as CellReportProps;
     await this.col(report.cellId).doc(id).set(doc);

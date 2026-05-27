@@ -25,7 +25,9 @@ const newman = require('newman');
 const AUTH_EMULATOR    = 'http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1';
 const API_KEY          = 'fake-key';
 const BASE_URL         = 'http://localhost:3000/api/v1';
-const FIREBASE_PROJECT = 'e-learning-f4209';   // matches FIREBASE_PROJECT_ID in docker containers
+// Use 'demo-cmp' for local emulator runs (docker-compose.local.yml overrides FIREBASE_PROJECT_ID=demo-cmp).
+// Change to 'e-learning-f4209' when running against the online Firebase project.
+const FIREBASE_PROJECT = process.env.FIREBASE_PROJECT_ID || 'demo-cmp';
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -63,13 +65,25 @@ async function clearEmulators() {
 }
 
 async function seedAccounts() {
+  // Pass FIREBASE_PROJECT_ID so seed scripts write to the same project
+  // the Docker containers are configured for (demo-cmp in local mode).
+  const seedEnv = {
+    ...process.env,
+    FIREBASE_PROJECT_ID:          FIREBASE_PROJECT,
+    FIRESTORE_EMULATOR_HOST:      '127.0.0.1:8080',
+    FIREBASE_AUTH_EMULATOR_HOST:  '127.0.0.1:9099',
+    FIREBASE_CLIENT_EMAIL:        'fake@fake.com',
+    FIREBASE_PRIVATE_KEY:         'fake',
+  };
   execSync('node scripts/seed-emulator.js', {
     cwd: path.join(__dirname, '..'),
     stdio: 'pipe',
+    env: seedEnv,
   });
   execSync('node scripts/seed-v2-roles.js', {
     cwd: path.join(__dirname, '..'),
     stdio: 'pipe',
+    env: seedEnv,
   });
 }
 

@@ -6,4 +6,6 @@ export interface IProgressRepository {
   findByCourse(courseId: string): Promise<SubjectProgress[]>;
   upsert(progress: SubjectProgress): Promise<void>;
   deleteByStudentAndCourse(studentUid: string, courseId: string): Promise<void>;
+  /** Revert a completed subject back to in_progress (used when a lesson is unmarked). */
+  revertCompletion(studentUid: string, subjectId: string): Promise<void>;
 }

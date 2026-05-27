@@ -13,6 +13,7 @@ import { PromoteMemberUseCase }           from '../../application/use-cases/Prom
 import { DemoteMemberUseCase }           from '../../application/use-cases/DemoteMemberUseCase';
 import { DeleteUserUseCase }              from '../../application/use-cases/DeleteUserUseCase';
 import { listUsersSchema, assignRoleSchema, createUserDirectlySchema, promoteMemberSchema, demoteMemberSchema } from '../validators/userValidator';
+import { GetUserSummaryUseCase } from '../../application/use-cases/GetUserSummaryUseCase';
 import { TtlCache }                       from '../../infrastructure/cache/TtlCache';
 import { FindAllResult }                  from '../../domain/repositories/IUserRepository';
 
@@ -28,6 +29,7 @@ export class UsersController {
     private readonly promoteMemberUseCase:      PromoteMemberUseCase,
     private readonly demoteMemberUseCase:       DemoteMemberUseCase,
     private readonly deleteUserUseCase:         DeleteUserUseCase,
+    private readonly getUserSummaryUseCase:     GetUserSummaryUseCase,
   ) {}
 
   private static readonly listCache = new TtlCache<FindAllResult>(30_000);
@@ -71,7 +73,7 @@ export class UsersController {
     } catch (err) { next(err); }
   };
 
-  // DELETE /users/:uid — admin soft-deletes a regular (non-admin) user
+  // DELETE /users/:uid — admin permanently hard-deletes a regular (non-admin) user
   delete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const callerUid = (req as AuthenticatedRequest).principal.uid;
@@ -101,7 +103,7 @@ export class UsersController {
       } else {
         await this.removeRoleUseCase.execute(req.params.uid, parsed.data.role);
       }
-      res.status(204).send();
+      sendSuccess(res, { message: 'Role updated successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -126,7 +128,7 @@ export class UsersController {
         requestId,
       });
 
-      res.status(204).send();
+      sendSuccess(res, { message: 'User promoted successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -156,7 +158,20 @@ export class UsersController {
       });
 
       UsersController.listCache.clear();
-      res.status(204).send();
+      sendSuccess(res, { message: 'User demoted successfully.' });
+    } catch (err) { next(err); }
+  };
+
+  /**
+   * GET /users/summary
+   * Returns all approved users grouped by highest role with names.
+   * One-page snapshot — no pagination.
+   */
+  summary = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const callerRoles = (req as AuthenticatedRequest).principal?.roles ?? [];
+      const result = await this.getUserSummaryUseCase.execute(callerRoles);
+      sendSuccess(res, result);
     } catch (err) { next(err); }
   };
 }

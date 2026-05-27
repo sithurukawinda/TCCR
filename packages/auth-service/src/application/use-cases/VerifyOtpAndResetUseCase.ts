@@ -1,6 +1,5 @@
 import { createHttpError }  from '@shared/errors';
 import { IOtpRepository }   from '../../infrastructure/repositories/FirestoreOtpRepository';
-import { config }           from '../../config';
 
 const MAX_ATTEMPTS = 5;
 
@@ -30,22 +29,9 @@ export class VerifyOtpAndResetUseCase {
       throw createHttpError(400, 'INVALID_OTP', `Incorrect code. ${remaining} attempt${remaining === 1 ? '' : 's'} remaining.`);
     }
 
-    // OTP is valid — delete it and trigger Firebase password reset email
+    // OTP is valid — delete it.
+    // The Firebase reset link was already included in the Step 1 email
+    // (RequestPasswordResetUseCase) — no second email needed here.
     await this.otpRepo.delete(email);
-    await this.sendFirebaseResetEmail(email);
-  }
-
-  private async sendFirebaseResetEmail(email: string): Promise<void> {
-    const emulatorHost = process.env.FIREBASE_AUTH_EMULATOR_HOST;
-    const base = emulatorHost
-      ? `http://${emulatorHost}/identitytoolkit.googleapis.com/v1`
-      : 'https://identitytoolkit.googleapis.com/v1';
-    const url = `${base}/accounts:sendOobCode?key=${config.firebaseWebApiKey}`;
-
-    await fetch(url, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ requestType: 'PASSWORD_RESET', email }),
-    }).catch(() => undefined);
   }
 }

@@ -1,11 +1,11 @@
-import { LinkProviderUseCase }    from '../../../src/application/use-cases/LinkProviderUseCase';
+﻿import { LinkProviderUseCase }    from '../../../src/application/use-cases/LinkProviderUseCase';
 import { IUserRepository }        from '../../../src/domain/repositories/IUserRepository';
 import { AuthServiceClient }      from '../../../src/infrastructure/clients/AuthServiceClient';
 import { User }                   from '../../../src/domain/entities/User';
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeAuthSvcClient = (): jest.Mocked<AuthServiceClient> =>
@@ -45,7 +45,7 @@ describe('LinkProviderUseCase', () => {
     expect(repo.update).toHaveBeenCalled();
   });
 
-  it('is idempotent — no update when provider already linked', async () => {
+  it('is idempotent â€” no update when provider already linked', async () => {
     repo.findById.mockResolvedValue(makeUser('user@example.com', ['password', 'google.com']));
     authSvc.verifyFederatedToken.mockResolvedValue({
       email: 'user@example.com', displayName: 'User', providerUid: 'g-uid-1', providerId: 'google.com',
@@ -77,3 +77,4 @@ describe('LinkProviderUseCase', () => {
     });
   });
 });
+

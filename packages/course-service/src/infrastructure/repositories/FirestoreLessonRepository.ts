@@ -69,4 +69,22 @@ export class FirestoreLessonRepository implements ILessonRepository {
       .get();
     return snap.data().count + 1;
   }
+
+  async countBySubject(subjectId: string): Promise<number> {
+    const snap = await this.col
+      .where('subjectId', '==', subjectId)
+      .where('deletedAt', '==', null)
+      .count()
+      .get();
+    return snap.data().count;
+  }
+
+  async countByCourse(courseId: string): Promise<number> {
+    const snap = await this.col
+      .where('courseId',  '==', courseId)
+      .where('deletedAt', '==', null)
+      .count()
+      .get();
+    return snap.data().count;
+  }
 }

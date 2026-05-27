@@ -5,6 +5,15 @@ import { ICellReportRepository,
          CellReportListOptions }  from '../../domain/repositories/ICellReportRepository';
 import { CellReport }             from '../../domain/entities/CellReport';
 
+/** Convert a YYYY-MM month string to inclusive date range strings (YYYY-MM-DD). */
+export function monthToDateRange(month: string): { from: string; to: string } {
+  const [y, m] = month.split('-').map(Number);
+  const from     = `${month}-01`;
+  const lastDay  = new Date(y, m, 0).getDate();
+  const to       = `${month}-${String(lastDay).padStart(2, '0')}`;
+  return { from, to };
+}
+
 export interface NetworkReportsResult {
   items:      (CellReport & { cellName: string })[];
   totalCells: number;
@@ -28,7 +37,7 @@ export class GetNetworkReportsUseCase {
   ) {}
 
   async execute(
-    opts:        CellReportListOptions,
+    opts:        CellReportListOptions & { month?: string },
     callerUid:   string,
     callerRoles: Role[],
   ): Promise<NetworkReportsResult> {
@@ -42,6 +51,12 @@ export class GetNetworkReportsUseCase {
         'FORBIDDEN',
         'Only G12 leaders, cell leaders, admin, and super_admin can access network reports.',
       );
+    }
+
+    // ── If month is provided, derive from/to date range (overrides explicit from/to) ──
+    if (opts.month && !opts.from && !opts.to) {
+      const range = monthToDateRange(opts.month);
+      opts = { ...opts, from: range.from, to: range.to };
     }
 
     // ── Determine which cells to fetch reports from ───────────────────────────
@@ -62,26 +77,38 @@ export class GetNetworkReportsUseCase {
       ...cellFilter,
     });
 
-    if (cellResult.items.length === 0) {
+    // Apply optional in-memory filters (leaderUid, type, cellId)
+    // These are cheap because G12 networks are small (≤100 cells)
+    let cells = cellResult.items;
+    if (opts.leaderUid) cells = cells.filter(c => c.leaderUid === opts.leaderUid);
+    if (opts.type)      cells = cells.filter(c => c.type      === opts.type);
+    if (opts.cellId)    cells = cells.filter(c => c.id        === opts.cellId);
+
+    if (cells.length === 0) {
       return { items: [], totalCells: 0 };
     }
 
     // ── Fetch reports for each cell in parallel ───────────────────────────────
     const reportPages = await Promise.all(
-      cellResult.items.map(cell =>
+      cells.map(cell =>
         this.reportRepo.findAll(cell.id, opts)
           .then(r => r.items.map(report => ({ ...report, cellName: cell.name })))
           .catch(() => [] as (CellReport & { cellName: string })[]), // skip failed cells
       ),
     );
 
-    // ── Merge and sort by date descending ─────────────────────────────────────
-    const allReports = (reportPages.flat() as (CellReport & { cellName: string })[])
+    // ── Merge, filter by report-level cellType if requested, sort by date desc ──
+    let allReports = (reportPages.flat() as (CellReport & { cellName: string })[])
       .sort((a, b) => b.date.localeCompare(a.date));
+
+    // Secondary guard: ensure report.cellType matches the requested type.
+    // A cell's registered type and the cellType stored on a report can differ
+    // when a leader inadvertently files with a wrong type.
+    if (opts.type) allReports = allReports.filter(r => r.cellType === opts.type);
 
     return {
       items:      allReports,
-      totalCells: cellResult.items.length,
+      totalCells: cells.length,
     };
   }
 }

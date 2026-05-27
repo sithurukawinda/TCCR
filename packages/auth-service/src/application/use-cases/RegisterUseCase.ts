@@ -5,6 +5,7 @@ import { OutboxEventPublisher } from '@shared/events';
 import { UserServiceClient }   from '../../infrastructure/clients/UserServiceClient';
 import { isEmailReachable }    from '../../utils/emailValidator';
 import { config }              from '../../config';
+import { logger }              from '@shared/logger';
 
 export interface RegisterInput {
   firstName:          string;
@@ -42,7 +43,7 @@ export class RegisterUseCase {
         email:         input.email,
         password:      input.password,
         displayName:   `${input.firstName} ${input.lastName}`,
-        emailVerified: true,   // account is active immediately — no OTP step required
+        emailVerified: false,  // user must click the verification link in the welcome email
       });
     } catch (authErr: unknown) {
       if ((authErr as { code?: string })?.code === 'auth/email-already-exists') {
@@ -73,16 +74,25 @@ export class RegisterUseCase {
         deletedAt:         null,
       });
 
-      // Publish welcome event — notification-service sends the welcome email with login button
+      // Generate Firebase email verification link (best-effort — null on emulator quirk)
+      let verificationLink: string | null = null;
+      try {
+        verificationLink = await getAuth().generateEmailVerificationLink(input.email);
+      } catch (err) {
+        logger.warn({ err, email: input.email }, 'Could not generate email verification link');
+      }
+
+      // Publish welcome event — notification-service sends the welcome email with verify button
       await this.outbox.publishWithBatch({
         type:    'user.registered',
         payload: {
-          uid:       record.uid,
-          email:     input.email,
-          firstName: input.firstName,
-          lastName:  input.lastName,
-          password:  input.password,   // plain-text; shown once in the welcome email
-          appUrl:    config.appUrl,    // login page URL for the "Login" button
+          uid:              record.uid,
+          email:            input.email,
+          firstName:        input.firstName,
+          lastName:         input.lastName,
+          password:         input.password,        // plain-text; shown once in the welcome email
+          appUrl:           config.appUrl,         // login page URL for the "Login" button
+          verificationLink,                        // Firebase verification link — click to verify
         },
         requestId,
       }, batch);
@@ -95,7 +105,7 @@ export class RegisterUseCase {
 
     return {
       uid:     record.uid,
-      message: 'Registration successful. You can now log in to your account.',
+      message: 'Registration successful. Please check your email and click the verification link to activate your account.',
     };
   }
 }

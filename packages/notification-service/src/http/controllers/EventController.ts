@@ -10,6 +10,7 @@ import { UserRegisteredHandler }              from '../../application/handlers/U
 import { AdminSuspendedHandler }              from '../../application/handlers/AdminSuspendedHandler';
 import { AdminCreatedHandler }                from '../../application/handlers/AdminCreatedHandler';
 import { RoleGrantedHandler }                 from '../../application/handlers/RoleGrantedHandler';
+import { RoleRejectedHandler }               from '../../application/handlers/RoleRejectedHandler';
 import { CellJoinRequestedHandler }           from '../../application/handlers/CellJoinRequestedHandler';
 import { CellJoinApprovedHandler }            from '../../application/handlers/CellJoinApprovedHandler';
 import { CellJoinRejectedHandler }            from '../../application/handlers/CellJoinRejectedHandler';
@@ -28,6 +29,7 @@ export class EventController {
     private readonly adminSuspended:       AdminSuspendedHandler,
     private readonly adminCreated:         AdminCreatedHandler,
     private readonly roleGranted:          RoleGrantedHandler,
+    private readonly roleRejected:         RoleRejectedHandler,
     private readonly cellJoinRequested:    CellJoinRequestedHandler,
     private readonly cellJoinApproved:     CellJoinApprovedHandler,
     private readonly cellJoinRejected:     CellJoinRejectedHandler,
@@ -69,6 +71,9 @@ export class EventController {
           break;
         case 'role.granted':
           await this.roleGranted.handle(payload as unknown as Parameters<typeof this.roleGranted.handle>[0], requestId);
+          break;
+        case 'role.rejected':
+          await this.roleRejected.handle(payload as unknown as Parameters<typeof this.roleRejected.handle>[0], requestId);
           break;
         case 'cell.join_requested':
           await this.cellJoinRequested.handle(payload as unknown as Parameters<typeof this.cellJoinRequested.handle>[0], requestId);

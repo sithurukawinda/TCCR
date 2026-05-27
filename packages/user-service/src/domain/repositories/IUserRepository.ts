@@ -22,4 +22,5 @@ export interface IUserRepository {
   create(user: User): Promise<void>;
   update(user: User): Promise<void>;
   softDelete(uid: string): Promise<void>;
+  hardDelete(uid: string): Promise<void>;
 }

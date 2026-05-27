@@ -575,7 +575,6 @@ Create a new admin account.
 
 ### `POST /super-admin/admins/:uid/suspend` — super_admin
 **Responses:** `200` · `404`
-
 ---
 
 ### `POST /super-admin/admins/:uid/reactivate` — super_admin

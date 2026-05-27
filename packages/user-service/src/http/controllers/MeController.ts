@@ -67,10 +67,15 @@ export class MeController {
       // Stateless upload — returns fileUrl only. No profile write.
       // Frontend stores this URL and includes it in qualifications[].fileUrl
       // when calling PATCH /me to save the full qualifications list.
+      // File is optional — if not provided, returns { fileUrl: null }.
+      if (!req.file) {
+        sendSuccess(res, { fileUrl: null });
+        return;
+      }
       const result = await this.uploadQualification.execute({
         uid,
-        buffer:   req.file!.buffer,
-        mimeType: req.file!.mimetype,
+        buffer:   req.file.buffer,
+        mimeType: req.file.mimetype,
       });
       sendSuccess(res, { fileUrl: result.fileUrl });
     } catch (err) { next(err); }
@@ -82,7 +87,7 @@ export class MeController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.changePassword.execute({ uid, ...parsed.data });
-      res.status(204).send();
+      sendSuccess(res, { message: 'Password changed successfully.' });
     } catch (err) { next(err); }
   };
 
@@ -92,7 +97,7 @@ export class MeController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.registerFcmToken.execute(uid, parsed.data.token);
-      res.status(204).send();
+      sendSuccess(res, { message: 'FCM token registered.' });
     } catch (err) { next(err); }
   };
 

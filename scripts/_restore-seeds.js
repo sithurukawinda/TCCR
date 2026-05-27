@@ -37,8 +37,13 @@ async function run() {
     try {
       const u = await admin.auth().getUserByEmail(seed.email);
 
-      // 1. Fix Firebase Auth
-      await admin.auth().updateUser(u.uid, { disabled: false, password: seed.password });
+      // 1. Fix Firebase Auth — do NOT include password here so Firebase does NOT
+      //    revoke refresh tokens. Token revocation breaks the Newman online run because
+      //    tokens signed in by newman-run-online.js become invalid mid-collection.
+      //    Password is only reset if the account is actually disabled (can't sign in).
+      const updatePayload = { disabled: false };
+      if (u.disabled) updatePayload.password = seed.password; // only reset pw if locked out
+      await admin.auth().updateUser(u.uid, updatePayload);
       await admin.auth().setCustomUserClaims(u.uid, { role: seed.role, roles: seed.roles });
 
       // 2. Fix Firestore document (only fields that tests might corrupt)

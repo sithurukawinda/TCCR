@@ -14,13 +14,17 @@ export class AttachmentController {
 
   upload = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const file       = req.file!;
+      // File is optional — if not provided, return early with a message.
+      if (!req.file) {
+        sendSuccess(res, { message: 'No file uploaded. Provide a PDF, DOC, or DOCX file to create an attachment.' });
+        return;
+      }
       const attachment = await this.uploadUC.execute({
         subjectId: req.params.id,
-        buffer:    file.buffer,
-        filename:  file.originalname,
-        mimeType:  file.mimetype,
-        sizeBytes: file.size,
+        buffer:    req.file.buffer,
+        filename:  req.file.originalname,
+        mimeType:  req.file.mimetype,
+        sizeBytes: req.file.size,
       });
       sendSuccess(res, attachment, 201);
     } catch (err) { next(err); }

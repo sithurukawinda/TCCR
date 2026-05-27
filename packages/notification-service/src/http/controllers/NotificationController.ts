@@ -30,7 +30,7 @@ export class NotificationController {
     try {
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.notifRepo.markAllRead(uid);
-      res.status(204).send();
+      sendSuccess(res, { message: 'All notifications marked as read.' });
     } catch (err) { next(err); }
   };
 }

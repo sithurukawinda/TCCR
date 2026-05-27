@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "name": "api_docs",
+  "owner": "shouenlee",
+  "repo": "ghcp-dev-plugin",
+  "path": "plugins/api-docs/skills/api_docs",
+  "branch": "master",
+  "sha": "c54666190185639af63a2474efe366d5d20a11ef",
+  "source": "manual"
+}
