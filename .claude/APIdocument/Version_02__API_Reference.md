@@ -3540,7 +3540,22 @@ All endpoints read from **pre-aggregated snapshots** — never raw reports. <2 s
 | `leaderUid` | string (UID) | `admin`, `g12`, `super_admin` | Override scope to a specific cell leader's snapshot. Ignored for `leader` callers (they always see their own scope). |
 | `g12Uid` | string (UID) | `admin`, `super_admin` | Override scope to a specific G12 supervisor's network snapshot. Ignored for non-admin callers. |
 
-Filters are composable: `?cellType=care&leaderUid=xxx` returns care-type data for that leader. An invalid `cellType` value returns `400 VALIDATION_ERROR`.
+Filters are composable — pass any combination together. An invalid `cellType` value returns `400 VALIDATION_ERROR`.
+
+**Combined filter priority** — when multiple params are present, the backend resolves scope in this order:
+
+| `g12Uid` | `leaderUid` | `cellType` | Resolved scope |
+|:--------:|:-----------:|:----------:|----------------|
+| ✅ | ❌ | ❌ | `g12:<uid>` |
+| ✅ | ✅ | ❌ | `leader:<uid>` ← leaderUid wins |
+| ✅ | ❌ | ✅ | `g12:<uid>\|<type>` |
+| ❌ | ✅ | ❌ | `leader:<uid>` |
+| ❌ | ✅ | ✅ | `leader:<uid>\|<type>` |
+| ✅ | ✅ | ✅ | `leader:<uid>\|<type>` ← leaderUid wins |
+| ❌ | ❌ | ✅ | `org\|<type>` |
+| ❌ | ❌ | ❌ | caller's role scope (`org` / `g12:<uid>` / `leader:<uid>`) |
+
+**Priority rule:** `leaderUid` > `g12Uid` > role-based default. `cellType` is always appended as a `|<type>` suffix to the resolved base scope regardless of which other filters are active.
 
 ---
 
