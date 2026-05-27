@@ -3362,20 +3362,46 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 {
   "items": [
     {
-      "id":         "report-001",
-      "cellId":     "cell-001",
-      "cellName":   "Rathmalana West G12",
-      "date":       "2026-05-22",
-      "didMeet":    true, 
-"filledByUid": "leader-uid-1",
-      ...
+      "id":                  "report-001",
+      "cellId":              "cell-001",
+      "cellName":            "FCX Cell",
+      "date":                "2026-05-27",
+      "didMeet":             true,
+      "noMeetReason":        null,
+      "leaderPresent":       true,
+      "conductedByIfAbsent": null,
+      "location":            "Church Hall",
+      "timeStarted":         "2026-05-27T09:00:00.000Z",
+      "timeEnded":           "2026-05-27T11:00:00.000Z",
+      "language":            "en",
+      "subjectDiscussed":    "sunday_sermon",
+      "otherSubjectReason":  null,
+      "cellType":            "care",
+      "g12LeaderUid":        "uid-g12-1",
+      "attendance": [
+        { "userUid": "uid-1", "name": "Saman S.", "status": "present", "isNew": false },
+        { "userUid": "uid-2", "name": "Nimal P.", "status": "absent",  "isNew": false }
+      ],
+      "contactedAbsentees":  "yes",
+      "absenteeNotes":       null,
+      "additionalVisitors":  2,
+      "childrenCount":       0,
+      "satisfactionRate":    4,
+      "photoUrls":           [],
+      "additionalInfo":      null,
+      "voided":              false,
+      "clientReqId":         "550e8400-e29b-41d4-a716-446655440000",
+      "filledByUid":         "uid-leader-1",
+      "createdAt":           "2026-05-27T11:30:00.000Z"
     }
   ],
-  "totalCells": 8
+  "totalCells": 4
 }
 ```
 
-> Reports are sorted by `date` descending (newest first). The `cellName` field is added automatically for each report item. `totalCells` = number of cells in the caller's network.
+> Reports are sorted by `date` descending (newest first). The `cellName` field is added automatically for each report item.  
+> `totalCells` = number of cells matching the filter (not the full network size).  
+> When `type=care` is set, only reports where `cellType === "care"` are returned — this is the Cell Type tab filter.
 
 **`403 Forbidden`** → `FORBIDDEN` — member or student (not leader/G12/admin)
 
@@ -3418,9 +3444,9 @@ Returns the complete monthly reporting summary for the **Reports page dashboard*
     "g12Active":     1
   },
   "attendance": {
-    "present":         52,
-    "roster":          65,
-    "rate":            0.8,
+    "present":         55,
+    "roster":          52,
+    "rate":            1.058,
     "visitors":        7,
     "avgSatisfaction": 4.1
   },
@@ -3469,7 +3495,7 @@ Returns the complete monthly reporting summary for the **Reports page dashboard*
 | `summary.g12Active` | number | **G12 supervisors active** stat card |
 | `attendance.present` | number | **Attendance** stat card |
 | `attendance.roster` | number | **Total roster** stat card |
-| `attendance.rate` | number | **Attendance rate** — multiply × 100 for display (e.g. `0.83` → `83%`) |
+| `attendance.rate` | number | **Attendance rate** — multiply × 100 for display (e.g. `0.83` → `83%`). Can exceed `1.0` (100%+) when visitors join beyond the registered roster size. |
 | `attendance.visitors` | number | **Visitors** stat card |
 | `attendance.avgSatisfaction` | number | **Avg. satisfaction** stat card — 1–6 scale |
 | `unreportedCells[]` | array | Alert banner — *"N cells haven't filed a report this month"*; render each as a chip |
