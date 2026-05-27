@@ -2,11 +2,12 @@
 ## The Christian Center Rathmalana · `tccr-backend`
 ### REST API · Version 2.26.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.26.0
+**Version:** 2.27.0
 **Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.25.0 (27 May 2026)
+**Supersedes:** Version 2.26.0 (27 May 2026)
+**Change in 2.27.0:** Email verification gate enforced on registration (§1.2, §2.1). `POST /auth/register` now creates accounts with `emailVerified=false` — users must click the verification link in the welcome email before accessing protected routes. Welcome email updated: green "Verify My Email" button (primary) + blue "Log in to TCCR" button (secondary). `POST /auth/password-reset` now sends a direct Firebase reset link (no OTP). `POST /auth/password-reset/verify` deprecated. `docker-compose.yml` fix: `SERVICE_ENROLLMENT_URL` added to `progress-service`.
 **Change in 2.26.0:** Added lesson-level progress endpoints (§12.6, §12.7) and extended `GET /me/progress/courses/:courseId` (§12.3) with `completedLessonIds[]`, `totalLessons`, `lessonCompletionPercent`, and `lastAccessedAt`. New Firestore collection: `lesson_progress`.
 **Change in 2.25.0:** Developed `GET /users/summary` (§4.11) — enriched `SummaryProfile` with `roles[]`, `phoneNumber`, `createdAt`; added Frontend Integration Guide; 10 unit tests added.
 **Change in 2.24.0:** PDF file inputs made optional across all upload endpoints (§3.5, §10.1):
@@ -110,15 +111,15 @@ Authorization: Bearer <firebase-id-token>
 
 **Public endpoints (no token required):**
 
-> **Email-verification gate:** Applies only to users who sign up via `POST /auth/register` — Firebase Auth email-verification status is set to `true` immediately on account creation, so newly registered users can access all protected endpoints without an OTP step. Federated users (Google/Apple) are always verified automatically by Firebase.
+> **Email-verification gate:** Users who sign up via `POST /auth/register` receive `emailVerified=false` on account creation. They must click the **"Verify My Email"** link in the welcome email before they can access any protected endpoint — calling a protected route with an unverified token returns `403 EMAIL_NOT_VERIFIED`. Federated users (Google/Apple) are always verified automatically by Firebase and are **exempt** from this gate.
 
 | Endpoint | Description |
 |----------|-------------|
 | `POST /auth/register` | Member registration |
 | `POST /auth/federated/google` | Google sign-in |
 | `POST /auth/federated/apple` | Apple sign-in |
-| `POST /auth/password-reset` | Request OTP |
-| `POST /auth/password-reset/verify` | Verify OTP |
+| `POST /auth/password-reset` | Send Firebase password reset link |
+| `POST /auth/password-reset/verify` | ⚠️ Deprecated — use reset link instead |
 | `POST /auth/track-failure` | Record failed login attempt |
 | `GET /courses` | Browse published catalogue |
 | `GET /courses/:id` | View published course |
@@ -257,12 +258,16 @@ Register a new account. **V2:** Creates an **active Member** immediately — no 
 | Field | Value |
 |-------|-------|
 | **To** | Registered email address |
-| **Subject** | `Welcome to TCCR — Your Account is Active` |
-| **Greeting** | `Hi <firstName> <lastName>,` |
-| **Credentials table** | Email address + plain-text password |
-| **Warning** | ⚠ Prompt to change password after first login |
-| **Login button** | `Log in to TCCR →` — links to `APP_URL` env var (default `https://cms.bethelnet.au/login`) |
+| **Subject** | `Welcome to TCCR — Please Verify Your Email` |
+| **Greeting** | `Welcome, <firstName> <lastName>! 👋` |
+| **Description** | Short text: account created, must verify to activate |
+| **Verify button** | 🟢 `Verify My Email` (green, primary CTA) — Firebase verification link, **24-hour TTL** |
+| **Login button** | 🔵 `Log in to TCCR →` (blue, secondary CTA) — links to `APP_URL` env var |
 | **Footer** | Security note: contact support if account was not created by the user |
+
+> **Verification gate:** Until the user clicks the verify button, all protected routes return `403 EMAIL_NOT_VERIFIED`.  
+> `APP_URL` env var controls the login button link (default `https://cms.bethelnet.au/login`).  
+> Google/Apple users are verified automatically — they never receive this email gate.
 
 > **Environment variable:** `APP_URL` controls the login button link in **all** welcome emails (member registration + leader/g12/admin creation). Set it in `.env`:
 > ```
@@ -276,7 +281,7 @@ Register a new account. **V2:** Creates an **active Member** immediately — no 
 
 **`201 Created`**
 ```json
-{ "uid": "Xf3aBC...", "message": "Registration successful. You can now log in to your account." }
+{ "uid": "Xf3aBC...", "message": "Registration successful. Please check your email and click the verification link to activate your account." }
 ```
 
 **`400 Bad Request`** — Zod validation failure (missing field, weak password, invalid email)
