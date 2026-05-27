@@ -3305,6 +3305,61 @@ const analyticsFolder = folder('📊 V2 — Analytics Service', [
     auth: bearerAuth('adminToken'),
     tests: [`pm.test("400 — invalid cellType rejected", () => pm.response.to.have.status(400));`],
   }),
+
+  // ── Combined filter requests ──────────────────────────────────────────────
+
+  buildRequest({
+    name: 'Attendance — g12Uid + leaderUid (leaderUid wins)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?g12Uid={{g12Id}}&leaderUid={{leaderId}}' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("200 OK — g12Uid+leaderUid combo", () => pm.response.to.have.status(200));`,
+      `pm.test("scope is leader scoped", () => {`,
+      `  const j = pm.response.json();`,
+      `  pm.expect(j.scope).to.include("leader:");`,
+      `});`,
+    ],
+  }),
+  buildRequest({
+    name: 'Attendance — g12Uid + cellType',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?g12Uid={{g12Id}}&cellType=care' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("200 OK — g12Uid+cellType combo", () => pm.response.to.have.status(200));`,
+      `pm.test("scope is g12 + type scoped", () => {`,
+      `  const j = pm.response.json();`,
+      `  pm.expect(j.scope).to.include("g12:").and.include("|care");`,
+      `});`,
+    ],
+  }),
+  buildRequest({
+    name: 'Attendance — leaderUid + cellType',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?leaderUid={{leaderId}}&cellType=children' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("200 OK — leaderUid+cellType combo", () => pm.response.to.have.status(200));`,
+      `pm.test("scope is leader + type scoped", () => {`,
+      `  const j = pm.response.json();`,
+      `  pm.expect(j.scope).to.include("leader:").and.include("|children");`,
+      `});`,
+    ],
+  }),
+  buildRequest({
+    name: 'Attendance — g12Uid + leaderUid + cellType (leaderUid wins)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/analytics/attendance?g12Uid={{g12Id}}&leaderUid={{leaderId}}&cellType=outreach' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("200 OK — all 3 filters combo", () => pm.response.to.have.status(200));`,
+      `pm.test("scope is leader + type scoped (leaderUid wins)", () => {`,
+      `  const j = pm.response.json();`,
+      `  pm.expect(j.scope).to.include("leader:").and.include("|outreach");`,
+      `});`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
