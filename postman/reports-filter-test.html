@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TCCR — Reports</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:#f0f2ed;color:#1a1a1a}
+
+/* Login */
+#loginPage{display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f0f2ed}
+.lcard{background:#fff;border-radius:16px;padding:40px;width:380px;box-shadow:0 4px 24px rgba(0,0,0,.1)}
+.llogo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
+.llogo .icon{width:34px;height:34px;background:#2d5a27;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:15px}
+.lcard h2{font-size:16px;font-weight:600;margin-bottom:3px}
+.lcard p{font-size:13px;color:#888;margin-bottom:22px}
+.fg label{display:block;font-size:12px;font-weight:600;color:#555;margin-bottom:5px}
+.fg input{width:100%;padding:10px 14px;border:1px solid #ddd;border-radius:8px;font-size:14px;outline:none;margin-bottom:14px}
+.fg input:focus{border-color:#4a8a42}
+.lerr{background:#fdf0f0;border:1px solid #f5c6c6;border-radius:8px;padding:8px 12px;font-size:13px;color:#c0392b;margin-bottom:14px;display:none}
+.lbtn{width:100%;padding:11px;background:#2d5a27;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+.lbtn:hover{background:#245020}
+.lbtn:disabled{background:#aaa;cursor:not-allowed}
+
+/* Shell */
+#app{display:none;min-height:100vh}
+.shell{display:flex;min-height:100vh}
+
+/* Sidebar */
+.sidebar{width:208px;min-width:208px;background:#1a2c18;color:#fff;display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sb-logo{display:flex;align-items:center;gap:10px;padding:18px 18px 14px;border-bottom:1px solid rgba(255,255,255,.07)}
+.sb-logo .icon{width:28px;height:28px;background:#4a8a42;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:13px}
+.sb-logo span{font-size:15px;font-weight:700;letter-spacing:1px}
+.sb-nav{flex:1;padding:12px 8px;overflow-y:auto}
+.sb-sec{font-size:10px;font-weight:700;color:rgba(255,255,255,.3);letter-spacing:.8px;text-transform:uppercase;padding:10px 10px 4px}
+.sb-item{display:flex;align-items:center;gap:9px;padding:8px 10px;border-radius:7px;font-size:13px;color:rgba(255,255,255,.6);cursor:pointer;margin-bottom:1px;transition:background .12s,color .12s}
+.sb-item:hover{background:rgba(255,255,255,.07);color:#fff}
+.sb-item.active{background:rgba(74,138,66,.22);color:#a8d5a2}
+.sb-item svg{width:15px;height:15px;flex-shrink:0}
+.sb-user{padding:12px 14px;border-top:1px solid rgba(255,255,255,.07);display:flex;align-items:center;gap:9px}
+.sb-av{width:32px;height:32px;border-radius:50%;background:#4a8a42;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff;flex-shrink:0}
+.sb-un{font-size:12px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sb-ur{font-size:11px;color:rgba(255,255,255,.4)}
+.sb-out{background:none;border:none;cursor:pointer;color:rgba(255,255,255,.3);padding:4px;border-radius:4px;margin-left:auto}
+.sb-out:hover{color:rgba(255,255,255,.8)}
+
+/* Main */
+.main{margin-left:208px;flex:1;display:flex;flex-direction:column}
+.topbar{background:#fff;border-bottom:1px solid #eaeae6;padding:0 28px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50}
+.tb-left{display:flex;align-items:center;gap:8px;font-size:13px;color:#999}
+.tb-left strong{color:#1a1a1a}
+.tb-right{display:flex;align-items:center;gap:14px}
+.tb-lang{display:flex;align-items:center;gap:4px;font-size:13px;color:#555;cursor:pointer}
+.tb-ic{color:#999;cursor:pointer}
+.tb-av{width:30px;height:30px;border-radius:50%;background:#4a8a42;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;cursor:pointer}
+
+/* Page */
+.page{padding:28px}
+.ph{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+.ph-title{font-size:26px;font-weight:700}
+.ph-sub{font-size:13px;color:#888;margin-top:3px}
+.ph-sub a{color:#4a8a42;text-decoration:none}
+.ph-actions{display:flex;align-items:center;gap:10px;flex-shrink:0}
+.month-btn{display:flex;align-items:center;gap:7px;padding:8px 14px;border:1px solid #ddd;border-radius:8px;background:#fff;font-size:13px;font-weight:500;cursor:pointer;color:#1a1a1a;white-space:nowrap}
+.filter-btn{display:flex;align-items:center;gap:6px;padding:8px 16px;border:none;border-radius:8px;background:#a8d855;font-size:13px;font-weight:600;cursor:pointer;color:#1a2c18}
+.filter-btn:hover{background:#96c444}
+
+/* Errbar */
+.errbar{background:#fdf0f0;border:1px solid #f5c6c6;border-radius:8px;padding:10px 16px;font-size:13px;color:#c0392b;margin-bottom:18px;display:none}
+
+/* Filter panel */
+.fbar{background:#fff;border-radius:12px;padding:18px 22px;margin-bottom:20px;box-shadow:0 1px 3px rgba(0,0,0,.05);display:none}
+.fbar.open{display:block}
+.fgrid{display:grid;grid-template-columns:1fr 1fr auto 1fr;gap:18px;align-items:start}
+.fl label{display:block;font-size:10px;font-weight:700;color:#999;text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px}
+.fl select{width:100%;padding:9px 12px;border:1px solid #e0e0e0;border-radius:8px;font-size:13px;background:#fff;cursor:pointer;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23888' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 10px center}
+.ct-pills{display:flex;flex-wrap:wrap;gap:6px}
+.ct-pill{padding:5px 12px;border-radius:20px;font-size:12px;font-weight:500;border:1px solid #e0e0e0;background:#fff;cursor:pointer;transition:all .12s;color:#555}
+.ct-pill.active{background:#2d5a27;border-color:#2d5a27;color:#fff;font-weight:600}
+
+/* Cards */
+.cards4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px}
+.cards5{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:20px}
+.card{background:#fff;border-radius:12px;padding:18px 20px 16px;box-shadow:0 1px 3px rgba(0,0,0,.05);cursor:pointer;transition:box-shadow .15s,transform .1s}
+.card:hover{box-shadow:0 4px 14px rgba(0,0,0,.1);transform:translateY(-1px)}
+.c-lbl{font-size:12px;color:#888;margin-bottom:8px}
+.c-val{font-size:30px;font-weight:700;color:#1a1a1a;line-height:1;margin-bottom:4px}
+.c-sub{font-size:12px;color:#bbb}
+
+/* Unreported */
+.unrep{background:#fdf6ed;border:1px solid #f0d9b0;border-radius:12px;padding:18px 22px;margin-bottom:20px}
+.unrep-hdr{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.unrep-icon{width:30px;height:30px;background:#f0a500;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;flex-shrink:0}
+.unrep-title{font-size:13px;font-weight:600;color:#7a5200}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:20px;font-size:12px;background:#fff;border:1px solid #e8d5a3;color:#555;white-space:nowrap}
+.ct{font-size:10px;font-weight:700;padding:1px 6px;border-radius:8px;text-transform:capitalize}
+.ct-care{background:#e8f4e8;color:#2d7a2d}
+.ct-children{background:#e8eef8;color:#2d4a9a}
+.ct-outreach{background:#fef3e8;color:#9a5a1a}
+.ct-g12{background:#f3e8fe;color:#6a1a9a}
+
+/* Charts 2x2 */
+.charts2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.chart-card{background:#fff;border-radius:12px;padding:20px 22px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.ch-title{font-size:14px;font-weight:600;margin-bottom:3px}
+.ch-sub{font-size:12px;color:#aaa;margin-bottom:14px}
+.ch-wrap{position:relative;height:180px}
+.ch-hdr{display:flex;justify-content:space-between;align-items:flex-start}
+.ch-month{font-size:12px;color:#aaa;margin-top:2px}
+
+/* By G12 table inside chart card */
+.g12-table{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px}
+.g12-table th{color:#aaa;font-weight:600;font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid #f0f0ec}
+.g12-table td{padding:8px 8px;border-bottom:1px solid #f5f5f2;color:#555}
+.g12-table tr:last-child td{border:none}
+.no-data{text-align:center;color:#ccc;font-size:13px;padding:32px 0}
+.stars{color:#f5a623;font-size:12px}
+
+/* By leader table */
+.section-card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.05);overflow:hidden;margin-bottom:16px}
+.sc-hdr{padding:18px 22px 12px;border-bottom:1px solid #f0f0ec}
+.sc-title{font-size:14px;font-weight:600;color:#1a1a1a}
+.sc-sub{font-size:12px;color:#aaa;margin-top:2px}
+.stbl{width:100%;border-collapse:collapse;font-size:13px}
+.stbl th{background:#f8f8f5;padding:10px 16px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase;letter-spacing:.3px;cursor:pointer;user-select:none;white-space:nowrap}
+.stbl th:hover{background:#f0f0ec}
+.stbl th.sorted{color:#2d5a27}
+.stbl td{padding:11px 16px;border-bottom:1px solid #f5f5f2;color:#444}
+.stbl tr:last-child td{border:none}
+.stbl tr:hover td{background:#fafaf7}
+.tag{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:600}
+.tag-green{background:#edf7ed;color:#2d7a2d}
+.tag-blue{background:#edf0ff;color:#3a4ab0}
+
+/* All reports table */
+.live-badge{background:#edf7ed;color:#2d7a2d;font-size:11px;font-weight:600;padding:2px 8px;border-radius:6px;margin-left:auto}
+.type-pill{display:inline-block;padding:2px 9px;border-radius:12px;font-size:11px;font-weight:600}
+.tp-care{background:#e8f4e8;color:#2d7a2d}
+.tp-children{background:#e8eef8;color:#2d4a9a}
+.tp-outreach{background:#fef3e8;color:#9a5a1a}
+.tp-g12{background:#f3e8fe;color:#6a1a9a}
+.met-yes{color:#2d7a2d;font-weight:600}
+.met-no{color:#c0392b}
+
+/* Detail modal */
+.d-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:400;align-items:center;justify-content:center}
+.d-overlay.open{display:flex}
+.d-modal{background:#fff;border-radius:16px;width:700px;max-width:95vw;max-height:84vh;display:flex;flex-direction:column;box-shadow:0 24px 64px rgba(0,0,0,.25)}
+.d-hdr{padding:20px 24px 14px;border-bottom:1px solid #f0f0ec;display:flex;align-items:flex-start;justify-content:space-between}
+.d-title{font-size:15px;font-weight:700}
+.d-sub{font-size:12px;color:#888;margin-top:3px}
+.d-close{background:#f0f0ec;border:none;border-radius:50%;width:28px;height:28px;cursor:pointer;font-size:13px;flex-shrink:0;margin-left:12px}
+.d-close:hover{background:#e0e0dc}
+.d-body{padding:18px 24px;overflow-y:auto;flex:1}
+.d-tbl{width:100%;border-collapse:collapse;font-size:13px}
+.d-tbl th{background:#f8f8f5;padding:8px 12px;text-align:left;font-size:11px;font-weight:700;color:#888;text-transform:uppercase}
+.d-tbl td{padding:9px 12px;border-top:1px solid #f0f0ec}
+.d-tbl tr:hover td{background:#fafaf7}
+.d-empty{text-align:center;color:#bbb;padding:32px;font-size:13px}
+
+/* Month overlay */
+.overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:300;align-items:center;justify-content:center}
+.overlay.open{display:flex}
+.m-modal{background:#fff;border-radius:14px;padding:26px;width:300px;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.m-modal h3{font-size:14px;font-weight:700;margin-bottom:14px}
+.m-modal input[type=month]{width:100%;padding:9px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:14px}
+.m-btns{display:flex;gap:8px;justify-content:flex-end}
+.btn-c{padding:7px 14px;border:1px solid #ddd;border-radius:7px;background:#fff;font-size:13px;cursor:pointer}
+.btn-a{padding:7px 14px;border:none;border-radius:7px;background:#2d5a27;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+
+/* Loading */
+.loading-overlay{display:none;position:fixed;inset:0;background:rgba(255,255,255,.7);z-index:500;align-items:center;justify-content:center}
+.loading-overlay.open{display:flex}
+.spinner{width:34px;height:34px;border:3px solid #e0e0e0;border-top-color:#2d5a27;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+footer{padding:14px 28px;font-size:12px;color:#ccc;border-top:1px solid #eaeae6;display:flex;justify-content:space-between;background:#fff;margin-top:auto}
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<!-- Detail modal -->
+<div class="d-overlay" id="dOverlay" onclick="closeDetail(event)">
+  <div class="d-modal">
+    <div class="d-hdr">
+      <div><div class="d-title" id="dTitle">Detail</div><div class="d-sub" id="dSub"></div></div>
+      <button class="d-close" onclick="closeDetail()">✕</button>
+    </div>
+    <div class="d-body" id="dBody"></div>
+  </div>
+</div>
+
+<!-- Month modal -->
+<div class="overlay" id="monthOverlay">
+  <div class="m-modal">
+    <h3>Select Month</h3>
+    <input type="month" id="monthPicker" value="2026-05">
+    <div class="m-btns">
+      <button class="btn-c" onclick="closeMonth()">Cancel</button>
+      <button class="btn-a" onclick="applyMonth()">Apply</button>
+    </div>
+  </div>
+</div>
+
+<!-- Login -->
+<div id="loginPage">
+  <div class="lcard">
+    <div class="llogo"><div class="icon">✝</div><span style="font-size:17px;font-weight:700;letter-spacing:1px">TCCR</span></div>
+    <h2>Sign in</h2><p>Enter your credentials to continue</p>
+    <div id="lerr" class="lerr"></div>
+    <div class="fg">
+      <label>Email</label><input id="email" type="email" value="g12leader@cmp.com">
+      <label>Password</label><input id="password" type="password" value="G12Lead@123">
+    </div>
+    <button class="lbtn" id="loginBtn" onclick="doLogin()">Sign In</button>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+<div class="shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sb-logo"><div class="icon">✝</div><span>TCCR</span></div>
+    <nav class="sb-nav">
+      <div class="sb-sec">Main</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9,22 9,12 15,12 15,22"/></svg>Home</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>Dashboard</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>Cells</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M8.56 2.75c4.37 6.03 6.02 9.42 8.03 17.72m2.54-15.38c-3.72 4.35-8.94 5.66-16.88 5.85m19.5 1.9c-3.5-.93-6.63-.82-8.94 0-2.58.92-5.01 2.86-7.44 6.32"/></svg>Leaders Network</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>Promote</div>
+      <div class="sb-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>Reports</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>Analytics</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 3h6a4 4 0 014 4v14a3 3 0 00-3-3H2z"/><path d="M22 3h-6a4 4 0 00-4 4v14a3 3 0 013-3h7z"/></svg>Bible School</div>
+      <div class="sb-sec">Account</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>Notifications</div>
+      <div class="sb-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>Profile</div>
+    </nav>
+    <div class="sb-user">
+      <div class="sb-av" id="sbAv">?</div>
+      <div style="flex:1;min-width:0"><div class="sb-un" id="sbName">—</div><div class="sb-ur" id="sbRole">G12 Leader</div></div>
+      <button class="sb-out" onclick="doLogout()" title="Sign out"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg></button>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="tb-left">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#ccc" stroke-width="2"><polyline points="15,18 9,12 15,6"/></svg>
+        <span>G12</span>
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#ddd" stroke-width="2"><polyline points="9,18 15,12 9,6"/></svg>
+        <strong>Reports</strong>
+      </div>
+      <div class="tb-right">
+        <div class="tb-lang"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>English<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6,9 12,15 18,9"/></svg></div>
+        <svg class="tb-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        <svg class="tb-ic" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/></svg>
+        <div class="tb-av" id="topAv">?</div>
+      </div>
+    </div>
+
+    <div class="page">
+      <!-- Header -->
+      <div class="ph">
+        <div>
+          <div class="ph-title">Reports</div>
+          <div class="ph-sub">Network reporting overview — filter by month, G12, leader, type, or <a href="#">specific cell.</a></div>
+        </div>
+        <div class="ph-actions">
+          <button class="month-btn" onclick="openMonth()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span id="monthLabel">May 2026</span></button>
+          <button class="filter-btn" onclick="toggleFilters()"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="22,3 2,3 10,12.46 10,19 14,21 14,12.46 22,3"/></svg>Filters</button>
+        </div>
+      </div>
+
+      <div id="errBar" class="errbar"></div>
+
+      <!-- Filter bar -->
+      <div class="fbar" id="fbar">
+        <div class="fgrid">
+          <div class="fl"><label>G12 Supervisor</label><select id="g12Sel" onchange="loadAll()"><option value="">All G12 supervisors</option></select></div>
+          <div class="fl"><label>Cell Leader</label><select id="leaderSel" onchange="loadAll()"><option value="">All cell leaders</option></select></div>
+          <div class="fl">
+            <label>Cell Type</label>
+            <div class="ct-pills">
+              <span class="ct-pill active" data-type="" onclick="setCellType(this)">All Types</span>
+              <span class="ct-pill" data-type="care" onclick="setCellType(this)">Care</span>
+              <span class="ct-pill" data-type="outreach" onclick="setCellType(this)">Outreach</span>
+              <span class="ct-pill" data-type="children" onclick="setCellType(this)">Children</span>
+              <span class="ct-pill" data-type="g12" onclick="setCellType(this)">G12</span>
+            </div>
+          </div>
+          <div class="fl"><label>Cell</label><select id="cellSel" onchange="loadAll()"><option value="">All cells</option></select></div>
+        </div>
+      </div>
+
+      <!-- Cards row 1 (4) -->
+      <div class="cards4">
+        <div class="card" onclick="showDetail('cells')"><div class="c-lbl">Cells held</div><div class="c-val" id="cCellsHeld">—</div><div class="c-sub" id="cCellsSub">of — in scope</div></div>
+        <div class="card" onclick="showDetail('reports')"><div class="c-lbl">Reports filed</div><div class="c-val" id="cReports">—</div><div class="c-sub" id="cReportsSub">in —</div></div>
+        <div class="card" onclick="showDetail('leaders')"><div class="c-lbl">Active leaders</div><div class="c-val" id="cLeaders">—</div><div class="c-sub" id="cLeadersSub">of — in scope</div></div>
+        <div class="card" onclick="showDetail('g12')"><div class="c-lbl">G12 supervisors active</div><div class="c-val" id="cG12">—</div><div class="c-sub">across network</div></div>
+      </div>
+
+      <!-- Cards row 2 (5) -->
+      <div class="cards5">
+        <div class="card" onclick="showDetail('attendance')"><div class="c-lbl">Attendance</div><div class="c-val" id="cPresent">—</div><div class="c-sub">members present</div></div>
+        <div class="card" onclick="showDetail('rate')"><div class="c-lbl">Attendance rate</div><div class="c-val" id="cRate">—</div><div class="c-sub">present / roster</div></div>
+        <div class="card" onclick="showDetail('visitors')"><div class="c-lbl">Visitors</div><div class="c-val" id="cVisitors">—</div><div class="c-sub">unregistered attendees</div></div>
+        <div class="card" onclick="showDetail('roster')"><div class="c-lbl">Total roster</div><div class="c-val" id="cRoster">—</div><div class="c-sub">members in scope</div></div>
+        <div class="card" onclick="showDetail('satisfaction')"><div class="c-lbl">Avg. satisfaction</div><div class="c-val" id="cSat">—</div><div class="c-sub">from filed reports</div></div>
+      </div>
+
+      <!-- Unreported -->
+      <div class="unrep" id="unrep" style="display:none">
+        <div class="unrep-hdr"><div class="unrep-icon">⚠</div><div class="unrep-title" id="unrepTitle">—</div></div>
+        <div class="chips" id="unrepChips"></div>
+      </div>
+
+      <!-- Charts 2x2 -->
+      <div class="charts2">
+        <div class="chart-card">
+          <div class="ch-title">Reports filed by week</div>
+          <div class="ch-sub" id="chSubWeek">—</div>
+          <div class="ch-wrap"><canvas id="weeklyChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="ch-title">Meetings by cell type</div>
+          <div class="ch-sub" id="chSubType">—</div>
+          <div class="ch-wrap"><canvas id="typeChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="ch-title">Attendance trend</div>
+          <div class="ch-sub">members present per week</div>
+          <div class="ch-wrap"><canvas id="attendChart"></canvas></div>
+        </div>
+        <div class="chart-card">
+          <div class="ch-hdr"><div class="ch-title">By G12 supervisor</div><div class="ch-month" id="g12Month">—</div></div>
+          <div style="margin-top:10px" id="g12Panel"><div class="no-data">No G12 supervisor data.</div></div>
+        </div>
+      </div>
+
+      <!-- By cell leader -->
+      <div class="section-card">
+        <div class="sc-hdr">
+          <div class="sc-title">By cell leader</div>
+          <div class="sc-sub" id="leaderTableSub">Click a column to sort.</div>
+        </div>
+        <table class="stbl" id="leaderTable">
+          <thead><tr>
+            <th onclick="sortLeaders('name')">Cell Leader</th>
+            <th onclick="sortLeaders('g12')">G12 supervisor</th>
+            <th onclick="sortLeaders('cells')">Cells</th>
+            <th onclick="sortLeaders('reports')" class="sorted">Reports ↓</th>
+            <th onclick="sortLeaders('attendance')">Attendance</th>
+            <th onclick="sortLeaders('sat')">Satisfaction</th>
+          </tr></thead>
+          <tbody id="leaderBody"><tr><td colspan="6" style="text-align:center;color:#bbb;padding:28px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+
+      <!-- All reports -->
+      <div class="section-card">
+        <div class="sc-hdr" style="display:flex;align-items:flex-start;justify-content:space-between">
+          <div><div class="sc-title">All reports</div><div class="sc-sub" id="reportsSub">—</div></div>
+          <span class="live-badge">live data</span>
+        </div>
+        <table class="stbl">
+          <thead><tr><th>Day</th><th>Cell</th><th>Type</th><th>Leader</th><th>G12</th><th>Attendance</th><th>Visitors</th><th>Satisfaction</th></tr></thead>
+          <tbody id="rBody"><tr><td colspan="8" style="text-align:center;color:#bbb;padding:28px">Loading…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <footer><span>© 2026 TCCR</span><span>v0.1.0</span></footer>
+  </div>
+</div>
+</div>
+
+<script>
+const API_KEY  = 'AIzaSyDudm6GFhmqLd6zVW0igYL0myX-vN9H5-0';
+const AUTH_URL = `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`;
+const BASE     = 'http://localhost:3000/api/v1';
+
+let TOKEN='', currentMonth='2026-05', filtersOpen=false, activeCellType='';
+let _nameMap={};
+let _reports=[], _summary=null, _leaderRows=[], _leaderSort={col:'reports',asc:false};
+let wChart=null, tChart=null, aChart=null;
+
+// ── Auth ─────────────────────────────────────────────────────────
+async function doLogin(){
+  const btn=document.getElementById('loginBtn'), err=document.getElementById('lerr');
+  err.style.display='none'; btn.disabled=true; btn.textContent='Signing in…';
+  try{
+    const r=await fetch(AUTH_URL,{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:document.getElementById('email').value,password:document.getElementById('password').value,returnSecureToken:true})});
+    const d=await r.json();
+    if(!d.idToken) throw new Error(d.error?.message||'Login failed');
+    TOKEN=d.idToken;
+    try{
+      const me=await get('/me');
+      const full=`${me.firstName||''} ${me.lastName||''}`.trim()||d.email;
+      const ini=full.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+      document.getElementById('sbAv').textContent=ini;
+      document.getElementById('topAv').textContent=ini;
+      document.getElementById('sbName').textContent=full;
+    }catch(_){document.getElementById('sbName').textContent=d.email;}
+    document.getElementById('loginPage').style.display='none';
+    document.getElementById('app').style.display='block';
+    setLoading(true);
+    await loadDropdowns();
+    await loadAll();
+    setLoading(false);
+  }catch(e){err.textContent=e.message;err.style.display='block';btn.disabled=false;btn.textContent='Sign In';}
+}
+function doLogout(){TOKEN='';document.getElementById('app').style.display='none';document.getElementById('loginPage').style.display='flex';document.getElementById('loginBtn').disabled=false;document.getElementById('loginBtn').textContent='Sign In';}
+async function get(path){
+  const r=await fetch(BASE+path,{headers:{Authorization:'Bearer '+TOKEN}});
+  if(!r.ok){const j=await r.json().catch(()=>{});throw new Error(`${r.status} — ${j?.error?.code||r.statusText}`);}
+  return r.json();
+}
+
+// ── Month ────────────────────────────────────────────────────────
+function openMonth(){document.getElementById('monthOverlay').classList.add('open');}
+function closeMonth(){document.getElementById('monthOverlay').classList.remove('open');}
+async function applyMonth(){
+  const v=document.getElementById('monthPicker').value;if(!v)return;
+  currentMonth=v;updateMonthLabel();closeMonth();setLoading(true);await loadAll();setLoading(false);
+}
+function updateMonthLabel(){
+  const[y,m]=currentMonth.split('-');
+  document.getElementById('monthLabel').textContent=new Date(+y,+m-1,1).toLocaleString('en-US',{month:'long',year:'numeric'});
+}
+function mLabel(){const[y,m]=currentMonth.split('-');return new Date(+y,+m-1,1).toLocaleString('en-US',{month:'long',year:'numeric'});}
+
+// ── Filters ──────────────────────────────────────────────────────
+function toggleFilters(){filtersOpen=!filtersOpen;document.getElementById('fbar').classList.toggle('open',filtersOpen);}
+function setCellType(el){document.querySelectorAll('.ct-pill').forEach(p=>p.classList.remove('active'));el.classList.add('active');activeCellType=el.dataset.type;loadAll();}
+
+// ── Dropdowns ────────────────────────────────────────────────────
+async function loadDropdowns(){
+  const[summary,cells]=await Promise.all([get('/users/summary'),get('/cells?limit=100')]);
+  // Build UID → name map for all users
+  var allUsers=[].concat(summary.g12||[],summary.leaders||[],summary.admins||[]);
+  allUsers.forEach(function(u){_nameMap[u.uid]=(u.firstName||'')+' '+(u.lastName||'').trim()||u.email||u.uid;});
+  const g12Sel=document.getElementById('g12Sel');
+  (summary.g12||[]).sort((a,b)=>`${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)).forEach(u=>{
+    const o=document.createElement('option');o.value=u.uid;o.textContent=`${u.firstName} ${u.lastName}`;g12Sel.appendChild(o);
+  });
+  const lSel=document.getElementById('leaderSel');
+  (summary.leaders||[]).sort((a,b)=>`${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`)).forEach(u=>{
+    const o=document.createElement('option');o.value=u.uid;o.textContent=`${u.firstName} ${u.lastName}`;lSel.appendChild(o);
+  });
+  const cSel=document.getElementById('cellSel');
+  (cells.items||[]).sort((a,b)=>a.name.localeCompare(b.name)).forEach(c=>{
+    const o=document.createElement('option');o.value=c.id;o.textContent=c.name;cSel.appendChild(o);
+  });
+}
+
+// ── Main load ────────────────────────────────────────────────────
+async function loadAll(){
+  const g12Uid   =document.getElementById('g12Sel').value;
+  const leaderUid=document.getElementById('leaderSel').value;
+  const cellId   =document.getElementById('cellSel').value;
+  const filtered =!!(g12Uid||leaderUid||cellId||activeCellType);
+  setErr('');
+
+  let rUrl=`/cells/network/reports?month=${currentMonth}&limit=100`;
+  if(g12Uid)    rUrl+=`&g12Uid=${g12Uid}`;
+  if(leaderUid) rUrl+=`&leaderUid=${leaderUid}`;
+  if(cellId)    rUrl+=`&cellId=${cellId}`;
+
+  try{
+    const[summary,resp]=await Promise.all([get(`/cells/network/summary?month=${currentMonth}`),get(rUrl)]);
+    let reports=resp.items||[];
+    if(activeCellType) reports=reports.filter(r=>r.cellType===activeCellType);
+    _reports=reports; _summary=summary;
+
+    const ml=mLabel();
+    document.getElementById('chSubWeek').textContent=`${ml} · ${filtered?'filtered':'all cells'}`;
+    document.getElementById('g12Month').textContent=ml;
+
+    if(filtered){
+      computeCardsFromReports(reports,summary,ml);
+      const weekMap={},typeMap={},attendMap={};
+      const met=reports.filter(r=>r.didMeet&&!r.voided);
+      met.forEach(r=>{
+        const d=new Date(r.date),wk='W'+Math.ceil(d.getDate()/7);
+        weekMap[wk]=(weekMap[wk]||0)+1;
+        typeMap[r.cellType]=(typeMap[r.cellType]||0)+1;
+        const att=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;
+        attendMap[wk]=(attendMap[wk]||0)+att;
+      });
+      const wData=Object.entries(weekMap).sort().map(([w,c])=>({weekLabel:w,reportCount:c}));
+      const aData=Object.entries(attendMap).sort().map(([w,c])=>({weekLabel:w,attendance:c}));
+      renderWeekly(wData);renderType(typeMap,met.length);renderAttend(aData);
+      document.getElementById('chSubType').textContent=`${met.length} cell${met.length!==1?'s':''} that met`;
+    }else{
+      const s=summary;
+      set('cCellsHeld',s.summary?.cellsHeld??'—');set('cCellsSub',`of ${s.scope?.totalCells??'—'} in scope`);
+      set('cReports',s.summary?.reportsFiled??'—');set('cReportsSub',`in ${ml}`);
+      set('cLeaders',s.summary?.activeLeaders??'—');set('cLeadersSub',`of ${s.scope?.totalLeaders??'—'} in scope`);
+      set('cG12',s.summary?.g12Active??'—');
+      set('cPresent',s.attendance?.present??'—');
+      const rate=s.attendance?.rate;set('cRate',rate!=null?Math.round(rate*100)+'%':'—');
+      set('cVisitors',s.attendance?.visitors??'—');set('cRoster',s.attendance?.roster??'—');
+      const sat=s.attendance?.avgSatisfaction;set('cSat',sat!=null?sat+'/5':'—');
+      const unrep=s.unreportedCells||[];
+      const uBox=document.getElementById('unrep');
+      if(unrep.length>0){
+        uBox.style.display='block';
+        document.getElementById('unrepTitle').textContent=`${unrep.length} cell${unrep.length>1?'s':''} haven't filed a report this month`;
+        document.getElementById('unrepChips').innerHTML=unrep.map(c=>`<div class="chip"><span class="ct ct-${c.type}">${c.type}</span>${c.name} · ${nameOf(c.leaderUid)||'Unknown leader'}</div>`).join('');
+      }else{uBox.style.display='none';}
+      renderWeekly(s.weeklyBreakdown||[]);
+      renderType(s.meetingTypeBreakdown||{},Object.values(s.meetingTypeBreakdown||{}).reduce((a,b)=>a+b,0));
+      renderAttend((s.weeklyBreakdown||[]).map(w=>({weekLabel:w.weekLabel,attendance:w.attendance||0})));
+      document.getElementById('chSubType').textContent=`${Object.values(s.meetingTypeBreakdown||{}).reduce((a,b)=>a+b,0)} cells that met`;
+    }
+
+    renderG12Panel(reports);
+    renderLeaderTable(reports,summary);
+    renderReports(reports,resp.totalCells,ml);
+  }catch(e){setErr(e.message);}
+}
+
+function computeCardsFromReports(reports,summary,ml){
+  const met=reports.filter(r=>r.didMeet&&!r.voided);
+  const uCells=new Set(met.map(r=>r.cellId));
+  const uLeaders=new Set(met.map(r=>r.filledByUid||r.leaderUid).filter(Boolean));
+  const uG12=new Set(met.map(r=>r.g12LeaderUid).filter(Boolean));
+  let present=0,absent=0,visitors=0,satSum=0,satCount=0;
+  met.forEach(r=>{
+    (r.attendance||[]).forEach(a=>{if(a.status==='present'||a.status==='new')present++;else if(a.status==='absent')absent++;});
+    visitors+=r.additionalVisitors||0;
+    if(r.satisfactionRate){satSum+=r.satisfactionRate;satCount++;}
+  });
+  const roster=present+absent;
+  set('cCellsHeld',uCells.size);set('cCellsSub',`of ${summary?.scope?.totalCells??'—'} in scope`);
+  set('cReports',met.length);set('cReportsSub',`in ${ml}`);
+  set('cLeaders',uLeaders.size);set('cLeadersSub',`of ${summary?.scope?.totalLeaders??'—'} in scope`);
+  set('cG12',uG12.size);set('cPresent',present);
+  set('cRate',roster>0?Math.round(present/roster*100)+'%':'—');
+  set('cVisitors',visitors);set('cRoster',roster);
+  set('cSat',satCount>0?(Math.round(satSum/satCount*10)/10)+'/5':'—');
+  document.getElementById('unrep').style.display='none';
+}
+
+// ── Charts ───────────────────────────────────────────────────────
+function renderWeekly(data){
+  const ctx=document.getElementById('weeklyChart').getContext('2d');
+  if(wChart)wChart.destroy();
+  wChart=new Chart(ctx,{type:'bar',data:{labels:data.map(d=>d.weekLabel),datasets:[{data:data.map(d=>d.reportCount),backgroundColor:data.map((_,i)=>i===data.length-1?'#a8d855':'#2d5a27'),borderRadius:5,borderSkipped:false}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#aaa'}},y:{grid:{color:'#f0f0ec'},ticks:{font:{size:11},color:'#aaa',stepSize:1},beginAtZero:true}}}});
+}
+
+function renderType(breakdown,total){
+  var canvas=document.getElementById('typeChart');
+  if(tChart)tChart.destroy();
+  var labels=Object.keys(breakdown).filter(function(k){return breakdown[k]>0;});
+  var vals=labels.map(function(k){return breakdown[k];});
+  var colors={care:'#2d5a27',children:'#f5a623',outreach:'#4a6abf',g12:'#8a4abf'};
+  tChart=new Chart(canvas,{
+    type:'doughnut',
+    data:{
+      labels:labels.map(function(l){return l.charAt(0).toUpperCase()+l.slice(1);}),
+      datasets:[{data:vals,backgroundColor:labels.map(function(l){return colors[l]||'#888';}),borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{
+      responsive:true,maintainAspectRatio:false,cutout:'60%',
+      plugins:{
+        legend:{position:'top',labels:{font:{size:11},color:'#555',padding:10,boxWidth:10}},
+        tooltip:{callbacks:{label:function(ti){return ti.label+': '+ti.parsed;}}}
+      },
+      layout:{padding:{bottom:10}}
+    },
+    plugins:[{
+      id:'centerText',
+      afterDraw:function(chart){
+        var c=chart.ctx,ca=chart.chartArea;
+        var cx=(ca.left+ca.right)/2,cy=(ca.top+ca.bottom)/2;
+        c.save();
+        c.font='bold 18px sans-serif';c.fillStyle='#1a1a1a';
+        c.textAlign='center';c.textBaseline='middle';
+        c.fillText(total||0,cx,cy-6);
+        c.font='11px sans-serif';c.fillStyle='#aaa';
+        c.fillText('total',cx,cy+12);
+        c.restore();
+      }
+    }]
+  });
+}
+function renderAttend(data){
+  const ctx=document.getElementById('attendChart').getContext('2d');
+  if(aChart)aChart.destroy();
+  aChart=new Chart(ctx,{type:'line',data:{labels:data.map(d=>d.weekLabel),datasets:[{data:data.map(d=>d.attendance),borderColor:'#2d5a27',backgroundColor:'rgba(45,90,39,.12)',fill:true,tension:.4,pointBackgroundColor:'#2d5a27',pointRadius:4,pointHoverRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{grid:{display:false},ticks:{font:{size:11},color:'#aaa'}},y:{grid:{color:'#f0f0ec'},ticks:{font:{size:11},color:'#aaa'},beginAtZero:true}}}});
+}
+
+function renderG12Panel(reports){
+  const met=reports.filter(r=>r.didMeet&&!r.voided);
+  const byG12={};
+  met.forEach(r=>{
+    const uid=r.g12LeaderUid||'—';const name=nameOf(r.g12LeaderUid);
+    if(!byG12[uid])byG12[uid]={name,leaders:new Set(),reports:0,attendance:0,satSum:0,satCount:0};
+    byG12[uid].leaders.add(r.filledByUid||r.leaderUid);
+    byG12[uid].reports++;
+    byG12[uid].attendance+=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;
+    if(r.satisfactionRate){byG12[uid].satSum+=r.satisfactionRate;byG12[uid].satCount++;}
+  });
+  const rows=Object.values(byG12).filter(g=>g.name!=='—'&&g.name!=='Unknown G12');
+  const panel=document.getElementById('g12Panel');
+  if(!rows.length){panel.innerHTML='<div class="no-data">No G12 supervisor data.</div>';return;}
+  panel.innerHTML=`<table class="g12-table"><thead><tr><th>G12 Supervisor</th><th>Leaders</th><th>Reports</th><th>Attendance</th></tr></thead><tbody>`+
+    rows.map(g=>`<tr><td><strong>${g.name}</strong></td><td>${g.leaders.size}</td><td>${g.reports}</td><td>${g.attendance}</td></tr>`).join('')+'</tbody></table>';
+}
+
+// ── Leader table ─────────────────────────────────────────────────
+function renderLeaderTable(reports,summary){
+  const met=reports.filter(r=>r.didMeet&&!r.voided);
+  const byL={};
+  met.forEach(r=>{
+    const uid=r.filledByUid||r.leaderUid||'?';
+    if(!byL[uid])byL[uid]={name:nameOf(r.filledByUid||r.leaderUid),g12:nameOf(r.g12LeaderUid)||'—',cells:new Set(),reports:0,attendance:0,satSum:0,satCount:0};
+    byL[uid].cells.add(r.cellId);byL[uid].reports++;
+    byL[uid].attendance+=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;
+    if(r.satisfactionRate){byL[uid].satSum+=r.satisfactionRate;byL[uid].satCount++;}
+  });
+  _leaderRows=Object.values(byL);
+  const total=summary?.scope?.totalLeaders??0;
+  document.getElementById('leaderTableSub').textContent=`Click a column to sort. Showing ${_leaderRows.length} of ${total} leaders in scope.`;
+  renderLeaderRows();
+}
+
+function sortLeaders(col){
+  if(_leaderSort.col===col)_leaderSort.asc=!_leaderSort.asc;else{_leaderSort.col=col;_leaderSort.asc=false;}
+  document.querySelectorAll('#leaderTable th').forEach(th=>th.classList.remove('sorted'));
+  const idx={name:0,g12:1,cells:2,reports:3,attendance:4,sat:5}[col];
+  document.querySelectorAll('#leaderTable th')[idx]?.classList.add('sorted');
+  renderLeaderRows();
+}
+
+function renderLeaderRows(){
+  const sorted=[..._leaderRows].sort((a,b)=>{
+    let va,vb;
+    switch(_leaderSort.col){
+      case'name':va=a.name;vb=b.name;break;
+      case'g12':va=a.g12;vb=b.g12;break;
+      case'cells':va=a.cells.size;vb=b.cells.size;break;
+      case'reports':va=a.reports;vb=b.reports;break;
+      case'attendance':va=a.attendance;vb=b.attendance;break;
+      case'sat':va=a.satCount?a.satSum/a.satCount:0;vb=b.satCount?b.satSum/b.satCount:0;break;
+    }
+    if(typeof va==='string')return _leaderSort.asc?va.localeCompare(vb):vb.localeCompare(va);
+    return _leaderSort.asc?va-vb:vb-va;
+  });
+  const tbody=document.getElementById('leaderBody');
+  if(!sorted.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;color:#bbb;padding:28px">No matching leaders.</td></tr>';return;}
+  tbody.innerHTML=sorted.map(l=>{
+    const avg=l.satCount?(l.satSum/l.satCount).toFixed(1):'—';
+    const stars=avg!=='—'?'★'.repeat(Math.round(avg))+'☆'.repeat(5-Math.round(avg)):'—';
+    return`<tr><td><strong>${l.name}</strong></td><td>${l.g12}</td><td>${l.cells.size}</td><td>${l.reports}</td><td>${l.attendance}</td><td><span class="stars">${stars}</span>${avg!=='—'?' '+avg:''}</td></tr>`;
+  }).join('');
+}
+
+// ── Reports table ────────────────────────────────────────────────
+function renderReports(items,totalCells,ml){
+  const met=items.filter(r=>r.didMeet&&!r.voided);
+  document.getElementById('reportsSub').textContent=`${met.length} reports from ${totalCells??0} cells in ${ml}.`;
+  const tbody=document.getElementById('rBody');
+  if(!items.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:#bbb;padding:28px">No reports found</td></tr>';return;}
+  tbody.innerHTML=items.map(r=>{
+    const p=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;
+    const roster=(r.attendance||[]).length;
+    const day=r.date?new Date(r.date).getDate():'—';
+    const stars=r.satisfactionRate?'★'.repeat(r.satisfactionRate)+'☆'.repeat(5-r.satisfactionRate):'—';
+    return`<tr>
+      <td>${day}</td>
+      <td><strong>${r.cellName||'—'}</strong></td>
+      <td><span class="type-pill tp-${r.cellType}">${r.cellType}</span></td>
+      <td>${nameOf(r.filledByUid||r.leaderUid)}</td>
+      <td>${nameOf(r.g12LeaderUid)||'—'}</td>
+      <td>${p}/${roster}</td>
+      <td>${r.additionalVisitors||0}</td>
+      <td><span class="stars">${stars}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+// ── Detail modal ─────────────────────────────────────────────────
+function closeDetail(e){if(!e||e.target===document.getElementById('dOverlay'))document.getElementById('dOverlay').classList.remove('open');}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeDetail(e);});
+
+function showDetail(type){
+  const reports=_reports,summary=_summary;
+  const met=reports.filter(r=>r.didMeet&&!r.voided);
+  let title='',sub='',html='';
+
+  if(type==='cells'){
+    title='🏠 Cells Held';
+    const byCell={};
+    met.forEach(r=>{
+      if(!byCell[r.cellId])byCell[r.cellId]={name:r.cellName,type:r.cellType,reports:0,present:0,absent:0,visitors:0,satSum:0,satCount:0};
+      const c=byCell[r.cellId];c.reports++;
+      (r.attendance||[]).forEach(a=>{if(a.status==='present'||a.status==='new')c.present++;else if(a.status==='absent')c.absent++;});
+      c.visitors+=r.additionalVisitors||0;if(r.satisfactionRate){c.satSum+=r.satisfactionRate;c.satCount++;}
+    });
+    const cells=Object.values(byCell);
+    sub=`${cells.length} of ${summary?.scope?.totalCells??'—'} cells held meetings`;
+    html=cells.length?`<table class="d-tbl"><thead><tr><th>#</th><th>Cell</th><th>Type</th><th>Reports</th><th>Present/Roster</th><th>Visitors</th><th>Avg Sat.</th></tr></thead><tbody>`+
+      cells.map((c,i)=>{const r=c.present+c.absent;const avg=c.satCount?(c.satSum/c.satCount).toFixed(1):'—';return`<tr><td>${i+1}</td><td><strong>${c.name}</strong></td><td><span class="ct ct-${c.type}">${c.type}</span></td><td>${c.reports}</td><td>${c.present}/${r}</td><td>${c.visitors}</td><td>${avg!=='—'?avg+'/5':'—'}</td></tr>`;}).join('')+'</tbody></table>'
+      :'<div class="d-empty">No cells held meetings</div>';
+  }else if(type==='reports'){
+    title='📋 Reports Filed';sub=`${met.length} reports`;
+    html=met.length?`<table class="d-tbl"><thead><tr><th>Day</th><th>Cell</th><th>Type</th><th>Leader</th><th>Present</th><th>Satisfaction</th></tr></thead><tbody>`+
+      met.map(r=>{const p=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;const day=r.date?new Date(r.date).getDate():'—';return`<tr><td>${day}</td><td><strong>${r.cellName}</strong></td><td><span class="ct ct-${r.cellType}">${r.cellType}</span></td><td>${nameOf(r.filledByUid||r.leaderUid)||'—'}</td><td>${p}</td><td>${r.satisfactionRate?r.satisfactionRate+'/5':'—'}</td></tr>`;}).join('')+'</tbody></table>'
+      :'<div class="d-empty">No reports</div>';
+  }else if(type==='leaders'){
+    title='👤 Active Leaders';
+    const byL={};
+    met.forEach(r=>{const uid=r.filledByUid||r.leaderUid||'?';if(!byL[uid])byL[uid]={name:nameOf(r.filledByUid||r.leaderUid),g12:nameOf(r.g12LeaderUid)||'—',cells:new Set(),reports:0,attendance:0};byL[uid].cells.add(r.cellId);byL[uid].reports++;byL[uid].attendance+=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;});
+    const leaders=Object.values(byL);sub=`${leaders.length} of ${summary?.scope?.totalLeaders??'—'} leaders`;
+    html=leaders.length?`<table class="d-tbl"><thead><tr><th>#</th><th>Leader</th><th>G12</th><th>Cells</th><th>Reports</th><th>Attendance</th></tr></thead><tbody>`+
+      leaders.map((l,i)=>`<tr><td>${i+1}</td><td><strong>${l.name}</strong></td><td>${l.g12}</td><td>${l.cells.size}</td><td>${l.reports}</td><td>${l.attendance}</td></tr>`).join('')+'</tbody></table>'
+      :'<div class="d-empty">No leaders</div>';
+  }else if(type==='g12'){
+    title='⭐ G12 Supervisors';
+    const byG={};
+    met.forEach(r=>{const uid=r.g12LeaderUid||'?';if(!byG[uid])byG[uid]={name:nameOf(uid)||'Unknown G12',leaders:new Set(),reports:0,attendance:0};byG[uid].leaders.add(r.filledByUid||r.leaderUid);byG[uid].reports++;byG[uid].attendance+=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;});
+    const g12s=Object.values(byG);sub=`${g12s.length} active G12 supervisors`;
+    html=g12s.length?`<table class="d-tbl"><thead><tr><th>#</th><th>G12 Supervisor</th><th>Active Leaders</th><th>Reports</th><th>Attendance</th></tr></thead><tbody>`+
+      g12s.map((g,i)=>`<tr><td>${i+1}</td><td><strong>${g.name}</strong></td><td>${g.leaders.size}</td><td>${g.reports}</td><td>${g.attendance}</td></tr>`).join('')+'</tbody></table>'
+      :'<div class="d-empty">No G12 data</div>';
+  }else if(type==='attendance'){
+    title='👥 Attendance Breakdown';let total=0;
+    const rows=met.filter(r=>(r.attendance||[]).length>0);
+    html=rows.length?`<table class="d-tbl"><thead><tr><th>Cell</th><th>Date</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead><tbody>`+
+      rows.map(r=>{const p=(r.attendance||[]).filter(a=>a.status==='present'||a.status==='new').length;const ab=(r.attendance||[]).filter(a=>a.status==='absent').length;total+=p;const rate=(p+ab)>0?Math.round(p/(p+ab)*100)+'%':'—';return`<tr><td><strong>${r.cellName}</strong></td><td>${r.date}</td><td>${p}</td><td>${ab}</td><td>${rate}</td></tr>`;}).join('')+'</tbody></table>'
+      :'<div class="d-empty">No attendance data</div>';
+    sub=`${total} members present`;
+  }else if(type==='rate'){
+    title='📊 Attendance Rate per Cell';
+    const byCell={};met.forEach(r=>{if(!byCell[r.cellName])byCell[r.cellName]={p:0,ab:0};(r.attendance||[]).forEach(a=>{if(a.status==='present'||a.status==='new')byCell[r.cellName].p++;else if(a.status==='absent')byCell[r.cellName].ab++;});});
+    const totP=Object.values(byCell).reduce((s,d)=>s+d.p,0),totA=Object.values(byCell).reduce((s,d)=>s+d.ab,0);
+    sub=`Overall ${totP+totA>0?Math.round(totP/(totP+totA)*100)+'%':'—'}`;
+    html=Object.keys(byCell).length?`<table class="d-tbl"><thead><tr><th>Cell</th><th>Present</th><th>Absent</th><th>Rate</th></tr></thead><tbody>`+
+      Object.entries(byCell).map(([n,d])=>{const tot=d.p+d.ab;return`<tr><td><strong>${n}</strong></td><td>${d.p}</td><td>${d.ab}</td><td><strong>${tot>0?Math.round(d.p/tot*100)+'%':'—'}</strong></td></tr>`;}).join('')+'</tbody></table>'
+      :'<div class="d-empty">No data</div>';
+  }else if(type==='visitors'){
+    title='🚶 Visitors';
+    const rows=met.filter(r=>(r.additionalVisitors||0)>0);const total=met.reduce((s,r)=>s+(r.additionalVisitors||0),0);sub=`${total} unregistered attendees`;
+    html=rows.length?`<table class="d-tbl"><thead><tr><th>Cell</th><th>Date</th><th>Visitors</th></tr></thead><tbody>`+
+      rows.map(r=>`<tr><td><strong>${r.cellName}</strong></td><td>${r.date}</td><td>${r.additionalVisitors}</td></tr>`).join('')+'</tbody></table>'
+      :'<div class="d-empty">No visitor records</div>';
+  }else if(type==='roster'){
+    title='📑 Total Roster';
+    const byCell={};met.forEach(r=>{if(!byCell[r.cellName])byCell[r.cellName]={p:0,ab:0};(r.attendance||[]).forEach(a=>{if(a.status==='present'||a.status==='new')byCell[r.cellName].p++;else if(a.status==='absent')byCell[r.cellName].ab++;});});
+    const total=Object.values(byCell).reduce((s,d)=>s+d.p+d.ab,0);sub=`${total} total members`;
+    html=Object.keys(byCell).length?`<table class="d-tbl"><thead><tr><th>Cell</th><th>Present</th><th>Absent</th><th>Total</th></tr></thead><tbody>`+
+      Object.entries(byCell).map(([n,d])=>`<tr><td><strong>${n}</strong></td><td>${d.p}</td><td>${d.ab}</td><td><strong>${d.p+d.ab}</strong></td></tr>`).join('')+'</tbody></table>'
+      :'<div class="d-empty">No data</div>';
+  }else if(type==='satisfaction'){
+    title='⭐ Avg. Satisfaction';
+    const rows=met.filter(r=>r.satisfactionRate);const avg=rows.length?(rows.reduce((s,r)=>s+r.satisfactionRate,0)/rows.length).toFixed(1):'—';sub=avg!=='—'?`Average ${avg}/5 from ${rows.length} reports`:'No satisfaction data';
+    html=rows.length?`<table class="d-tbl"><thead><tr><th>#</th><th>Cell</th><th>Date</th><th>Rating</th><th>Stars</th></tr></thead><tbody>`+
+      rows.map((r,i)=>`<tr><td>${i+1}</td><td><strong>${r.cellName}</strong></td><td>${r.date}</td><td>${r.satisfactionRate}/5</td><td class="stars">${'★'.repeat(r.satisfactionRate)}${'☆'.repeat(5-r.satisfactionRate)}</td></tr>`).join('')+'</tbody></table>'
+      :'<div class="d-empty">No satisfaction data</div>';
+  }
+
+  document.getElementById('dTitle').textContent=title;
+  document.getElementById('dSub').textContent=sub;
+  document.getElementById('dBody').innerHTML=html;
+  document.getElementById('dOverlay').classList.add('open');
+}
+
+// ── Helpers ──────────────────────────────────────────────────────
+function nameOf(uid){return _nameMap[uid]||(uid?uid.slice(0,10)+'…':'—');}
+function set(id,val){const el=document.getElementById(id);if(el)el.textContent=val??'—';}
+function setLoading(on){document.getElementById('loadingOverlay').classList.toggle('open',on);}
+function setErr(msg){const el=document.getElementById('errBar');el.style.display=msg?'block':'none';el.textContent=msg?'❌ '+msg:'';}
+updateMonthLabel();
+</script>
+</body>
+</html>

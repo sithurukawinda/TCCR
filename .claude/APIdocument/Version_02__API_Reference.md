@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.28.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.29.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.28.0
-**Date:** 27 May 2026
+**Version:** 2.29.0
+**Date:** 28 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.27.0 (27 May 2026)
+**Supersedes:** Version 2.28.0 (27 May 2026)
+**Change in 2.29.0:** §4.4 and §17.2 `GET /users/:uid/audit-log` — marked as **implemented** (was incorrectly flagged NOT YET IMPLEMENTED). Endpoint is live in audit-service; filters audit entries by `actorUid`.
 **Change in 2.28.0:** Added §14.7 `GET /cells/network/summary` (Reports page stat cards, charts, by-leader table); updated §14.6 `GET /cells/network/reports` with `month` and `type` filter params (Cell Type tab filtering for All Reports table).
 **Change in 2.27.0:** Email verification gate enforced on registration (§1.2, §2.1). `POST /auth/register` now creates accounts with `emailVerified=false` — users must click the verification link in the welcome email before accessing protected routes. Welcome email updated: green "Verify My Email" button (primary) + blue "Log in to TCCR" button (secondary). `POST /auth/password-reset` now sends a direct Firebase reset link (no OTP). `POST /auth/password-reset/verify` deprecated. `docker-compose.yml` fix: `SERVICE_ENROLLMENT_URL` added to `progress-service`.
 **Change in 2.26.0:** Added lesson-level progress endpoints (§12.6, §12.7) and extended `GET /me/progress/courses/:courseId` (§12.3) with `completedLessonIds[]`, `totalLessons`, `lessonCompletionPercent`, and `lastAccessedAt`. New Firestore collection: `lesson_progress`.
@@ -838,21 +839,20 @@ Add or remove a **single role** per request. Role change rules:
 
 ---
 
-### 4.4 `GET /users/:uid/audit-log` — NEW V2 ⚠️ NOT YET IMPLEMENTED
+### 4.4 `GET /users/:uid/audit-log` — NEW V2
 
-Per-user audit timeline — entries where user was actor or target (FR-SADM-005 / FR-ADM-005).
-
-> **⚠️ This endpoint is documented but not yet implemented in the current release. Calling it will return `404 Not Found`. Use `GET /audit-log?actorUid=:uid` (Section 17) as a workaround to filter audit entries by user.**
+Per-user audit timeline — all audit entries where this user was the **actor** (FR-SADM-005 / FR-ADM-005). Proxied through the gateway to audit-service.
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 | Parameter | Description |
 |-----------|-------------|
-| `action` | Filter by action key |
+| `action` | Filter by action key (exact match) |
+| `category` | Filter by category |
 | `from`, `to` | ISO datetime range |
 | `limit`, `cursor` | Pagination |
 
-**`200 OK`** _(planned response shape — not yet live)_
+**`200 OK`**
 ```json
 {
   "items": [
@@ -868,6 +868,8 @@ Per-user audit timeline — entries where user was actor or target (FR-SADM-005 
   "nextCursor": null, "total": 12
 }
 ```
+
+> **Scope note:** Returns entries where `:uid` is the **actor** (the user who performed the action). This is equivalent to calling `GET /audit-log?actorUid=:uid`.
 
 ---
 
@@ -3777,13 +3779,13 @@ Organisation-wide audit log (FR-SADM-007 / FR-ADM-005).
 
 ---
 
-### 17.2 `GET /users/:uid/audit-log` — ⚠️ NOT YET IMPLEMENTED
+### 17.2 `GET /users/:uid/audit-log`
 
-Per-user audit timeline — actor or target entries. **Not yet implemented — use `GET /audit-log?actorUid=:uid` as a workaround.**
+Per-user audit timeline. Returns all audit entries where `:uid` was the **actor**. Same response shape and query parameters as `GET /audit-log` (§17.1).
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
-Same query parameters as `GET /audit-log`.
+Same query parameters as `GET /audit-log` (`action`, `category`, `from`, `to`, `limit`, `cursor`).
 
 **`200 OK`** — Same shape as `GET /audit-log`.
 

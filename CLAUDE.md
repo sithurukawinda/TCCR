@@ -150,6 +150,11 @@ npm run test:newman
 #                .env must have FIREBASE_WEB_API_KEY; FIRESTORE_EMULATOR_HOST must NOT be set
 # Generates HTML report at postman/newman-report.html
 node scripts/newman-run-online.js
+# Run only the Analytics Service folder (21 requests) via Newman against running Docker services
+# Signs in as admin/g12/leader seed accounts first; connects to online Firebase (not emulator)
+# Prerequisites: docker-compose up (services running against online Firebase)
+# Generates HTML report at postman/newman-analytics-filter-report.html
+node scripts/newman-analytics-filter.js
 
 # Restore all seed accounts (role, password, Firebase claims, Firestore doc) to their original state
 # before running Newman against online Firebase â€” run once per Newman session
@@ -228,6 +233,10 @@ node scripts/test-demote.js
 # Or when no cell groups have a g12LeaderUid assigned (see output warnings)
 # Reads credentials from .env.local -- services do NOT need to be running
 node scripts/trigger-snapshot.js
+
+# Diagnostic: show all cell reports for a given month, grouped by cell + leader, with per-leader filter test
+# Requires services running + online Firebase credentials hardcoded to seed accounts
+node scripts/check-reports-data.js
 
 # -- One-time migrations / TCCR seeds --
 
