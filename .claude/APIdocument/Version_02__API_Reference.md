@@ -3532,6 +3532,16 @@ Cell Type tab click (e.g. "Care")
 
 All endpoints read from **pre-aggregated snapshots** — never raw reports. <2 s latency (NFR-PER-003). Scope auto-resolved from caller's role.
 
+**Filter parameters** (accepted by every endpoint in §15):
+
+| Parameter | Type | Roles allowed | Description |
+|-----------|------|:-------------:|-------------|
+| `cellType` | `care` \| `children` \| `outreach` \| `g12` | all | Restrict data to one cell type. Populated by the weekly snapshot job; returns empty data until the next snapshot runs. |
+| `leaderUid` | string (UID) | `admin`, `g12`, `super_admin` | Override scope to a specific cell leader's snapshot. Ignored for `leader` callers (they always see their own scope). |
+| `g12Uid` | string (UID) | `admin`, `super_admin` | Override scope to a specific G12 supervisor's network snapshot. Ignored for non-admin callers. |
+
+Filters are composable: `?cellType=care&leaderUid=xxx` returns care-type data for that leader. An invalid `cellType` value returns `400 VALIDATION_ERROR`.
+
 ---
 
 ### 15.1 `GET /analytics/cells/weekly`
@@ -3543,6 +3553,9 @@ Weekly cell-count and active-cell trend (FR-ANL-001).
 | Parameter | Default | Description |
 |-----------|:-------:|-------------|
 | `weeks` | 12 | Past weeks to return (max 52) |
+| `cellType` | — | See §15 filter params |
+| `leaderUid` | — | See §15 filter params |
+| `g12Uid` | — | See §15 filter params |
 
 **`200 OK`**
 ```json
@@ -3566,6 +3579,9 @@ Attendance trend (FR-ANL-002).
 | Parameter | Description |
 |-----------|-------------|
 | `from`, `to` | Period key range `YYYY-WW` |
+| `cellType` | See §15 filter params |
+| `leaderUid` | See §15 filter params |
+| `g12Uid` | See §15 filter params |
 
 **`200 OK`**
 ```json
@@ -3583,6 +3599,12 @@ Meeting-type breakdown (FR-ANL-002).
 
 **Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
 
+| Parameter | Description |
+|-----------|-------------|
+| `cellType` | See §15 filter params |
+| `leaderUid` | See §15 filter params |
+| `g12Uid` | See §15 filter params |
+
 **`200 OK`**
 ```json
 { "scope": "org", "period": "2026-W18", "breakdown": { "g12": 12, "care": 8, "children": 4, "outreach": 3 } }
@@ -3596,6 +3618,13 @@ Member growth and retention trend (FR-ANL-003).
 
 **Authentication:** Bearer required | **Roles:** `g12`, `admin`, `super_admin`
 
+| Parameter | Description |
+|-----------|-------------|
+| `from`, `to` | Period key range `YYYY-WW` |
+| `cellType` | See §15 filter params |
+| `leaderUid` | See §15 filter params |
+| `g12Uid` | See §15 filter params |
+
 **`200 OK`**
 ```json
 { "scope": "org", "data": [{ "periodKey": "2026-W18", "memberGrowth": 5, "participationRate": 0.87 }] }
@@ -3608,6 +3637,12 @@ Member growth and retention trend (FR-ANL-003).
 Participation per leader (FR-ANL-003).
 
 **Authentication:** Bearer required | **Roles:** `g12`, `admin`, `super_admin`
+
+| Parameter | Description |
+|-----------|-------------|
+| `cellType` | See §15 filter params |
+| `leaderUid` | See §15 filter params |
+| `g12Uid` | See §15 filter params |
 
 **`200 OK`**
 ```json
@@ -3625,7 +3660,7 @@ CSV export (FR-ANL-005). `:chart` — one of `cells-weekly`, `attendance`, `meet
 
 **Authentication:** Bearer required | **Roles:** `g12`, `admin`, `super_admin`
 
-Same query parameters as the corresponding chart endpoint.
+Same query parameters as the corresponding chart endpoint, including `cellType`, `leaderUid`, and `g12Uid` filter params (see §15 filter params).
 
 **`200 OK`** — `Content-Type: text/csv`; `Content-Disposition: attachment; filename="analytics-export.csv"`
 
