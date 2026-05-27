@@ -76,9 +76,12 @@ export const updateReportSchema = z.object({
 });
 
 export const listReportsSchema = z.object({
-  limit:  z.coerce.number().int().min(1).max(100).default(20),
-  cursor: z.string().optional(),
-  from:   z.string().optional(),
-  to:     z.string().optional(),
-  voided: z.string().transform(v => v === 'true').optional(),
+  limit:     z.coerce.number().int().min(1).max(100).default(20),
+  cursor:    z.string().optional(),
+  from:      z.string().optional(),
+  to:        z.string().optional(),
+  voided:    z.string().transform(v => v === 'true').optional(),
+  leaderUid: z.string().optional(),
+  type:      z.enum(['g12', 'care', 'children', 'outreach']).optional(),
+  cellId:    z.string().optional(),
 });

@@ -62,13 +62,20 @@ export class GetNetworkReportsUseCase {
       ...cellFilter,
     });
 
-    if (cellResult.items.length === 0) {
+    // Apply optional in-memory filters (leaderUid, type, cellId)
+    // These are cheap because G12 networks are small (≤100 cells)
+    let cells = cellResult.items;
+    if (opts.leaderUid) cells = cells.filter(c => c.leaderUid === opts.leaderUid);
+    if (opts.type)      cells = cells.filter(c => c.type      === opts.type);
+    if (opts.cellId)    cells = cells.filter(c => c.id        === opts.cellId);
+
+    if (cells.length === 0) {
       return { items: [], totalCells: 0 };
     }
 
     // ── Fetch reports for each cell in parallel ───────────────────────────────
     const reportPages = await Promise.all(
-      cellResult.items.map(cell =>
+      cells.map(cell =>
         this.reportRepo.findAll(cell.id, opts)
           .then(r => r.items.map(report => ({ ...report, cellName: cell.name })))
           .catch(() => [] as (CellReport & { cellName: string })[]), // skip failed cells
@@ -81,7 +88,7 @@ export class GetNetworkReportsUseCase {
 
     return {
       items:      allReports,
-      totalCells: cellResult.items.length,
+      totalCells: cells.length,
     };
   }
 }
