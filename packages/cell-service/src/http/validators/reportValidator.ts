@@ -84,4 +84,11 @@ export const listReportsSchema = z.object({
   leaderUid: z.string().optional(),
   type:      z.enum(['g12', 'care', 'children', 'outreach']).optional(),
   cellId:    z.string().optional(),
+  /** YYYY-MM — when provided, overrides from/to with the full calendar month */
+  month:     z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM').optional(),
+});
+
+/** Query params for GET /cells/network/summary */
+export const networkSummarySchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM format'),
 });

@@ -21,6 +21,8 @@ export interface ICellReportRepository {
   findById(cellId: string, id: string): Promise<CellReport | null>;
   findByClientReqId(cellId: string, clientReqId: string): Promise<CellReport | null>;
   findAll(cellId: string, opts: CellReportListOptions): Promise<CellReportListResult>;
+  /** Return ALL non-voided reports for a cell within a date range (no pagination). Used by summary aggregation. */
+  findByPeriod(cellId: string, from: string, to: string): Promise<CellReport[]>;
   create(report: CellReport): Promise<void>;
   update(report: CellReport): Promise<void>;
 }

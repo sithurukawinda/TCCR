@@ -11,7 +11,14 @@ import { GetReportByIdUseCase }             from '../../application/use-cases/Ge
 import { VoidReportUseCase }                from '../../application/use-cases/VoidReportUseCase';
 import { UpdateCellReportUseCase }          from '../../application/use-cases/UpdateCellReportUseCase';
 import { GetNetworkReportsUseCase }         from '../../application/use-cases/GetNetworkReportsUseCase';
-import { fileReportSchema, voidReportSchema, listReportsSchema, updateReportSchema } from '../validators/reportValidator';
+import { GetNetworkSummaryUseCase }         from '../../application/use-cases/GetNetworkSummaryUseCase';
+import {
+  fileReportSchema,
+  voidReportSchema,
+  listReportsSchema,
+  updateReportSchema,
+  networkSummarySchema,
+} from '../validators/reportValidator';
 import { CellType } from '../../domain/entities/CellGroup';
 import { config }   from '../../config';
 
@@ -46,12 +53,13 @@ async function uploadPhotosToStorage(cellId: string, files: Express.Multer.File[
 
 export class CellReportController {
   constructor(
-    private readonly fileUC:       FileReportUseCase,
-    private readonly getReportsUC: GetReportsUseCase,
-    private readonly getOneUC:     GetReportByIdUseCase,
-    private readonly voidUC:       VoidReportUseCase,
-    private readonly updateUC:        UpdateCellReportUseCase,
-    private readonly networkReportsUC: GetNetworkReportsUseCase,
+    private readonly fileUC:            FileReportUseCase,
+    private readonly getReportsUC:      GetReportsUseCase,
+    private readonly getOneUC:          GetReportByIdUseCase,
+    private readonly voidUC:            VoidReportUseCase,
+    private readonly updateUC:          UpdateCellReportUseCase,
+    private readonly networkReportsUC:  GetNetworkReportsUseCase,
+    private readonly networkSummaryUC:  GetNetworkSummaryUseCase,
   ) {}
 
   listReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -165,6 +173,22 @@ export class CellReportController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const result = await this.networkReportsUC.execute(parsed.data, uid, roles);
+      sendSuccess(res, result);
+    } catch (err) { next(err); }
+  };
+
+  /**
+   * GET /cells/network/summary?month=YYYY-MM
+   * Returns aggregated reporting stats for the Reports page:
+   * stat cards, unreported-cells alert, weekly chart data, meeting-type breakdown,
+   * and per-leader table — all scoped to the caller's network.
+   */
+  networkSummary = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = networkSummarySchema.safeParse(req.query);
+      if (!parsed.success) return next(fromZodError(parsed.error));
+      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const result = await this.networkSummaryUC.execute(uid, roles, parsed.data.month);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

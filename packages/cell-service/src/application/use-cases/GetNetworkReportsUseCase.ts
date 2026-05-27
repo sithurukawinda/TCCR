@@ -5,6 +5,15 @@ import { ICellReportRepository,
          CellReportListOptions }  from '../../domain/repositories/ICellReportRepository';
 import { CellReport }             from '../../domain/entities/CellReport';
 
+/** Convert a YYYY-MM month string to inclusive date range strings (YYYY-MM-DD). */
+export function monthToDateRange(month: string): { from: string; to: string } {
+  const [y, m] = month.split('-').map(Number);
+  const from     = `${month}-01`;
+  const lastDay  = new Date(y, m, 0).getDate();
+  const to       = `${month}-${String(lastDay).padStart(2, '0')}`;
+  return { from, to };
+}
+
 export interface NetworkReportsResult {
   items:      (CellReport & { cellName: string })[];
   totalCells: number;
@@ -28,7 +37,7 @@ export class GetNetworkReportsUseCase {
   ) {}
 
   async execute(
-    opts:        CellReportListOptions,
+    opts:        CellReportListOptions & { month?: string },
     callerUid:   string,
     callerRoles: Role[],
   ): Promise<NetworkReportsResult> {
@@ -42,6 +51,12 @@ export class GetNetworkReportsUseCase {
         'FORBIDDEN',
         'Only G12 leaders, cell leaders, admin, and super_admin can access network reports.',
       );
+    }
+
+    // ── If month is provided, derive from/to date range (overrides explicit from/to) ──
+    if (opts.month && !opts.from && !opts.to) {
+      const range = monthToDateRange(opts.month);
+      opts = { ...opts, from: range.from, to: range.to };
     }
 
     // ── Determine which cells to fetch reports from ───────────────────────────
