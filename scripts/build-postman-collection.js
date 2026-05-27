@@ -2754,21 +2754,172 @@ const joinRequestsSubFolder = folder('Join Requests', [
 ]);
 
 const cellReportsSubFolder = folder('Cell Reports', [
-  // Network Reports — G12 sees all leaders' reports across their entire network ★ NEW
+
+  // ── Reports Page: Network Summary ★ NEW ─────────────────────────────────────
   buildRequest({
-    name: 'Get Network Reports — G12 view ★ NEW',
+    name: 'Get Network Summary (Reports page) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    auth: bearerAuth('g12Token'),
+    description: [
+      'Powers the Reports page dashboard — stat cards, unreported-cell alert,',
+      'weekly chart, meeting-type donut, and by-leader table in one call.',
+      '',
+      'API ref §14.7',
+    ].join('\n'),
+    tests: [
+      `pm.test("200 OK — Network Summary", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("period is a string",         () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
+      `pm.test("month is a string",          () => pm.expect(j.month).to.be.a("string").and.not.empty);`,
+      `pm.test("scope.totalCells is number", () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
+      `pm.test("summary.cellsHeld is number",() => pm.expect(j.summary.cellsHeld).to.be.a("number"));`,
+      `pm.test("summary.reportsFiled",       () => pm.expect(j.summary.reportsFiled).to.be.a("number"));`,
+      `pm.test("attendance.present",         () => pm.expect(j.attendance.present).to.be.a("number"));`,
+      `pm.test("attendance.roster",          () => pm.expect(j.attendance.roster).to.be.a("number"));`,
+      `pm.test("unreportedCells is array",   () => pm.expect(j.unreportedCells).to.be.an("array"));`,
+      `pm.test("weeklyBreakdown is array",   () => pm.expect(j.weeklyBreakdown).to.be.an("array"));`,
+      `pm.test("meetingTypeBreakdown has g12/care/children/outreach", () => {`,
+      `  pm.expect(j.meetingTypeBreakdown).to.have.all.keys("g12","care","children","outreach");`,
+      `});`,
+      `pm.test("byLeader is array",          () => pm.expect(j.byLeader).to.be.an("array"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — missing month → 400 ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary' },
+    auth: bearerAuth('g12Token'),
+    tests: [
+      `pm.test("400 — missing month param", () => pm.response.to.have.status(400));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — bad month format → 400 ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=May-2026' },
+    auth: bearerAuth('g12Token'),
+    tests: [
+      `pm.test("400 — invalid month format", () => pm.response.to.have.status(400));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — Admin view ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("200 OK — Admin Network Summary", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("period present", () => pm.expect(j.period).to.be.a("string"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — student (expect 403) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    auth: bearerAuth('studentToken'),
+    tests: [`pm.test("403 — student cannot access summary", () => pm.response.to.have.status(403));`],
+  }),
+
+  // ── Reports Page: Network Reports with filters ★ UPDATED ─────────────────────
+  buildRequest({
+    name: 'Get Network Reports — with month filter ★ UPDATED',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=20' },
+    auth: bearerAuth('g12Token'),
+    description: 'All Types tab — returns all reports for the month across the G12 network.',
+    tests: [
+      `pm.test("200 OK — Network Reports with month", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("items is array",    () => pm.expect(j.items).to.be.an("array"));`,
+      `pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — Care tab (type=care) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=care' },
+    auth: bearerAuth('g12Token'),
+    description: 'Cell Type tab filter — Care. Only returns reports where cellType === "care".',
+    tests: [
+      `pm.test("200 OK — Care tab filter", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("all items are care type", () => {`,
+      `  j.items.forEach(r => pm.expect(r.cellType).to.equal("care"));`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — Children tab (type=children) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=children' },
+    auth: bearerAuth('g12Token'),
+    description: 'Cell Type tab filter — Children. Only returns reports where cellType === "children".',
+    tests: [
+      `pm.test("200 OK — Children tab filter", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("all items are children type", () => {`,
+      `  j.items.forEach(r => pm.expect(r.cellType).to.equal("children"));`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — Outreach tab (type=outreach) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=outreach' },
+    auth: bearerAuth('g12Token'),
+    description: 'Cell Type tab filter — Outreach. Only returns reports where cellType === "outreach".',
+    tests: [
+      `pm.test("200 OK — Outreach tab filter", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("all items are outreach type", () => {`,
+      `  j.items.forEach(r => pm.expect(r.cellType).to.equal("outreach"));`,
+      `});`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — G12 tab (type=g12) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=g12' },
+    auth: bearerAuth('g12Token'),
+    description: 'Cell Type tab filter — G12. Only returns reports where cellType === "g12".',
+    tests: [
+      `// 200 with empty items is valid when no g12-type meetings were held`,
+      `pm.test("200 OK — G12 tab filter", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
+      `pm.test("all items are g12 type", () => {`,
+      `  j.items.forEach(r => pm.expect(r.cellType).to.equal("g12"));`,
+      `});`,
+    ],
+  }),
+
+  // ── Original network reports (no month filter) ──────────────────────────────
+  buildRequest({
+    name: 'Get Network Reports — G12 view (no filter)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?limit=20' },
     auth: bearerAuth('g12Token'),
     tests: [
       `pm.test("200 OK — G12 Network Reports", () => pm.response.to.have.status(200));`,
       `const j = pm.response.json();`,
-      `pm.test("items is array",   () => pm.expect(j.items).to.be.an("array"));`,
+      `pm.test("items is array",    () => pm.expect(j.items).to.be.an("array"));`,
       `pm.test("totalCells exists", () => pm.expect(j.totalCells).to.be.a("number"));`,
     ],
   }),
   buildRequest({
-    name: 'Get Network Reports — Admin (all cells) ★ NEW',
+    name: 'Get Network Reports — Admin (all cells)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?limit=10' },
     auth: bearerAuth('adminToken'),
@@ -2777,7 +2928,7 @@ const cellReportsSubFolder = folder('Cell Reports', [
     ],
   }),
   buildRequest({
-    name: 'Get Network Reports — member (expect 403) ★ NEW',
+    name: 'Get Network Reports — member (expect 403)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports' },
     auth: bearerAuth('studentToken'),
