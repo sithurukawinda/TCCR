@@ -1,11 +1,14 @@
 import { CellReport } from '../entities/CellReport';
 
 export interface CellReportListOptions {
-  limit:    number;
-  cursor?:  string;
-  from?:    string;
-  to?:      string;
-  voided?:  boolean;
+  limit:      number;
+  cursor?:    string;
+  from?:      string;
+  to?:        string;
+  voided?:    boolean;
+  leaderUid?: string;                                    // filter to cells led by this person
+  type?:      'g12' | 'care' | 'children' | 'outreach'; // filter by cell type
+  cellId?:    string;                                    // filter to one specific cell
 }
 
 export interface CellReportListResult {
@@ -18,6 +21,8 @@ export interface ICellReportRepository {
   findById(cellId: string, id: string): Promise<CellReport | null>;
   findByClientReqId(cellId: string, clientReqId: string): Promise<CellReport | null>;
   findAll(cellId: string, opts: CellReportListOptions): Promise<CellReportListResult>;
+  /** Return ALL non-voided reports for a cell within a date range (no pagination). Used by summary aggregation. */
+  findByPeriod(cellId: string, from: string, to: string): Promise<CellReport[]>;
   create(report: CellReport): Promise<void>;
   update(report: CellReport): Promise<void>;
 }

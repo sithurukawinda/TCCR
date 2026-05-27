@@ -23,6 +23,7 @@ import { VoidReportUseCase }                  from './application/use-cases/Void
 import { UpdateCellReportUseCase }            from './application/use-cases/UpdateCellReportUseCase';
 import { GetNetworkReportsUseCase }           from './application/use-cases/GetNetworkReportsUseCase';
 import { GetNetworkMembersUseCase }           from './application/use-cases/GetNetworkMembersUseCase';
+import { GetNetworkSummaryUseCase }           from './application/use-cases/GetNetworkSummaryUseCase';
 import { UserServiceClient }                  from './infrastructure/clients/UserServiceClient';
 import { CellGroupController }                from './http/controllers/CellGroupController';
 import { CellReportController }               from './http/controllers/CellReportController';
@@ -60,6 +61,7 @@ const voidReportUC      = new VoidReportUseCase(cellRepo, reportRepo, outbox);
 const updateReportUC      = new UpdateCellReportUseCase(cellRepo, reportRepo);
 const networkReportsUC    = new GetNetworkReportsUseCase(cellRepo, reportRepo);
 const networkMembersUC    = new GetNetworkMembersUseCase(cellRepo, userClient);
+const networkSummaryUC    = new GetNetworkSummaryUseCase(cellRepo, reportRepo, userClient);
 
 export const container = {
   cellGroupController: new CellGroupController(
@@ -69,6 +71,7 @@ export const container = {
     networkMembersUC,
   ),
   cellReportController: new CellReportController(
-    fileReportUC, getReportsUC, getReportByIdUC, voidReportUC, updateReportUC, networkReportsUC,
+    fileReportUC, getReportsUC, getReportByIdUC, voidReportUC, updateReportUC,
+    networkReportsUC, networkSummaryUC,
   ),
 };

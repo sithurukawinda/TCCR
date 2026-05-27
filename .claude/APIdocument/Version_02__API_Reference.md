@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.26.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.28.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.27.0
+**Version:** 2.28.0
 **Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.26.0 (27 May 2026)
+**Supersedes:** Version 2.27.0 (27 May 2026)
+**Change in 2.28.0:** Added §14.7 `GET /cells/network/summary` (Reports page stat cards, charts, by-leader table); updated §14.6 `GET /cells/network/reports` with `month` and `type` filter params (Cell Type tab filtering for All Reports table).
 **Change in 2.27.0:** Email verification gate enforced on registration (§1.2, §2.1). `POST /auth/register` now creates accounts with `emailVerified=false` — users must click the verification link in the welcome email before accessing protected routes. Welcome email updated: green "Verify My Email" button (primary) + blue "Log in to TCCR" button (secondary). `POST /auth/password-reset` now sends a direct Firebase reset link (no OTP). `POST /auth/password-reset/verify` deprecated. `docker-compose.yml` fix: `SERVICE_ENROLLMENT_URL` added to `progress-service`.
 **Change in 2.26.0:** Added lesson-level progress endpoints (§12.6, §12.7) and extended `GET /me/progress/courses/:courseId` (§12.3) with `completedLessonIds[]`, `totalLessons`, `lessonCompletionPercent`, and `lastAccessedAt`. New Firestore collection: `lesson_progress`.
 **Change in 2.25.0:** Developed `GET /users/summary` (§4.11) — enriched `SummaryProfile` with `roles[]`, `phoneNumber`, `createdAt`; added Frontend Integration Guide; 10 unit tests added.
@@ -74,7 +75,8 @@
     - 13.13 [Reject Join Request](#1312-post-cellsidjoin-requestsridreject)
     - **13.14 [Network Members (G12 view) ★ NEW](#1314-get-cellsnetworkmembers--new)**
 14. [Cell Report Endpoints — NEW V2](#14-cell-report-endpoints--new-v2)
-   - **14.6 [Network Reports (G12 view) ★ NEW](#146-get-cellsnetworkreports--new)**
+   - **14.6 [Network Reports — month + type filters ★ UPDATED](#146-get-cellsnetworkreports--updated)**
+   - **14.7 [Network Summary (Reports page) ★ NEW](#147-get-cellsnetworksummary--new)**
 15. [Analytics Endpoints — NEW V2](#15-analytics-endpoints--new-v2)
 16. [Notification Endpoints](#16-notification-endpoints)
 17. [Audit Log Endpoints](#17-audit-log-endpoints)
@@ -3328,7 +3330,7 @@ Edit a cell report. Only allowed within **24 hours** of the original filing time
 ```
 
 ---
-### 14.6 `GET /cells/network/reports` ★ NEW
+### 14.6 `GET /cells/network/reports` ★ UPDATED
 
 Returns reports from all cells in the caller's network. G12 leaders see reports from every cell where they are the `g12LeaderUid`. Cell leaders see their own cell's reports. Admin sees all cells.
 
@@ -3342,6 +3344,8 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 | `from` | Filter by date (`YYYY-MM-DD`) |
 | `to` | Filter by date (`YYYY-MM-DD`) |
 | `voided` | `true` \| `false` (default: non-voided) |
+| `month` ★ NEW | Calendar month (`YYYY-MM`, e.g. `2026-05`). When provided, overrides `from`/`to` with the full month range (`2026-05-01` → `2026-05-31`). |
+| `type` ★ NEW | Cell type filter: `g12` \| `care` \| `children` \| `outreach`. Omit for all types. **This is the Cell Type tab filter on the Reports page.** |
 
 #### Scope by role
 
@@ -3363,7 +3367,7 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
       "cellName":   "Rathmalana West G12",
       "date":       "2026-05-22",
       "didMeet":    true, 
-      "filledByUid": "leader-uid-1",
+"filledByUid": "leader-uid-1",
       ...
     }
   ],
@@ -3376,6 +3380,128 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 **`403 Forbidden`** → `FORBIDDEN` — member or student (not leader/G12/admin)
 
 ---
+
+### 14.7 `GET /cells/network/summary` ★ NEW
+
+Returns the complete monthly reporting summary for the **Reports page dashboard** — stat cards, unreported-cell alert, weekly chart data, meeting-type donut, and per-leader breakdown table — all scoped to the caller's network in a single call.
+
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|:--------:|-------------|
+| `month` | `YYYY-MM` | ✅ | Calendar month to summarise (e.g. `2026-05`) |
+
+#### Scope (same rule as §14.6)
+
+| Caller | Sees |
+|--------|------|
+| `g12` | Only cells where `g12LeaderUid === callerUid` |
+| `leader` | Only their own cell |
+| `admin` / `super_admin` | All active cells |
+
+#### Response `200 OK`
+
+```json
+{
+  "period": "May 2026",
+  "month":  "2026-05",
+  "scope": {
+    "totalCells":   18,
+    "totalLeaders": 6
+  },
+  "summary": {
+    "cellsHeld":     9,
+    "reportsFiled":  12,
+    "activeLeaders": 4,
+    "g12Active":     1
+  },
+  "attendance": {
+    "present":         52,
+    "roster":          65,
+    "rate":            0.8,
+    "visitors":        7,
+    "avgSatisfaction": 4.1
+  },
+  "unreportedCells": [
+    {
+      "id":         "cell-1",
+      "name":       "Care Cell A",
+      "type":       "care",
+      "leaderUid":  "uid-1",
+      "leaderName": "Saman S."
+    }
+  ],
+  "weeklyBreakdown": [
+    { "weekLabel": "W1", "reportCount": 2, "attendance": 10 },
+    { "weekLabel": "W2", "reportCount": 3, "attendance": 15 },
+    { "weekLabel": "W3", "reportCount": 4, "attendance": 20 },
+    { "weekLabel": "W4", "reportCount": 3, "attendance": 7  }
+  ],
+  "meetingTypeBreakdown": { "g12": 0, "care": 9, "children": 3, "outreach": 0 },
+  "byLeader": [
+    {
+      "leaderUid":       "uid-1",
+      "leaderName":      "Saman S.",
+      "g12Uid":          "g12-uid-1",
+      "g12Name":         "G12 Leader Name",
+      "cellCount":       2,
+      "reportCount":     3,
+      "attendance":      15,
+      "avgSatisfaction": 4.2
+    }
+  ]
+}
+```
+
+#### Response Field Reference
+
+| Field | Type | Frontend Use |
+|-------|------|-------------|
+| `period` | string | Page heading — *"May 2026"* |
+| `month` | string | Pass back to `/network/reports?month=` on month-picker change |
+| `scope.totalCells` | number | Denominator for *"X of Y in scope"* sub-label |
+| `scope.totalLeaders` | number | Total leader count in scope |
+| `summary.cellsHeld` | number | **Cells held** stat card (numerator) |
+| `summary.reportsFiled` | number | **Reports filed** stat card |
+| `summary.activeLeaders` | number | **Active leaders** stat card |
+| `summary.g12Active` | number | **G12 supervisors active** stat card |
+| `attendance.present` | number | **Attendance** stat card |
+| `attendance.roster` | number | **Total roster** stat card |
+| `attendance.rate` | number | **Attendance rate** — multiply × 100 for display (e.g. `0.83` → `83%`) |
+| `attendance.visitors` | number | **Visitors** stat card |
+| `attendance.avgSatisfaction` | number | **Avg. satisfaction** stat card — 1–6 scale |
+| `unreportedCells[]` | array | Alert banner — *"N cells haven't filed a report this month"*; render each as a chip |
+| `weeklyBreakdown[]` | array | **Reports filed by week** bar chart — `weekLabel` on X-axis, `reportCount` bar height |
+| `meetingTypeBreakdown` | object | **Meetings by cell type** donut chart — keys are the four cell types |
+| `byLeader[]` | array | **By cell leader** table — `leaderName`, `g12Name`, `cellCount`, `reportCount`, `attendance`, `avgSatisfaction` |
+
+#### Frontend Integration
+
+```
+Page load
+  ├─ GET /cells/network/summary?month=2026-05   → stat cards + charts + by-leader table
+  └─ GET /cells/network/reports?month=2026-05   → All reports table (no type filter = all types)
+
+Month picker changes (e.g. Apr 2026)
+  ├─ GET /cells/network/summary?month=2026-04
+  └─ GET /cells/network/reports?month=2026-04
+
+Cell Type tab click (e.g. "Care")
+  └─ GET /cells/network/reports?month=2026-05&type=care   → All reports table re-renders only
+     (summary stats NOT re-fetched — they already show all-type totals)
+```
+
+**`400 Bad Request`** → `VALIDATION_ERROR` — `month` param missing or not `YYYY-MM` format
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "month must be YYYY-MM format" }, "requestId": "..." }
+```
+
+**`403 Forbidden`** → `FORBIDDEN` — member or student caller
+
+---
+
 ## 15. Analytics Endpoints — NEW V2
 
 All endpoints read from **pre-aggregated snapshots** — never raw reports. <2 s latency (NFR-PER-003). Scope auto-resolved from caller's role.

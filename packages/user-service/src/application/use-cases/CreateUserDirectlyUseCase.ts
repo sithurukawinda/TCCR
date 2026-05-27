@@ -53,14 +53,22 @@ export class CreateUserDirectlyUseCase {
 
       await this.userRepo.create(user);
 
-      // Generate a Firebase password-reset link so the welcome email can include it.
+      // Generate a Firebase password-reset link and email verification link.
       // If generation fails (e.g. emulator quirk) we still proceed — email falls back gracefully.
-      const passwordResetUrl = await this.authClient
-        .generatePasswordResetLink(input.email)
-        .catch((e: unknown) => {
-          logger.warn({ err: e, email: input.email }, 'Could not generate password reset link; continuing without it');
-          return null;
-        });
+      const [passwordResetUrl, verificationLink] = await Promise.all([
+        this.authClient
+          .generatePasswordResetLink(input.email)
+          .catch((e: unknown) => {
+            logger.warn({ err: e, email: input.email }, 'Could not generate password reset link; continuing without it');
+            return null;
+          }),
+        this.authClient
+          .generateEmailVerificationLink(input.email)
+          .catch((e: unknown) => {
+            logger.warn({ err: e, email: input.email }, 'Could not generate email verification link; continuing without it');
+            return null;
+          }),
+      ]);
 
       await this.outbox.publishWithBatch({
         type:    'admin.created',
@@ -72,6 +80,7 @@ export class CreateUserDirectlyUseCase {
           initialPassword:  input.initialPassword,
           role:             input.role,
           passwordResetUrl,
+          verificationLink,
           systemUrl:        config.appUrl,
         },
         requestId,
