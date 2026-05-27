@@ -7,8 +7,8 @@ function toUser(id: string, data: FirebaseFirestore.DocumentData): User {
   return new User({
     uid:               id,
     email:             data.email as string,
-    firstName:         data.firstName as string,
-    lastName:          data.lastName as string,
+    firstName:         (data.firstName as string | null | undefined) ?? '',
+    lastName:          (data.lastName  as string | null | undefined) ?? '',
     role,
     roles:             (data.roles as UserRole[] | undefined) ?? [role],
     status:            data.status as UserProps['status'],

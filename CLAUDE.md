@@ -168,6 +168,70 @@ bash scripts/api-test.sh
 # Verify online Firebase connectivity (Firestore + Auth + outbox collection)
 # Reads credentials from .env.local â€” run before seeding or deploying to confirm creds are valid
 node scripts/check-firebase.js
+
+# -- User management utilities (all read from .env.local for online Firebase) --
+
+# Look up a user by email in Firebase Auth + Firestore -- shows status, roles, deletedAt
+# Usage: node scripts/check-user.js <email>
+node scripts/check-user.js
+
+# Quick cross-collection search by email (users, loginAttempts, emailVerificationOtps)
+# Usage: node scripts/find-user.js <email>
+node scripts/find-user.js
+
+# Soft-delete a user -- sets deletedAt + disables Firebase Auth (admin-level non-destructive disable)
+# Usage: node scripts/delete-user.js <email>
+node scripts/delete-user.js
+
+# Restore a soft-deleted user -- re-enables Firebase Auth + clears deletedAt
+# Usage: node scripts/restore-user.js <email>
+node scripts/restore-user.js
+
+# PERMANENT hard-delete -- purges user from ALL collections (GDPR / test cleanup). IRREVERSIBLE.
+# Usage: node scripts/purge-user.js <email>
+node scripts/purge-user.js
+
+# One-shot fix: explicitly set deletedAt=null on a Firestore user doc by UID
+# Usage: node scripts/fix-deleted-at.js <uid>
+node scripts/fix-deleted-at.js
+
+# -- Auth / infrastructure verification --
+
+# SMTP smoke test -- verifies mail relay credentials and sends a test email
+# Usage: node scripts/test-smtp.js [recipient@example.com]
+node scripts/test-smtp.js
+
+# Checks Google federated login backend readiness (GOOGLE_CLIENT_ID, Firebase Admin, live endpoint)
+node scripts/_check-google-auth.js
+
+# Full end-to-end login test for a uid -- marks email verified, exchanges a custom token, calls GET /me
+# Usage: node scripts/test-login.js <uid>
+node scripts/test-login.js
+
+# Online system health test -- verifies key endpoints on the deployed backend (cms.api.bethelnet.au)
+node scripts/test-online.js
+
+# Live promote function test -- validates POST /users/:uid/promote role-based caller restrictions
+# (g12/admin/super_admin → leader or g12; leader → g12 only; targeting admin/super_admin → 403)
+# Requires all services running with online Firebase credentials
+node scripts/test-promote.js
+
+# Live demote function test -- validates POST /users/:uid/demote caller-role matrix
+# (super_admin/admin → student/leader/g12; g12 → leader only; leader → g12 only)
+# Requires all services running with online Firebase credentials
+node scripts/test-demote.js
+
+# -- One-time migrations / TCCR seeds --
+
+# One-time: send email-verification links to all existing unverified Firebase Auth users
+# Run ONCE after deploying the email-verification feature to production. Safe to re-run.
+node scripts/send-verification-emails.js
+
+# Seed g12leader@tccr.lk (g12) and leader@tccr.lk (leader) into online Firebase
+node scripts/seed-tccr-leaders-online.js
+
+# Verify that TCCR leader / g12 accounts exist in online Firebase Auth + Firestore
+node scripts/check-tccr-users.js
 ```
 
 ---
@@ -183,7 +247,7 @@ packages/
   user-service/         # :3002  User profiles, admin management, account lifecycle
   course-service/       # :3003  Courses â†’ Semesters â†’ Subjects â†’ Lessons, course lifecycle state machine; V2: batches
   enrollment-service/   # :3004  Registration queue, enrollment approvals, bulk operations; V2: role_requests
-  progress-service/     # :3005  Subject completion (idempotent), course progress aggregates
+  progress-service/     # :3005  Subject completion (idempotent), lesson completion (idempotent), course progress aggregates; V2: lesson-level tracking with auto subject rollup
   storage-service/      # :3006  File upload/download, signed URLs; attachments: PDF/DOC/DOCX max 25 MB; subject images: PNG/JPEG max 10 MB
   notification-service/ # :3007  In-app notifications, email (3-retry backoff), push (best-effort)
   audit-service/        # :3008  Append-only audit_log; purely event-driven
@@ -292,7 +356,7 @@ Controllers are thin â€” they call one use case and delegate errors with `n
 
 - `notification-service` â€” has `src/application/handlers/` (e.g. `UserRegisteredHandler`) that call a `NotificationDispatcher` service. Email dispatch retries 3Ã— with exponential backoff (1 s â†’ 2 s â†’ 4 s); failure is logged but never thrown. Push notifications are best-effort â€” a failure logs a warning and is silently swallowed. The service still exposes `/notifications` read endpoints for the frontend via the standard route â†’ controller path.
 - `audit-service` â€” has `src/application/handlers/` that write append-only entries to `audit_log` via a repository. No HTTP creation endpoint exists; entries are only created by event handlers. `GET /audit-log` supports `?actorUid=:uid` for per-user timeline filtering; `GET /users/:uid/audit-log` is the per-user timeline endpoint (admin + super_admin).
-- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells/network/reports` is role-scoped: G12 callers see reports from all cells where they are the G12 leader, cell leaders see their own cell only, admins see all active cells. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
+- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells` is role-scoped: G12 callers see only cells where `g12LeaderUid === callerUid` (their own network, `active` by default — pass `?state=archived` for archived); leaders see only cells where `leaderUid === callerUid`; members/students see all active cells; admins see all cells across all states. `GET /cells/network/reports` follows the same G12 scoping rule. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
 - `analytics-service` (:3011, V2) â€” reads `analytics_snapshots` written by scheduled-jobs. Exposes 6 read-only endpoints (weekly cells, attendance, meeting types, growth, participation, CSV export). No writes. Background workers (scheduled-jobs) are the sole writers to `analytics_snapshots`.
 - `scheduled-jobs` (no HTTP port, V2) â€” background worker running 3 `setInterval` loops: `batchSweepJob` (opens/closes batches by schedule), `semesterSweepJob` (disables semesters past `endDate`, runs once per day), `snapshotJob` (aggregates cell reports into `analytics_snapshots`, runs weekly). All jobs are wrapped in `safeRun()` â€” failures log and continue. Direct Firestore reads (exempt from the cross-service HTTP rule, same as outbox-worker). **Job deduplication (in-memory, resets on restart):** `semesterSweepJob` uses a `YYYY-MM-DD` UTC date key so it runs at most once per UTC day regardless of restart; `snapshotJob` uses an ISO week key (`YYYY-WNN`, Monday-start) so restarting mid-week does not re-run the snapshot. `batchSweepJob` has no deduplication â€” it is safe to run repeatedly.
 
@@ -329,7 +393,7 @@ Every service follows the same two-file startup split:
 
 `app.ts` is the testable unit â€” it wires middleware and routes without starting a server.
 
-**Docker entrypoint:** All service Dockerfiles use `CMD [“node”, “dist/server.ts”]`, not `dist/index.ts`. Firebase/tracing init (`index.ts`) runs first only in local dev; the Docker image entry point boots the Express app directly.
+**Docker entrypoint:** HTTP service Dockerfiles use `CMD [“node”, “dist/server.js”]`, not `dist/index.js`. Worker services (`outbox-worker`, `scheduled-jobs`) use `CMD [“node”, “dist/worker.js”]` — they have no HTTP server. Firebase/tracing init (`index.ts`) runs first only in local dev; the Docker image entry point boots directly.
 
 ### Docker Compose Networking
 
@@ -405,8 +469,9 @@ auth-service tracks failed sign-ins via the `loginAttempts` Firestore collection
 
 | Status | Trigger |
 |--------|---------|
-| 201 | Resource created (POST) |
-| 204 | Successful DELETE |
+| 201 | Resource created (POST that returns the new resource) |
+| 200 | Action endpoint that returns no resource — sends `{ message: '...' }` (e.g. logout, verify-email, resend-verification, approve/reject actions) |
+| 204 | Successful DELETE, internal event-handler routes (`/internal/*`), and `POST /auth/password-reset` (email-enumeration prevention) |
 | 400 | Zod validation failure |
 | 401 | Missing / expired / revoked token |
 | 403 | Valid token, wrong role or ownership |
@@ -539,6 +604,7 @@ No service reads another service's Firestore collections directly. Cross-service
 | `role_requests` | enrollment-service | auto UUID â€” V2; tracks role grants for non-member roles; state machine: `pending â†’ approved / rejected` |
 | `enrollments` | enrollment-service | `${studentUid}_${courseId}` |
 | `progress` | progress-service | `${studentUid}_${subjectId}` |
+| `lesson_progress` | progress-service | `${studentUid}_${lessonId}` — V2; fields: `studentUid`, `lessonId`, `subjectId`, `courseId`, `semesterId`, `batchId?`, `completedAt`, `createdAt`, `updatedAt`; two composite indexes: `(courseId, studentUid)` and `(subjectId, studentUid)` |
 | `notifications` | notification-service | auto UUID |
 | `audit_log` | audit-service | auto UUID (append-only, immutable) |
 | `outbox` | all services (write) / outbox-worker (read) | auto UUID |
@@ -557,7 +623,7 @@ The `User` domain entity (`packages/user-service/src/domain/entities/User.ts`) g
 - `fcmTokens: string[]` â€” device FCM tokens for push notifications; updated via `POST /me/fcm-token`.
 - `notificationPreferences: { email: boolean; push: boolean }` â€” per-user notification opt-in flags; defaults `true` for both.
 
-**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (soft-delete Firestore doc + disable Firebase Auth â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin), and `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`).
+**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `POST /users/:uid/demote` (remove a non-member role â€” `authorize('leader', 'g12', 'admin', 'super_admin')`; caller-role matrix enforced inside use case, see **Demote caller-role matrix** below), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which soft-deletes instead), `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`), and `GET /users/summary` (all users grouped by highest role â€” `authorize('leader', 'g12', 'admin')`; non-admin callers are scoped to exclude admin/super_admin profiles; no pagination; response shape: `{ superAdmins[], admins[], g12[], leaders[], students[], members[], totals: { superAdmins, admins, g12, leaders, students, members, total } }` â€” each user includes `uid`, `firstName`, `lastName`, `displayName`, `email`, `roles[]`, `phoneNumber`, `profilePhotoUrl`, `createdAt`).
 
 **`GET /users` query filters:** `?limit`, `?cursor`, `?role=<UserRole>`, `?status=<UserStatus>`, `?name=<prefix>` (case-sensitive prefix search on `firstName` only â€” not lastName). Accessible to `leader`, `g12`, and `admin` (super_admin inherits). **Scoped access:** when the caller holds only `leader` or `g12` (no admin/super_admin), `GetUsersUseCase` filters results to approved non-admin users only. The list cache key includes the caller's roles to prevent cross-role data leakage.
 
@@ -677,9 +743,13 @@ No external cache (Redis) is required. The cache lives on the static property `l
 
 ### Progress Idempotency
 
-`MarkSubjectCompleteUseCase` is idempotent â€” if a subject is already `completed`, it returns the existing record unchanged. `completedAt` is immutable once set.
+`MarkSubjectCompleteUseCase` is idempotent — if a subject is already `completed`, it returns the existing record unchanged. `completedAt` is immutable once set.
 
-`ComputeCourseProgressUseCase` calculates `completionPercent` as `Math.round((completedCount / totalSubjects) * 1000) / 10` â€” one decimal place (e.g. 66.7%). Returns `0` when `totalSubjects === 0`. The response also includes `lastAccessedSubjectId` (the most-recently touched subject by ISO sort on `lastAccessedAt`).
+`MarkLessonCompleteUseCase` (V2) is idempotent — if the lesson is already complete, returns the existing `lesson_progress` record unchanged. On first completion it checks whether every lesson in the parent subject is now done; if so, it calls `MarkSubjectCompleteUseCase` directly (auto-rollup) — the frontend does not need a second request. Requires an approved enrollment (`EnrollmentServiceClient.isEnrolled`) and validates that the `lessonId` belongs to the stated `subjectId`/`courseId` via an internal call to course-service (`GET /internal/lessons/:id`).
+
+`UnmarkLessonCompleteUseCase` (V2) deletes the `lesson_progress` record and, if the parent subject was previously auto-completed, reverts it to `in_progress` via `IProgressRepository.revertCompletion()` — but only when the remaining completed lessons are fewer than the total (`getLessonCount` from course-service).
+
+`ComputeCourseProgressUseCase` calculates `completionPercent` as `Math.round((completedCount / totalSubjects) * 1000) / 10` — one decimal place (e.g. 66.7%). Returns `0` when `totalSubjects === 0`. The response also includes `lastAccessedSubjectId`, `lastAccessedAt` (the most-recently touched subject by ISO sort on `lastAccessedAt`), and three new V2 fields: `completedLessonIds[]` (IDs of all completed lessons for this student+course), `totalLessons` (total non-deleted lessons in the course via `getCourseLessonCount`), and `lessonCompletionPercent` (`Math.round(completedLessons / totalLessons * 100)` — integer, used by the course-viewer progress bar; Dashboard continues to use `completionPercent` subject-weighted).
 
 ### Login is Client-Side
 
@@ -709,7 +779,11 @@ await fetch(url, { method: 'POST', body: JSON.stringify({ requestType: 'PASSWORD
 
 ### Soft Deletes
 
-Courses, semesters, subjects, and users are soft-deleted by setting `deletedAt` timestamp (recoverable within 30 days). Queries filter `where('deletedAt', '==', null)`.
+Courses, semesters, and subjects are soft-deleted by setting a `deletedAt` timestamp (recoverable within 30 days). Queries filter `where('deletedAt', '==', null)`.
+
+**User deletion is split across two endpoints with different semantics:**
+- `DELETE /users/:uid` (admin) — **permanently hard-deletes** a regular user from Firestore and Firebase Auth (irreversible).
+- `DELETE /super-admin/admins/:uid` (super_admin) — **soft-deletes** an admin account by setting `deletedAt` and disabling their Firebase Auth account.
 
 ### Internal Service Communication
 
@@ -721,7 +795,11 @@ Synchronous calls use `createInternalClient(serviceUrl, INTERNAL_SERVICE_KEY)`, 
 | auth-service | enrollment-service | Create registration record after user creation (fire-and-forget) |
 | enrollment-service | user-service | Update account status on approve/reject |
 | enrollment-service | course-service | Verify course is PUBLISHED before enrollment |
-| progress-service | course-service | Get total subject count for progress % |
+| progress-service | course-service | Get total subject count for progress % — `GET /internal/courses/:id/subject-count` |
+| progress-service | course-service | Validate lesson exists + get its subjectId/courseId/semesterId — `GET /internal/lessons/:id` (V2) |
+| progress-service | course-service | Get lesson count per subject for auto-rollup threshold — `GET /internal/subjects/:id/lesson-count` (V2) |
+| progress-service | course-service | Get total lesson count in course for `lessonCompletionPercent` — `GET /internal/courses/:id/lesson-count` (V2) |
+| progress-service | enrollment-service | Check approved enrollment before marking lesson complete — `GET /internal/enrollments/status` (V2) |
 | storage-service | course-service | Verify subject exists before upload |
 | outbox-worker | user-service | Approve user account on `registration.approved` event |
 | enrollment-service | user-service | Grant role on `role_requests/:id/approve` via `POST /internal/users/add-role` (V2) |
@@ -753,6 +831,8 @@ The `requestId` is at the root of error responses (not nested inside `error`) so
 ## Environment
 
 Copy `.env.example` to `.env` (gitignored). Required variables:
+
+> **Gateway port override:** The gateway has its own env file at `.env.gateway` (loaded by `npm run dev --workspace=packages/gateway` via the `dotenv -e` flag). It must contain `PORT=3000`. If this file is missing or has a different port the gateway binds to the wrong port and all API traffic fails silently. Firebase emulator UI also uses port 4000 — do not set `PORT=4000` in `.env.gateway`.
 
 ```
 # Service identity
@@ -893,6 +973,11 @@ Project-specific commands live in `.claude/commands/`. Use them with `/command-n
 | `/test-integration` | `test-integration.md` | Generate Supertest + Firestore emulator integration tests for an endpoint |
 | `/test-security` | `test-security.md` | Audit a service's routes for missing auth guards and Zod validators (report only) |
 | `/run-check` | `run-check.md` | Run type-check + lint + unit tests for one service or all workspaces |
+| `/spec` | `spec.md` | Create feature spec file and branch from a short idea |
+| `/commit-message` | `commit-message.md` | Guided git commit workflow: branch strategy, change scope, message with emoji type |
+| `/create-plan` | `create-plan.md` | Save Claude's implementation plan to a dated markdown file in `_plan/` |
+| `/create-sprints` | `create-sprints.md` | Break a `_plan/` file into individual sprint files under `_sprints/<name>/` |
+| `/run-sprint` | `run-sprint.md` | Execute and track progress on a specific sprint (single or folder-mode batch) |
 
 ---
 
@@ -938,12 +1023,25 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/blueprint/Backend_Blueprint.md`** â€” V1 architecture specification, implementation patterns, all use case code samples, security requirements traceability.
 - **`.claude/blueprint/Version_02__Backend_Blueprint.md`** â€” V2 companion blueprint covering cell-service, analytics-service, scheduled-jobs, and extended service patterns.
 - **`.claude/APIdocument/API_Document.md`** â€” Complete V1 REST API reference (all endpoints, request/response schemas, error codes). Audited and corrected to match the actual implementation.
-- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.20.0.
+- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.25.0.
 - **`.claude/APIdocument/authapi.md`** — Standalone auth-service reference: all 13 `/auth/*` endpoints, error codes, lockout rules, password policy, env vars, and quick-start flow guides.
 - **`.claude/tracker/tracker.md`** â€” Phase-by-phase implementation checklist (Phases 0â€”21). Update `[ ]` â†’ `[x]` as work completes. Check this before starting any phase to understand what’s done and what’s blocked.
 - **`.claude/plan/implementation-plan.md`** â€” Detailed implementation plan with phase dependencies and sequencing.
 - **`.claude/sprints/`** â€” Per-sprint breakdown (`sprint-1-*.md` through `sprint-7-*.md`) with user stories and acceptance criteria.
 - **`.claude/settings.local.json`** â€” Pre-approved PowerShell/Bash permission patterns so Claude Code does not prompt for common `npm run *`, `node *`, `docker-compose *`, and `git` operations. Edit this file (via `/update-config`) when new command patterns need approval.
+- **`_plan/`** â€” Dated implementation plan files (e.g. `_plan/2026-05-26-action-endpoints-response-bodies.md`). Created by `/create-plan`.
+- **`_sprints/`** â€” Per-sprint markdown files broken down from a `_plan/` file. Each subdirectory contains individual phase files and a `next-sprint.sh` automation helper. Created by `/create-sprints`, executed by `/run-sprint`.
 
 
+## API Documentation Updates
 
+When creating a new API endpoint or modifying an existing one, update **only the affected endpoint's section** in `.claude/API_Document/Version_02_API_Reference.md`.
+
+- For a **new endpoint**: add a new section for it in the appropriate place. Do not modify unrelated sections.
+- For an **updated endpoint**: edit only that endpoint's existing section (path, method, parameters, request/response schema, examples, status codes, error responses).
+- Do **not** rewrite, reformat, or "clean up" other endpoints' documentation, even if they look inconsistent or outdated.
+- Do **not** restructure the document's overall layout, table of contents, or section ordering.
+- Do **not** touch other files in `.claude/API_Document/` (e.g. older version files like `Version_01_*`). Only `Version_02_API_Reference.md` is the active reference.
+- If a change affects a shared schema or type used by multiple endpoints, update the shared definition once and reference it from the affected endpoint's section — but still do not rewrite the other endpoints that also use it.
+
+Preserve the existing tone, heading style, and formatting conventions of the surrounding document.

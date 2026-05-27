@@ -51,4 +51,12 @@ export class FirestoreProgressRepository implements IProgressRepository {
     snap.docs.forEach(d => batch.delete(d.ref));
     await batch.commit();
   }
+
+  async revertCompletion(studentUid: string, subjectId: string): Promise<void> {
+    const docId = `${studentUid}_${subjectId}`;
+    await this.col.doc(docId).update({
+      state:       'in_progress',
+      completedAt: null,
+    });
+  }
 }

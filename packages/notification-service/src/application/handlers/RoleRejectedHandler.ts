@@ -3,51 +3,60 @@ import { INotificationRepository }   from '../../domain/repositories/INotificati
 import { Notification }              from '../../domain/entities/Notification';
 import { NotificationDispatcher }    from '../services/NotificationDispatcher';
 
-export interface RegistrationRejectedPayload {
-  studentUid: string;
-  email:      string;
-  firstName?: string;
-  lastName?:  string;
-  reason:     string | null;
-  appUrl?:    string;
+const ROLE_LABELS: Record<string, string> = {
+  student: 'Student',
+  leader:  'Cell Leader',
+  g12:     'G12 Leader',
+};
+
+export interface RoleRejectedPayload {
+  requesterUid:      string;
+  requestedRole:     string;
+  /** Student email — enriched by ApproveRoleRequestUseCase fire-and-forget lookup. */
+  studentEmail?:     string;
+  studentFirstName?: string;
+  studentLastName?:  string;
+  /** Optional note from the admin. */
+  note?:             string | null;
+  appUrl?:           string;
 }
 
-export class RegistrationRejectedHandler {
+export class RoleRejectedHandler {
   constructor(
     private readonly notifRepo:  INotificationRepository,
     private readonly dispatcher: NotificationDispatcher,
   ) {}
 
-  async handle(payload: RegistrationRejectedPayload, requestId: string): Promise<void> {
-    const fullName   = [payload.firstName, payload.lastName].filter(Boolean).join(' ') || 'Member';
+  async handle(payload: RoleRejectedPayload, requestId: string): Promise<void> {
+    const roleLabel  = ROLE_LABELS[payload.requestedRole] ?? payload.requestedRole;
+    const fullName   = [payload.studentFirstName, payload.studentLastName].filter(Boolean).join(' ') || 'Member';
     const loginUrl   = payload.appUrl ?? 'https://cms.bethelnet.au/login';
-    const reasonText = payload.reason ?? null;
 
     // ── In-app notification ────────────────────────────────────────────────────
     await this.notifRepo.create(new Notification({
       id:        uuidv4(),
-      userUid:   payload.studentUid,
-      type:      'registration.rejected',
-      title:     'Registration Not Approved',
-      body:      reasonText
-        ? `Your registration was not approved: ${reasonText}`
-        : 'Your registration was not approved at this time.',
+      userUid:   payload.requesterUid,
+      type:      'role.rejected',
+      title:     `${roleLabel} Application Not Approved`,
+      body:      `Your application for the ${roleLabel} role was not approved at this time.`,
       read:      false,
       createdAt: new Date().toISOString(),
     }));
 
-    // ── Branded rejection email ────────────────────────────────────────────────
-    const subject = 'Your Registration Update — TCCR';
+    // ── Rejection email (only if email is available) ───────────────────────────
+    if (!payload.studentEmail) return;
 
-    const reasonSection = reasonText
+    const subject = `Your ${roleLabel} Application Update — TCCR`;
+
+    const noteSection = payload.note
       ? `<div style="background:#fff3f3;border-left:4px solid #e74c3c;padding:12px 16px;
                      margin:20px 0;border-radius:0 4px 4px 0;">
            <p style="margin:0;font-size:14px;color:#1a1a1a;">
-             <strong>Reason:</strong><br>${reasonText}
+             <strong>Note from Admin:</strong><br>${payload.note}
            </p>
          </div>`
       : `<p style="color:#555;font-size:14px;margin:20px 0;">
-           No specific reason was provided by the administrator.
+           No specific reason was provided. Please contact the administration for more details.
          </p>`;
 
     const html = `
@@ -73,24 +82,37 @@ export class RegistrationRejectedHandler {
               Hi <strong>${fullName}</strong>,
             </p>
             <p style="margin:0 0 16px;font-size:15px;color:#444;line-height:1.6;">
-              Thank you for registering with <strong>The Christian Center Rathmalana (TCCR)</strong>.
-              After review, your registration has <strong style="color:#e74c3c;">not been approved</strong>
-              at this time.
+              Thank you for applying for the <strong>${roleLabel}</strong> role at
+              <strong>The Christian Center Rathmalana (TCCR)</strong>.
+              After careful review, your application has
+              <strong style="color:#e74c3c;">not been approved</strong> at this time.
             </p>
-            ${reasonSection}
+            <!-- Status badge -->
+            <table width="100%" cellpadding="0" cellspacing="0"
+                   style="background:#fdf2f2;border:1px solid #f5b7b1;border-radius:6px;margin:0 0 8px;">
+              <tr>
+                <td style="padding:16px 24px;text-align:center;">
+                  <p style="margin:0;font-size:15px;color:#c0392b;font-weight:bold;">
+                    Role Requested: ${roleLabel} &nbsp;|&nbsp; Status: Not Approved
+                  </p>
+                </td>
+              </tr>
+            </table>
+            ${noteSection}
             <p style="font-size:14px;color:#555;line-height:1.6;">
-              If you believe this decision was made in error, or if you have any questions,
-              please contact the administration team. You may be eligible to reapply.
+              We encourage you to continue participating in TCCR activities.
+              You may be eligible to reapply in the future. If you have any questions,
+              please reach out to the administration team.
             </p>
             <!-- CTA Button -->
             <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:24px;">
               <tr>
-                <td align="center">
+                <td align="center" style="padding:4px 0 20px;">
                   <a href="${loginUrl}"
                      style="display:inline-block;background:#1a73e8;color:#ffffff;
                             text-decoration:none;font-size:15px;font-weight:bold;
                             padding:14px 40px;border-radius:6px;">
-                    Visit TCCR &rarr;
+                    Log in to TCCR &rarr;
                   </a>
                 </td>
               </tr>
@@ -115,6 +137,6 @@ export class RegistrationRejectedHandler {
 </body>
 </html>`.trim();
 
-    await this.dispatcher.dispatchEmail(payload.email, subject, html, requestId);
+    await this.dispatcher.dispatchEmail(payload.studentEmail, subject, html, requestId);
   }
 }

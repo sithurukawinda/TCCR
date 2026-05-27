@@ -12,6 +12,7 @@ import { UserRegisteredHandler }           from './application/handlers/UserRegi
 import { AdminSuspendedHandler }           from './application/handlers/AdminSuspendedHandler';
 import { AdminCreatedHandler }             from './application/handlers/AdminCreatedHandler';
 import { RoleGrantedHandler }              from './application/handlers/RoleGrantedHandler';
+import { RoleRejectedHandler }            from './application/handlers/RoleRejectedHandler';
 import { CellJoinRequestedHandler }        from './application/handlers/CellJoinRequestedHandler';
 import { CellJoinApprovedHandler }         from './application/handlers/CellJoinApprovedHandler';
 import { CellJoinRejectedHandler }         from './application/handlers/CellJoinRejectedHandler';
@@ -35,6 +36,7 @@ const userRegHandler        = new UserRegisteredHandler(notifRepo, userClient, d
 const adminSuspendedHandler = new AdminSuspendedHandler(notifRepo, dispatcher);
 const adminCreatedHandler   = new AdminCreatedHandler(dispatcher);
 const roleGrantedHandler    = new RoleGrantedHandler(notifRepo, dispatcher);
+const roleRejectedHandler   = new RoleRejectedHandler(notifRepo, dispatcher);
 const cellJoinReqHandler    = new CellJoinRequestedHandler(notifRepo);
 const cellJoinAppHandler    = new CellJoinApprovedHandler(notifRepo);
 const cellJoinRejHandler    = new CellJoinRejectedHandler(notifRepo);
@@ -47,7 +49,7 @@ export const container = {
     regApprovedHandler, regRejectedHandler,
     enrollPendingHandler, enrollApprovedHandler, enrollRejectedHandler,
     userRegHandler, adminSuspendedHandler, adminCreatedHandler,
-    roleGrantedHandler,
+    roleGrantedHandler, roleRejectedHandler,
     cellJoinReqHandler, cellJoinAppHandler, cellJoinRejHandler, cellReportFiledHandler,
     cellOwnershipTransferredHandler,
   ),

@@ -85,14 +85,19 @@ describe('GetCellsUseCase', () => {
     );
   });
 
-  it('g12 sees all cells — active by default', async () => {
+  it('g12 sees only cells in their own network — g12LeaderUid auto-scoped, active by default', async () => {
     await useCase.execute(opts, 'g12-uid', ['g12']);
 
     expect(repo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ state: 'active' }),
+      expect.objectContaining({ g12LeaderUid: 'g12-uid', state: 'active' }),
     );
+  });
+
+  it('g12 can pass ?state=archived to see archived network cells', async () => {
+    await useCase.execute({ ...opts, state: 'archived' }, 'g12-uid', ['g12']);
+
     expect(repo.findAll).toHaveBeenCalledWith(
-      expect.not.objectContaining({ leaderUid: 'g12-uid' }),
+      expect.objectContaining({ g12LeaderUid: 'g12-uid', state: 'archived' }),
     );
   });
 

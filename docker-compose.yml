@@ -80,11 +80,13 @@ services:
     ports: ['3005:3005']
     env_file: .env
     environment:
-      SERVICE_NAME:       progress-service
-      PORT:               3005
-      SERVICE_COURSE_URL: http://course-service:3003
+      SERVICE_NAME:           progress-service
+      PORT:                   3005
+      SERVICE_COURSE_URL:     http://course-service:3003
+      SERVICE_ENROLLMENT_URL: http://enrollment-service:3004
     depends_on:
       - course-service
+      - enrollment-service
 
   storage-service:
     build: { context: ., dockerfile: packages/storage-service/Dockerfile }

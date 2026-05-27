@@ -1,12 +1,22 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.21.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.26.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.21.0
-**Date:** 26 May 2026
+**Version:** 2.26.0
+**Date:** 27 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.20.0 (25 May 2026)
+**Supersedes:** Version 2.25.0 (27 May 2026)
+**Change in 2.26.0:** Added lesson-level progress endpoints (§12.6, §12.7) and extended `GET /me/progress/courses/:courseId` (§12.3) with `completedLessonIds[]`, `totalLessons`, `lessonCompletionPercent`, and `lastAccessedAt`. New Firestore collection: `lesson_progress`.
+**Change in 2.25.0:** Developed `GET /users/summary` (§4.11) — enriched `SummaryProfile` with `roles[]`, `phoneNumber`, `createdAt`; added Frontend Integration Guide; 10 unit tests added.
+**Change in 2.24.0:** PDF file inputs made optional across all upload endpoints (§3.5, §10.1):
+- §3.5 `POST /me/qualification`: `qualification` field now optional — omitting it returns `{ fileUrl: null }`
+- §10.1 `POST /subjects/:id/attachments`: `file` field now optional — omitting it returns `200 { message }`
+**Change in 2.23.0:** Corrected §4.8 Promote, §4.9 Delete, §4.10 Demote response shapes and delete semantics:
+- §4.8 Promote: `204` → `200 { message }` (promote + idempotent path)
+- §4.9 Delete: "soft-delete" → "hard-delete" (permanently removes Firestore doc + Firebase Auth)
+- §4.10 Demote: `204` → `200 { message }` (demote + idempotent path)
+- ToC: added missing §4.10 Demote link
 
 ---
 
@@ -26,6 +36,7 @@
    - 4.1 [List Users](#41-get-users) · 4.2 [Get User](#42-get-usersuid) · 4.3 [Assign Roles](#43-patch-usersuidroles--new-v2)
    - 4.4 [User Audit Log](#44-get-usersuidaudit-log--new-v2) · 4.5 [Suspend](#45-post-usersusidsuspend) · 4.6 [Reactivate](#46-post-usersuidreactivate)
    - 4.7 [Provision Leader/G12 User (with welcome email)](#47-post-users--new) · 4.8 [Promote Existing User](#48-post-usersuidpromote--new-v2) · 4.9 [Delete User ★](#49-delete-usersuid--new)
+   - **4.10 [Demote User ★](#410-post-usersuiddemote--new)** · **4.11 [System Member Summary ★ NEW](#411-get-userssummary--new)**
 5. [Role Requests — NEW V2](#5-role-requests--new-v2)
    - 5.1 [Submit Role Request (multipart)](#51-post-role-requests) · 5.2 [My Requests](#52-get-role-requestsmine) · 5.3 [Admin List](#53-get-role-requests)
    - 5.4 [Get Request](#54-get-role-requestsid) · 5.5 [Download Qualification PDF ★](#55-get-role-requestsidqualification) · 5.6 [Approve](#56-post-role-requestsidapprove) · 5.7 [Reject](#57-post-role-requestsidreject)
@@ -44,6 +55,9 @@
 10. [Attachment & Image Endpoints](#10-attachment--image-endpoints)
 11. [Enrollment Endpoints](#11-enrollment-endpoints)
 12. [Progress Endpoints](#12-progress-endpoints)
+    - 12.1 [Mark Subject Complete](#121-post-progresssubjectsidcomplete) · 12.2 [Subject Access](#122-post-progresssubjectsidaccess) · 12.3 [My Course Progress](#123-get-meprogress-coursescourseid)
+    - 12.4 [My Subject Progress](#124-get-meprogresssubjectssubjectid) · 12.5 [Admin Course Progress](#125-get-adminprogresscoursescourseid)
+    - **12.6 [Mark Lesson Complete ★ NEW](#126-post-progresslessonslessionidcomplete--new) · 12.7 [Unmark Lesson ★ NEW](#127-delete-progresslessonslessonidcomplete--new)**
 13. [Cell Group Endpoints — NEW V2](#13-cell-group-endpoints--new-v2)
     - 13.1 [List Cells](#131-get-cells)
     - 13.2 [My Cells](#132-get-cellsmine)
@@ -635,7 +649,7 @@ Upload a qualification PDF to Firebase Storage and receive a download URL.
 > **Stateless** — this endpoint does **not** save anything to the user profile. The returned `fileUrl` must be included in the `qualifications[].fileUrl` field when calling `PATCH /me` (§3.2) to persist the qualification. This design supports multiple qualification entries — each PDF gets a unique UUID-namespaced path so uploads never overwrite each other.
 
 **Flow:**
-1. `POST /me/qualification` → receive `{ fileUrl }`
+1. `POST /me/qualification` → receive `{ fileUrl }` (or `{ fileUrl: null }` if no file sent)
 2. Store `fileUrl` alongside the qualification title in the `qualifications[]` array
 3. `PATCH /me` with `{ qualifications: [{ id, title, fileUrl }, ...] }` to save
 
@@ -644,16 +658,21 @@ Upload a qualification PDF to Firebase Storage and receive a download URL.
 
 | Field | Type | Required | Validation |
 |-------|------|:--------:|-----------|
-| `qualification` | file | Yes | PDF only · max **10 MB** · field name `qualification` |
+| `qualification` | file | **No (optional)** | PDF only · max **10 MB** · field name `qualification` |
 
-**`200 OK`**
+> **File is optional.** If the `qualification` field is omitted, the endpoint returns `{ fileUrl: null }` without uploading anything. This allows clients to call the endpoint without a PDF and still receive a valid response.
+
+**`200 OK` — with file**
 ```json
 {
   "fileUrl": "https://firebasestorage.googleapis.com/v0/b/bucket/o/qualifications%2Fuid%2Fuuid.pdf?alt=media&token=..."
 }
 ```
 
-**`400 Bad Request`** → `VALIDATION_ERROR` — no file attached
+**`200 OK` — no file provided**
+```json
+{ "fileUrl": null }
+```
 
 **`413 Payload Too Large`** → `FILE_TOO_LARGE` — file exceeds 10 MB
 
@@ -975,7 +994,7 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 | `leader` | `g12` only (cannot create more leaders) |
 | Any | Cannot target a user who holds `admin` or `super_admin` |
 
-**Idempotent** — if the target already holds the requested role, returns `204` without re-writing.
+**Idempotent** — if the target already holds the requested role, returns `200` silently without re-writing.
 
 #### Request Body
 
@@ -989,7 +1008,10 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 
 #### Responses
 
-**`204 No Content`** — Role promoted successfully.
+**`200 OK`** — Role promoted successfully.
+```json
+{ "message": "User promoted successfully." }
+```
 
 **`404 Not Found`** → `USER_NOT_FOUND`
 
@@ -1000,11 +1022,11 @@ Promote an **already-registered** user to `leader` or `g12`. Unlike `POST /users
 
 ---
 
-### 4.9 `DELETE /users/:uid` ★ NEW 
+### 4.9 `DELETE /users/:uid` ★ NEW
 
-Soft-delete a regular (non-admin) user account. Sets `deletedAt` in Firestore and disables the Firebase Auth account so the user can no longer sign in. The record is preserved for audit purposes.
+**Permanently hard-deletes** a regular (non-admin) user. Both the Firestore document and the Firebase Auth account are irreversibly removed. This is **not** a soft-delete — there is no recovery.
 
-> **For admin/super_admin accounts** use `DELETE /super-admin/admins/:uid` (section 18).
+> **For admin/super_admin accounts** use `DELETE /super-admin/admins/:uid` (section 18) which does a soft-delete instead.
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
@@ -1013,13 +1035,13 @@ Soft-delete a regular (non-admin) user account. Sets `deletedAt` in Firestore an
 | Condition | Result |
 |-----------|--------|
 | `targetUid === callerUid` | `403 FORBIDDEN` — cannot delete yourself |
-| Target not found (or already deleted) | `404 USER_NOT_FOUND` |
+| Target not found | `404 USER_NOT_FOUND` |
 | Target holds `admin` or `super_admin` role | `403 FORBIDDEN` — use `/super-admin/admins/:uid` |
-| Target is a `member`, `student`, `leader`, or `g12` | `204 No Content` — deleted |
+| Target is a `member`, `student`, `leader`, or `g12` | `204 No Content` — permanently deleted |
 
-**Side effects (both execute; if `disableUser` fails the Firestore soft-delete has already committed):**
-1. `userRepo.softDelete(uid)` — sets `deletedAt` + `updatedAt` in Firestore
-2. `authClient.disableUser(uid)` — prevents future Firebase sign-ins
+**Side effects (both must succeed — no partial rollback):**
+1. `userRepo.hardDelete(uid)` — **permanently removes** the Firestore document
+2. `authClient.deleteUser(uid)` — **permanently removes** the Firebase Auth account
 
 #### Responses
 
@@ -1072,7 +1094,7 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 - Cannot demote yourself
 - Cannot demote an `admin` or `super_admin` via this endpoint
 - `member` role can never be removed (permanent base role)
-- Idempotent — returns `204` silently if the user does not already hold the role
+- Idempotent — returns `200` silently if the user does not already hold the role
 
 #### What changes after a successful demote
 
@@ -1086,7 +1108,10 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 
 #### Responses
 
-**`204 No Content`** — Role removed; access updated.
+**`200 OK`** — Role removed; access updated on next token refresh.
+```json
+{ "message": "User demoted successfully." }
+```
 
 **`400 Bad Request`** → `VALIDATION_ERROR` — Invalid role value
 ```json
@@ -1101,6 +1126,195 @@ Remove a specific role from a user and revert them to their remaining roles. Fir
 **`404 Not Found`** → `USER_NOT_FOUND`
 
 ---
+---
+
+### 4.11 `GET /users/summary` ★ NEW
+
+Returns **all approved users grouped by their highest role** with full profiles in a single response. Designed as a one-page system roster — no pagination needed.
+
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`
+
+> **Scope:** `leader` and `g12` callers follow the same scoped-access rule as `GET /users` — they see only approved non-admin users. The `superAdmins` and `admins` arrays will be empty for these callers. `admin` / `super_admin` callers see all groups.
+
+#### Role Grouping Logic
+
+Each user appears in **exactly one group** — their highest role in this hierarchy:
+
+```
+super_admin > admin > g12 > leader > student > member
+```
+
+A user with `roles: ["member", "student", "leader"]` appears in **leaders** only. Users are sorted **A→Z by `displayName`** within each group.
+
+#### Response `200 OK`
+
+```json
+{
+  "superAdmins": [
+    {
+      "uid":             "SA001",
+      "firstName":       "Pastor",
+      "lastName":        "Jayasinghe",
+      "displayName":     "Pastor Jayasinghe",
+      "email":           "pastor@tccr.lk",
+      "roles":           ["super_admin"],
+      "phoneNumber":     "+94711234567",
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-01-10T08:00:00.000Z"
+    }
+  ],
+  "admins": [
+    {
+      "uid":             "AD001",
+      "firstName":       "Admin",
+      "lastName":        "User",
+      "displayName":     "Admin User",
+      "email":           "admin@tccr.lk",
+      "roles":           ["admin"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-02-01T08:00:00.000Z"
+    }
+  ],
+  "g12": [
+    {
+      "uid":             "G12001",
+      "firstName":       "G12",
+      "lastName":        "Leader",
+      "displayName":     "G12 Leader",
+      "email":           "g12leader@tccr.lk",
+      "roles":           ["member", "g12"],
+      "phoneNumber":     "+94771234567",
+      "profilePhotoUrl": "https://firebasestorage.googleapis.com/.../avatars/G12001.jpg",
+      "createdAt":       "2025-03-01T08:00:00.000Z"
+    }
+  ],
+  "leaders": [
+    {
+      "uid":             "LDR001",
+      "firstName":       "Cell",
+      "lastName":        "Leader",
+      "displayName":     "Cell Leader",
+      "email":           "leader@tccr.lk",
+      "roles":           ["member", "leader"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2025-04-01T08:00:00.000Z"
+    }
+  ],
+  "students": [
+    {
+      "uid":             "STU001",
+      "firstName":       "Viruli",
+      "lastName":        "Weerasinghe",
+      "displayName":     "Viruli Weerasinghe",
+      "email":           "viruli@example.com",
+      "roles":           ["member", "student"],
+      "phoneNumber":     "+94761234567",
+      "profilePhotoUrl": null,
+      "createdAt":       "2026-01-15T08:00:00.000Z"
+    }
+  ],
+  "members": [
+    {
+      "uid":             "MEM001",
+      "firstName":       "Nimal",
+      "lastName":        "Perera",
+      "displayName":     "Nimal Perera",
+      "email":           "nimal@example.com",
+      "roles":           ["member"],
+      "phoneNumber":     null,
+      "profilePhotoUrl": null,
+      "createdAt":       "2026-03-20T08:00:00.000Z"
+    }
+  ],
+  "totals": {
+    "superAdmins": 1,
+    "admins":      2,
+    "g12":         3,
+    "leaders":     8,
+    "students":    45,
+    "members":     120,
+    "total":       179
+  }
+}
+```
+
+#### Response Field Reference
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `superAdmins[]` | `SummaryProfile[]` | Users whose highest role is `super_admin` |
+| `admins[]` | `SummaryProfile[]` | Users whose highest role is `admin` |
+| `g12[]` | `SummaryProfile[]` | Users whose highest role is `g12` |
+| `leaders[]` | `SummaryProfile[]` | Users whose highest role is `leader` |
+| `students[]` | `SummaryProfile[]` | Users whose highest role is `student` |
+| `members[]` | `SummaryProfile[]` | Base members — hold only the `member` role |
+| `totals.total` | number | Sum of all groups (= total approved system users) |
+
+**`SummaryProfile` shape — every profile in every group:**
+
+| Field | Type | Frontend use |
+|-------|------|-------------|
+| `uid` | string | Firebase Auth UID — use as unique key |
+| `firstName` | string | Given name |
+| `lastName` | string | Family name |
+| `displayName` | string | `firstName + ' ' + lastName`; falls back to `email` if both names are empty |
+| `email` | string | Registered email — contact / login identifier |
+| `roles` | string[] | Full roles array — use to render role badges (e.g. `["member","leader"]`) |
+| `phoneNumber` | string \| null | Contact phone — show in contact directory; `null` if not set |
+| `profilePhotoUrl` | string \| null | Firebase Storage download URL for avatar — `null` if no photo |
+| `createdAt` | string | ISO 8601 — use for "Joined on …" display |
+
+#### Frontend Summary Page — Integration Guide
+
+```
+GET /api/v1/users/summary
+Authorization: Bearer <admin-or-leader-token>
+```
+
+**Render the page:**
+```
+totals.total        → "179 Total Members"
+totals.superAdmins  → Super Admin count card
+totals.admins       → Admin count card
+totals.g12          → G12 Leaders count card
+totals.leaders      → Cell Leaders count card
+totals.students     → Students count card
+totals.members      → Members count card
+
+leaders[]           → Render leader cards (displayName, email, phoneNumber, profilePhotoUrl)
+students[]          → Render student table (displayName, email, createdAt)
+members[]           → Render member list
+roles[]             → Show role badge chips per profile
+```
+
+**Scoped view for leader/g12 callers:**
+```
+superAdmins → [] (empty — hidden)
+admins      → [] (empty — hidden)
+g12         → visible
+leaders     → visible
+students    → visible
+members     → visible
+```
+
+#### Notes
+
+- **No pagination** — entire roster returned in one call. Internally paginates Firestore (100/page) until exhausted.
+- **Suspended users excluded** — only `status: "approved"` users appear.
+- **Deleted users excluded** — `deletedAt != null` users never appear.
+- Response time is proportional to total approved users; at TCCR's scale (≤ 10 000 users) stays under 800 ms (NFR-PER-001).
+
+#### Errors
+
+| Status | Code | Reason |
+|--------|------|--------|
+| `401` | `UNAUTHENTICATED` | Missing or expired Bearer token |
+| `403` | `FORBIDDEN` | Caller does not hold `leader`, `g12`, or `admin` |
+
+---
+
 ## 5. Role Requests — NEW V2
 
 After registration every user is a **Member**. From there they can follow two paths — both require Admin/Super Admin approval:
@@ -1971,11 +2185,13 @@ Upload PDF or DOCX. Max **25 MB** (FR-CRS-010).
 **Authentication:** Bearer required | **Roles:** `admin`
 **Content-Type:** `multipart/form-data`
 
-| Field | Allowed MIME | Max |
-|-------|-------------|:---:|
-| `file` | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 25 MB |
+| Field | Type | Required | Allowed MIME | Max |
+|-------|------|:--------:|-------------|:---:|
+| `file` | file | **No (optional)** | `application/pdf`, `application/msword`, `application/vnd.openxmlformats-officedocument.wordprocessingml.document` | 25 MB |
 
-**`201 Created`**
+> **File is optional.** If the `file` field is omitted, the endpoint returns a `200 OK` with a message instead of creating an attachment record.
+
+**`201 Created`** — file uploaded
 ```json
 {
   "id": "att-001", "subjectId": "sub-001", "courseId": "course-abc",
@@ -1986,7 +2202,12 @@ Upload PDF or DOCX. Max **25 MB** (FR-CRS-010).
 }
 ```
 
-**`415`** → `UNSUPPORTED_MEDIA_TYPE` | **`400`** → `FILE_TOO_LARGE`
+**`200 OK`** — no file provided
+```json
+{ "message": "No file uploaded. Provide a PDF, DOC, or DOCX file to create an attachment." }
+```
+
+**`415`** → `UNSUPPORTED_MEDIA_TYPE` | **`413`** → `FILE_TOO_LARGE`
 
 ---
 
@@ -2306,15 +2527,34 @@ Course-level progress aggregate (FR-LRN-004).
 **`200 OK`**
 ```json
 {
-  "courseId":              "course-abc",
-  "studentUid":            "Xf3aBC...",
-  "completedCount":        4,
-  "pendingCount":          6,
-  "totalSubjects":         10,
-  "completionPercent":     40.0,
-  "lastAccessedSubjectId": "sub-003"
+  "courseId":               "course-abc",
+  "studentUid":             "Xf3aBC...",
+  "completedCount":         4,
+  "pendingCount":           6,
+  "totalSubjects":          10,
+  "completionPercent":      40.0,
+  "lastAccessedSubjectId":  "sub-003",
+  "lastAccessedAt":         "2026-05-27T11:30:00.000Z",
+
+  "completedLessonIds":     ["les-001", "les-002", "les-005"],
+  "totalLessons":           9,
+  "lessonCompletionPercent": 33
 }
 ```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `completedCount` | number | Subjects fully completed |
+| `pendingCount` | number | Subjects not yet completed (`totalSubjects − completedCount`) |
+| `totalSubjects` | number | Total non-deleted subjects in the course |
+| `completionPercent` | number | Subject-weighted percent — one decimal place e.g. `66.7`. **Dashboard uses this field.** |
+| `lastAccessedSubjectId` | string \| null | Most-recently accessed subject UID |
+| `lastAccessedAt` | string \| null | ISO 8601 timestamp of the most-recent subject access |
+| `completedLessonIds` | string[] | IDs of every lesson the student has marked complete — use to rehydrate lesson tick-boxes in the course viewer |
+| `totalLessons` | number | Total non-deleted lessons across all subjects in the course |
+| `lessonCompletionPercent` | number | `Math.round(completedLessons / totalLessons * 100)` — integer percent. **Course-viewer progress bar uses this field.** |
+
+> **Backwards compatibility:** `completedCount`, `pendingCount`, `totalSubjects`, and `completionPercent` are unchanged. The Dashboard should continue reading `completionPercent` (subject-weighted). The course-viewer progress bar should switch to `lessonCompletionPercent`.
 
 ---
 
@@ -2341,17 +2581,114 @@ Admin view. Supports `?batchId` to scope to one intake.
 
 ---
 
+### 12.6 `POST /progress/lessons/:lessonId/complete` ★ NEW
+
+Mark an individual lesson complete. **Idempotent** — calling again for the same lesson returns `200` with the original `completedAt` unchanged.
+
+**Auto-rollup:** When every lesson in the parent subject is now complete, the backend automatically marks the subject complete — the frontend does **not** need to make a second call to `POST /progress/subjects/:id/complete`.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`  
+**Content-Type:** `application/json`
+
+#### Request Body
+
+```json
+{
+  "courseId":   "course-abc",
+  "subjectId":  "sub-001",
+  "semesterId": "sem-001",
+  "batchId":    "batch-xyz"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `courseId` | string | ✅ | Must match the lesson's parent course |
+| `subjectId` | string | ✅ | Must match the lesson's parent subject |
+| `semesterId` | string | ✅ | Must match the lesson's parent semester |
+| `batchId` | string | ➖ | Student's enrollment batch — optional |
+
+#### Validation Rules
+
+| Condition | Error |
+|-----------|-------|
+| Caller has no approved enrollment in `courseId` | `403 NOT_ENROLLED` |
+| `lessonId` does not exist | `404 LESSON_NOT_FOUND` |
+| `lessonId` does not belong to stated `courseId` / `subjectId` | `400 LESSON_MISMATCH` |
+
+#### Responses
+
+**`200 OK`** — Lesson marked complete (or already was complete — idempotent).
+```json
+{
+  "lessonId":             "les-001",
+  "subjectId":            "sub-001",
+  "courseId":             "course-abc",
+  "completedAt":          "2026-05-27T11:45:00.000Z",
+  "subjectAutoCompleted": true
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `lessonId` | string | The lesson that was marked complete |
+| `subjectId` | string | Parent subject |
+| `courseId` | string | Parent course |
+| `completedAt` | string | ISO 8601 — server timestamp of first completion; unchanged on repeated calls |
+| `subjectAutoCompleted` | boolean | `true` if this lesson completion triggered an auto-rollup of the parent subject; `false` otherwise (including idempotent calls) |
+
+**`400 Bad Request`** → `LESSON_MISMATCH`
+```json
+{ "error": { "code": "LESSON_MISMATCH", "message": "lessonId does not belong to the stated courseId / subjectId." }, "requestId": "..." }
+```
+
+**`403 Forbidden`** → `NOT_ENROLLED`
+```json
+{ "error": { "code": "NOT_ENROLLED", "message": "An approved enrollment is required to mark lessons complete." }, "requestId": "..." }
+```
+
+**`404 Not Found`** → `LESSON_NOT_FOUND`
+```json
+{ "error": { "code": "LESSON_NOT_FOUND", "message": "Lesson not found." }, "requestId": "..." }
+```
+
+---
+
+### 12.7 `DELETE /progress/lessons/:lessonId/complete` ★ NEW
+
+Unmark a lesson as complete — removes the completion record. Intended for mistakes or video re-watch flows.
+
+**Auto-revert:** If the parent subject was previously auto-completed (via §12.6 rollup), and removing this lesson means not all lessons are done, the subject is automatically reverted to `in_progress`.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`
+
+#### Responses
+
+**`204 No Content`** — Lesson completion removed.
+
+**`404 Not Found`** → `LESSON_PROGRESS_NOT_FOUND` — No completion record exists for this lesson and caller.
+```json
+{ "error": { "code": "LESSON_PROGRESS_NOT_FOUND", "message": "No completion record found for this lesson." }, "requestId": "..." }
+```
+
+---
+
 ## 13. Cell Group Endpoints — NEW V2
 
 ---
 
 ### 13.1 `GET /cells`
 
-List cell groups. Scope auto-applied by role:
-- **Member/Student** → sees all `active` cells only
-- **Leader** → sees only cells they lead (`active` by default)
-- **G12** → sees all cells in their network (`active` by default, can pass `?state=archived`)
-- **Admin/Super Admin** → sees **ALL cells across ALL states** (active + archived) by default; can filter with `?state=active|archived` ★ Updated
+List cell groups. Scope is **automatically enforced by role** — callers cannot override their own scope:
+
+| Role | Cells returned |
+|------|---------------|
+| **Member / Student** | All `active` cells (discovery — to find one to join) |
+| **Leader** | Only cells where `leaderUid === caller` (`active` by default) |
+| **G12** | Only cells where `g12LeaderUid === caller` — i.e. their own network (`active` by default, pass `?state=archived` for archived) |
+| **Admin / Super Admin** | All cells, all states by default; filter with `?state=active\|archived` |
+
+> **G12 network scope:** A G12 leader only sees cells they personally oversee (`g12LeaderUid` matches their UID). They cannot see cells outside their network. This is consistent with `GET /cells/network/members` and `GET /cells/network/reports`.
 
 **Authentication:** Bearer required | **Roles:** Any authenticated
 
@@ -2360,8 +2697,8 @@ List cell groups. Scope auto-applied by role:
 | `search` | Partial match on cell name |
 | `type` | `g12` \| `care` \| `children` \| `outreach` |
 | `area` | Exact match on area |
-| `state` | `active` \| `archived` — default varies by role: `admin`/`super_admin` see **all states** when omitted; all others default to `active` ★ Updated |
-| `leaderUid` | Filter by leader (admin/g12 only) |
+| `state` | `active` \| `archived` — admin/super_admin see all states when omitted; all other roles default to `active` |
+| `leaderUid` | Filter by specific leader UID — **admin only** (ignored for leader/g12 callers, whose scope is already forced) |
 | `limit`, `cursor` | Pagination |
 
 **`200 OK`**
@@ -2766,6 +3103,7 @@ Returns all cell members across every cell in the caller's network, grouped by c
 
 **`403 Forbidden`** → `FORBIDDEN` — caller does not hold `leader`, `g12`, `admin`, or `super_admin`
 
+
 ---
 
 ## 14. Cell Report Endpoints — NEW V2
@@ -3008,7 +3346,7 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
       "cellId":     "cell-001",
       "cellName":   "Rathmalana West G12",
       "date":       "2026-05-22",
-      "didMeet":    true,
+      "didMeet":    true, 
       "filledByUid": "leader-uid-1",
       ...
     }

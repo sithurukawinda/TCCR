@@ -5,6 +5,8 @@ import { container }               from '../../container';
 export const usersRouter = Router();
 
 usersRouter.post('/users',                  authenticate(), authorize('g12', 'admin', 'super_admin'), container.usersController.create);
+// /users/summary must be before /users/:uid so "summary" is not swallowed as a uid param
+usersRouter.get( '/users/summary',          authenticate(), authorize('leader', 'g12', 'admin'), container.usersController.summary);
 usersRouter.get( '/users',                  authenticate(), authorize('leader', 'g12', 'admin'), container.usersController.list);
 usersRouter.get( '/users/:uid',             authenticate(), authorize('leader', 'g12', 'admin'), container.usersController.getOne);
 usersRouter.post(  '/users/:uid/suspend',     authenticate(), authorize('admin'), container.usersController.suspend);

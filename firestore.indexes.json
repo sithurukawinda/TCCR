@@ -267,6 +267,22 @@
       ]
     },
     {
+      "collectionGroup": "batches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state",           "order": "ASCENDING" },
+        { "fieldPath": "scheduledOpenAt", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "batches",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "state",            "order": "ASCENDING" },
+        { "fieldPath": "scheduledCloseAt", "order": "ASCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "role_requests",
       "queryScope": "COLLECTION",
       "fields": [
@@ -457,6 +473,22 @@
       "fields": [
         { "fieldPath": "voided", "order": "ASCENDING" },
         { "fieldPath": "date",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lesson_progress",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "courseId",   "order": "ASCENDING" },
+        { "fieldPath": "studentUid", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "lesson_progress",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subjectId",  "order": "ASCENDING" },
+        { "fieldPath": "studentUid", "order": "ASCENDING" }
       ]
     }
   ],

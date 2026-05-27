@@ -11,7 +11,8 @@ const upload = multer({
 
 /**
  * Parses multipart/form-data for POST /role-requests.
- * Expects a single field named `qualificationFile` (PDF only, max 10 MB).
+ * Field `qualificationFile` (PDF only, max 10 MB) is **optional** —
+ * if omitted the request proceeds without a qualification file attached.
  * Puts all other form fields in req.body as usual.
  */
 export function handleQualificationUpload(req: Request, res: Response, next: NextFunction): void {
@@ -20,10 +21,8 @@ export function handleQualificationUpload(req: Request, res: Response, next: Nex
       return next(createHttpError(413, 'FILE_TOO_LARGE', 'Qualification file must be 10 MB or smaller.'));
     }
     if (err) return next(err);
-    if (!req.file) {
-      return next(createHttpError(400, 'VALIDATION_ERROR', 'qualificationFile (PDF) is required.'));
-    }
-    if (req.file.mimetype !== 'application/pdf') {
+    // No file is allowed — controller handles req.file === undefined
+    if (req.file && req.file.mimetype !== 'application/pdf') {
       return next(createHttpError(415, 'UNSUPPORTED_MEDIA_TYPE', 'Only PDF files are accepted for qualifications.'));
     }
     next();

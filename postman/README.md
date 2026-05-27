@@ -1,7 +1,7 @@
 # CMP / TCCR — Postman Collection
 
 API test collection for the **CMP → TCCR backend** (slp-backend).  
-**175 requests** across 17 folders covering every V1 and V2 endpoint.
+**192 requests** across 17 folders covering every V1 and V2 endpoint.
 
 ---
 
@@ -163,7 +163,7 @@ All tokens and IDs are **auto-set by test scripts** — you never need to paste 
 | 0 | 🔐 Sign In | 6 | — | **Run this first.** Saves all tokens and user IDs. |
 | 1 | 1️⃣ Auth Service | 17 | public / any | Register (6 variants: 201, 409, 400×3, si-lang), logout, password reset, OTP verify, track-failure, federated Google, federated Apple. **Register sends welcome email with credentials + login link.** |
 | 2 | 2️⃣ User Service — Me | 10 | student | Get/update profile, avatar upload, change password, FCM tokens, notification preferences, OAuth provider link/unlink |
-| 3 | 3️⃣ User Service — User Management (Admin / Leader / G12) | 25 | admin / leader / g12 | List users (admin + leader scoped + g12 scoped), search by name (admin/leader/g12), get user (admin/leader/g12 + 403 guard), create user leader/g12, suspend, reactivate, assign roles, promote (5 scenarios), delete user |
+| 3 | 3️⃣ User Service — User Management (Admin / Leader / G12) | 30 | admin / leader / g12 | **System User Summary (3 requests: admin full + leader scoped + student 403)**, list users (admin + leader + g12 scoped), search by name, get user (+ 403 guard), create user leader/g12, suspend, reactivate, assign roles, promote (5 scenarios), demote (5 scenarios), delete user |
 | 4 | 4️⃣ User Service — Super Admin | 7 | super_admin | List admins, create admin, get by ID, suspend, reactivate, make-admin, delete admin |
 | 5 | 5️⃣ Course Service — Build a Course | 18 | admin | Full course build: create course → semester → 2 subjects → lesson → publish. Includes update and list operations. |
 | 6 | 6️⃣ Batches (V2) | 6 | admin / student | Create batch, list, get by ID, update, open, close |
@@ -178,7 +178,7 @@ All tokens and IDs are **auto-set by test scripts** — you never need to paste 
 | 15 | 📊 V2 — Analytics Service | 10 | g12 / admin | Weekly cells, attendance, meeting types, growth, participation, CSV export, + analytics liveness checks |
 | 16 | 🏥 Health Checks | 12 | — | Liveness + readiness probes for all services via gateway |
 
-**Total: 175 requests**
+**Total: 192 requests**
 
 ---
 
