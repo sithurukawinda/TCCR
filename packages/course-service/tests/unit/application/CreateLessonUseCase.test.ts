@@ -14,6 +14,7 @@ const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> => ({
 const makeLessonRepo = (): jest.Mocked<ILessonRepository> => ({
   findById: jest.fn(), findBySubject: jest.fn(), create: jest.fn(),
   update: jest.fn(), softDelete: jest.fn(), nextOrder: jest.fn(),
+  countBySubject: jest.fn(), countByCourse: jest.fn(),
 });
 
 const INPUT = { subjectId: 'sub1', title: 'Lesson 1', description: 'Intro', youtubeVideoId: null, attachmentIds: [] };
