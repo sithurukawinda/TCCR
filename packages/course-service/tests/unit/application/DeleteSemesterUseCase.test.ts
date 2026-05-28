@@ -1,8 +1,9 @@
-import { DeleteSemesterUseCase } from '../../../src/application/use-cases/DeleteSemesterUseCase';
-import { ICourseRepository }    from '../../../src/domain/repositories/ICourseRepository';
-import { ISemesterRepository }  from '../../../src/domain/repositories/ISemesterRepository';
-import { Course }               from '../../../src/domain/entities/Course';
-import { Semester }             from '../../../src/domain/entities/Semester';
+import { DeleteSemesterUseCase }      from '../../../src/application/use-cases/DeleteSemesterUseCase';
+import { ICourseRepository }          from '../../../src/domain/repositories/ICourseRepository';
+import { ISemesterRepository }        from '../../../src/domain/repositories/ISemesterRepository';
+import { IBatchSemesterRepository }   from '../../../src/domain/repositories/IBatchSemesterRepository';
+import { Course }                     from '../../../src/domain/entities/Course';
+import { Semester }                   from '../../../src/domain/entities/Semester';
 
 const makeCourse = (semesterCount = 2): Course =>
   new Course({
@@ -23,27 +24,34 @@ const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> => ({
   findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
 });
 
+const makeBsRepo = (): jest.Mocked<IBatchSemesterRepository> =>
+  ({ findByBatchId: jest.fn(), findBySemesterId: jest.fn(), upsertMany: jest.fn(), deleteBySemesterId: jest.fn(), deleteByBatchId: jest.fn() });
+
 describe('DeleteSemesterUseCase', () => {
   let courseRepo:   jest.Mocked<ICourseRepository>;
   let semesterRepo: jest.Mocked<ISemesterRepository>;
+  let bsRepo:       jest.Mocked<IBatchSemesterRepository>;
   let useCase:      DeleteSemesterUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
     courseRepo   = makeCourseRepo();
     semesterRepo = makeSemesterRepo();
-    useCase      = new DeleteSemesterUseCase(courseRepo, semesterRepo);
+    bsRepo       = makeBsRepo();
+    useCase      = new DeleteSemesterUseCase(courseRepo, semesterRepo, bsRepo);
   });
 
   it('soft-deletes semester and decrements course semesterCount', async () => {
     semesterRepo.findById.mockResolvedValue(makeSemester());
     semesterRepo.softDelete.mockResolvedValue(undefined);
+    bsRepo.deleteBySemesterId.mockResolvedValue(undefined);
     courseRepo.findById.mockResolvedValue(makeCourse(2));
     courseRepo.update.mockResolvedValue(undefined);
 
     await useCase.execute('s1');
 
     expect(semesterRepo.softDelete).toHaveBeenCalledWith('s1');
+    expect(bsRepo.deleteBySemesterId).toHaveBeenCalledWith('s1');
     expect(courseRepo.update).toHaveBeenCalledWith(expect.objectContaining({ semesterCount: 1 }));
   });
 
@@ -59,6 +67,7 @@ describe('DeleteSemesterUseCase', () => {
   it('does not decrement count below zero', async () => {
     semesterRepo.findById.mockResolvedValue(makeSemester());
     semesterRepo.softDelete.mockResolvedValue(undefined);
+    bsRepo.deleteBySemesterId.mockResolvedValue(undefined);
     courseRepo.findById.mockResolvedValue(makeCourse(0));
     courseRepo.update.mockResolvedValue(undefined);
 
@@ -70,6 +79,7 @@ describe('DeleteSemesterUseCase', () => {
   it('skips course update if course not found after semester delete', async () => {
     semesterRepo.findById.mockResolvedValue(makeSemester());
     semesterRepo.softDelete.mockResolvedValue(undefined);
+    bsRepo.deleteBySemesterId.mockResolvedValue(undefined);
     courseRepo.findById.mockResolvedValue(null);
 
     await useCase.execute('s1');

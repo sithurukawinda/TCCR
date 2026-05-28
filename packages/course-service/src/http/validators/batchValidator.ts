@@ -1,5 +1,22 @@
 import { z } from 'zod';
 
+const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+
+export const scheduleEntrySchema = z.object({
+  semesterId: z.string().uuid('semesterId must be a UUID'),
+  openDate:   z.string().regex(dateRegex, 'openDate must be YYYY-MM-DD').nullable(),
+  endDate:    z.string().regex(dateRegex, 'endDate must be YYYY-MM-DD').nullable(),
+});
+
+export const setBatchSemesterDatesSchema = z.object({
+  schedule: z.array(scheduleEntrySchema).min(1, 'schedule must contain at least one entry'),
+});
+
+export const patchBatchSemesterDateSchema = z.object({
+  openDate: z.string().regex(dateRegex, 'openDate must be YYYY-MM-DD').nullable(),
+  endDate:  z.string().regex(dateRegex, 'endDate must be YYYY-MM-DD').nullable(),
+});
+
 export const createBatchSchema = z.object({
   name:            z.string().min(1).max(200),
   scheduledOpenAt: z.string().datetime({ offset: true }).nullable().optional().default(null),

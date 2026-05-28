@@ -1523,10 +1523,12 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches' },
     auth: bearerAuth('adminToken'),
     headers: jsonHeader(),
-    // API ref §7.2 — capacity is optional; scheduledOpenAt in past auto-opens batch
+    // scheduledOpenAt: null keeps the batch in DRAFT state so it can be opened manually.
+    // A past scheduledOpenAt would auto-open the batch immediately on creation,
+    // which prevents testing the manual open flow and semester-dates validation.
     body: jsonBody({
       name:            'Batch 2026 — Q1',
-      scheduledOpenAt: '2026-01-01T00:00:00.000Z',
+      scheduledOpenAt: null,
       intakeStart:     '2026-06-01',
       intakeEnd:       '2026-12-31',
       capacity:        50,
@@ -1534,6 +1536,7 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     tests: [
       `pm.test("201 Created — Create Batch", () => pm.response.to.have.status(201));`,
       `const j = pm.response.json();`,
+      `pm.test("state is draft", () => pm.expect(j.state).to.equal("draft"));`,
       `if (j.id) { pm.environment.set("batchId", j.id); }`,
     ],
   }),

@@ -60,6 +60,7 @@ app.use('/api/v1/me/notifications/preferences', userProxy);
 app.use('/api/v1/me/notifications', notifyProxy);
 app.use('/api/v1/me/enrollments',   enrollProxy);
 app.use('/api/v1/me/progress',      progressProxy);
+app.use('/api/v1/me/courses',       courseProxy);   // must precede /me → userProxy
 app.use('/api/v1/me',                          userProxy);
 app.use('/api/v1/users/:uid/audit-log',        auditProxy);  // must precede generic /users → userProxy
 app.use('/api/v1/users',                       userProxy);

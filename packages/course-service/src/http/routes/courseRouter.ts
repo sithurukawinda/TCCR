@@ -29,3 +29,10 @@ courseRouter.get(  '/batches/:id',           authenticate(), authorize('member',
 courseRouter.patch('/batches/:id',           authenticate(), authorize('admin'), container.batchController.update);
 courseRouter.post( '/batches/:id/open',      authenticate(), authorize('admin'), container.batchController.open);
 courseRouter.post( '/batches/:id/close',     authenticate(), authorize('admin'), container.batchController.close);
+
+// Batch semester dates — V2 (admin only)
+courseRouter.put(  '/courses/:courseId/batches/:batchId/semester-dates',                authenticate(), authorize('admin'), container.batchController.setSemesterDates);
+courseRouter.patch('/courses/:courseId/batches/:batchId/semester-dates/:semesterId',    authenticate(), authorize('admin'), container.batchController.patchSemesterDate);
+
+// Student course detail — V2 (any authenticated user; scoped to their enrolled batch)
+courseRouter.get('/me/courses/:courseId', authenticate(), container.studentCourseController.getOne);

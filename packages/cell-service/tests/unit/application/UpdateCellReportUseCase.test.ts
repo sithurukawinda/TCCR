@@ -13,7 +13,7 @@ const makeCellRepo = (): jest.Mocked<ICellGroupRepository> => ({
 });
 
 const makeReportRepo = (): jest.Mocked<ICellReportRepository> => ({
-  findById: jest.fn(), findByClientReqId: jest.fn(), findAll: jest.fn(),
+  findById: jest.fn(), findByClientReqId: jest.fn(), findAll: jest.fn(), findByPeriod: jest.fn(),
   create: jest.fn(), update: jest.fn(),
 });
 
