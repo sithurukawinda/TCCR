@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.29.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.30.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.29.0
+**Version:** 2.30.0
 **Date:** 28 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.28.0 (27 May 2026)
+**Supersedes:** Version 2.29.0 (28 May 2026)
+**Change in 2.30.0:** Added §3.11 `GET /me/courses/:courseId` (student batch-aware course view with semester states); added §7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` and §7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` (batch semester scheduling); updated §14.7 `GET /cells/network/summary` from `?month=` to `?from=`/`?to=` date-range signature with adaptive period labels; updated §14.6 `GET /cells/network/reports` and §14.1 `GET /cells/:id/reports` with `leaderUid`, `cellId`, and corrected `voided` param type.
 **Change in 2.29.0:** §4.4 and §17.2 `GET /users/:uid/audit-log` — marked as **implemented** (was incorrectly flagged NOT YET IMPLEMENTED). Endpoint is live in audit-service; filters audit entries by `actorUid`.
 **Change in 2.28.0:** Added §14.7 `GET /cells/network/summary` (Reports page stat cards, charts, by-leader table); updated §14.6 `GET /cells/network/reports` with `month` and `type` filter params (Cell Type tab filtering for All Reports table).
 **Change in 2.27.0:** Email verification gate enforced on registration (§1.2, §2.1). `POST /auth/register` now creates accounts with `emailVerified=false` — users must click the verification link in the welcome email before accessing protected routes. Welcome email updated: green "Verify My Email" button (primary) + blue "Log in to TCCR" button (secondary). `POST /auth/password-reset` now sends a direct Firebase reset link (no OTP). `POST /auth/password-reset/verify` deprecated. `docker-compose.yml` fix: `SERVICE_ENROLLMENT_URL` added to `progress-service`.
@@ -35,6 +36,7 @@
    - 3.1 [Get Profile](#31-get-me) · 3.2 [Update Profile](#32-patch-me) · 3.3 [Change Password](#33-post-mechange-password)
    - 3.4 [Upload Avatar](#34-post-meavatar) · 3.5 [Upload Qualification](#35-post-mequalification--new) · 3.6 [Link Provider](#36-post-meproviders-link--new-v2) · 3.7 [Unlink Provider](#37-delete-meproviders-provider--new-v2)
    - 3.8 [Register FCM Token](#38-post-mefcm-token--new-v2) · 3.9 [Deregister FCM Token](#39-delete-mefcm-token--new-v2) · 3.10 [Notification Preferences](#310-patch-menotificationspreferences--new-v2)
+   - **3.11 [Student Course View ★ NEW](#311-get-mecoursescourseid--new)**
 4. [User Management — Admin](#4-user-management--admin)
    - 4.1 [List Users](#41-get-users) · 4.2 [Get User](#42-get-usersuid) · 4.3 [Assign Roles](#43-patch-usersuidroles--new-v2)
    - 4.4 [User Audit Log](#44-get-usersuidaudit-log--new-v2) · 4.5 [Suspend](#45-post-usersusidsuspend) · 4.6 [Reactivate](#46-post-usersuidreactivate)
@@ -53,6 +55,8 @@
    - 7.4 [Update Batch](#74-patch-batchesid)
    - 7.5 [Open Batch (Manual)](#75-post-batchesidopen)
    - 7.6 [Close Batch (Manual)](#76-post-batchesidclose)
+   - **7.7 [Set Batch Semester Dates ★ NEW](#77-put-coursescourseidbatchesbatchidsemester-dates--new)**
+   - **7.8 [Patch One Semester Date ★ NEW](#78-patch-coursescourseidbatchesbatchidsemester-datessemesterid--new)**
 8. [Semester Endpoints](#8-semester-endpoints)
 9. [Subject & Lesson Endpoints](#9-subject--lesson-endpoints)
 10. [Attachment & Image Endpoints](#10-attachment--image-endpoints)
@@ -765,6 +769,66 @@ Update per-channel notification opt-out (FR-NOT-006). Essential notifications al
 ```
 
 **`200 OK`** → `{ "email": true, "push": false }`
+
+---
+
+### 3.11 `GET /me/courses/:courseId` ★ NEW
+
+Returns the authenticated student's personalised view of a course — semester schedule and state derived from their **enrolled batch's** `BatchSemester` dates. Each semester carries a computed `state` so the frontend can lock/unlock content without additional calls.
+
+**Authentication:** Bearer required | **Roles:** Any authenticated
+**Gateway proxy:** `/api/v1/me/courses` → course-service (registered before `/api/v1/me` → user-service)
+
+#### Semester States
+
+| State | Condition |
+|-------|-----------|
+| `unscheduled` | No `openDate` or `endDate` set for this batch |
+| `upcoming` | Today < `openDate` |
+| `open` | `openDate` ≤ today ≤ `endDate` |
+| `closed` | Today > `endDate` |
+
+#### Response `200 OK`
+
+```json
+{
+  "courseId":   "course-abc",
+  "batchId":    "batch-xyz",
+  "semesters": [
+    {
+      "id":        "sem-001",
+      "title":     "Semester 1 — Foundations",
+      "order":     1,
+      "openDate":  "2026-06-01",
+      "endDate":   "2026-08-31",
+      "state":     "open",
+      "subjects":  [
+        { "id": "sub-001", "title": "The Gospel of John", "order": 1 }
+      ]
+    },
+    {
+      "id":       "sem-002",
+      "title":    "Semester 2 — Deeper Truths",
+      "order":    2,
+      "openDate": "2026-09-01",
+      "endDate":  "2026-11-30",
+      "state":    "upcoming",
+      "subjects": []
+    }
+  ]
+}
+```
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `courseId` | string | Parent course ID |
+| `batchId` | string | Student's enrolled batch ID |
+| `semesters[]` | array | All semesters ordered by `order` |
+| `semesters[].state` | string | `unscheduled` \| `upcoming` \| `open` \| `closed` — derived from batch-specific dates |
+| `semesters[].openDate` | `YYYY-MM-DD` \| null | Null if not yet scheduled for this batch |
+| `semesters[].endDate` | `YYYY-MM-DD` \| null | Null if not yet scheduled for this batch |
+
+**`404 Not Found`** → `COURSE_NOT_FOUND`
 
 ---
 
@@ -1996,6 +2060,80 @@ Manually close intake window before `intakeEnd` is reached. No new enrollment re
 ```json
 { "error": { "code": "INVALID_STATE", "message": "Only an OPEN batch can be closed." }, "requestId": "..." }
 ```
+
+---
+
+### 7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` ★ NEW
+
+Set open and end dates for every semester in a batch in one call. Replaces all existing `BatchSemester` records for this batch. Admin only.
+
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
+**Content-Type:** `application/json`
+
+#### Request Body
+
+```json
+{
+  "schedule": [
+    { "semesterId": "sem-001", "openDate": "2026-06-01", "endDate": "2026-08-31" },
+    { "semesterId": "sem-002", "openDate": "2026-09-01", "endDate": "2026-11-30" }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `schedule` | array | Yes | One entry per semester to schedule |
+| `schedule[].semesterId` | string | Yes | Must belong to the batch's parent course |
+| `schedule[].openDate` | `YYYY-MM-DD` \| null | Yes | Date the semester opens for this batch |
+| `schedule[].endDate` | `YYYY-MM-DD` \| null | Yes | Date the semester closes for this batch |
+
+#### Responses
+
+**`200 OK`** — Array of updated `BatchSemesterView` entries:
+
+```json
+[
+  { "semesterId": "sem-001", "openDate": "2026-06-01", "endDate": "2026-08-31" },
+  { "semesterId": "sem-002", "openDate": "2026-09-01", "endDate": "2026-11-30" }
+]
+```
+
+**`404 Not Found`** → `BATCH_NOT_FOUND` or `SEMESTER_NOT_FOUND`
+
+**`403 Forbidden`** → `FORBIDDEN` — caller is not `admin` or `super_admin`
+
+---
+
+### 7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` ★ NEW
+
+Update a single semester's open and end dates within a batch without touching other semesters.
+
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
+**Content-Type:** `application/json`
+
+#### Request Body
+
+```json
+{ "openDate": "2026-07-01", "endDate": "2026-09-30" }
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `openDate` | `YYYY-MM-DD` \| null | Yes | New open date for this semester in this batch |
+| `endDate` | `YYYY-MM-DD` \| null | Yes | New end date for this semester in this batch |
+
+#### Responses
+
+**`200 OK`** — Updated `BatchSemesterView`:
+
+```json
+{ "semesterId": "sem-001", "openDate": "2026-07-01", "endDate": "2026-09-30" }
+```
+
+**`404 Not Found`** → `BATCH_NOT_FOUND` or `SEMESTER_NOT_FOUND`
+
+**`403 Forbidden`** → `FORBIDDEN`
 
 ---
 
@@ -3409,9 +3547,9 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 
 ---
 
-### 14.7 `GET /cells/network/summary` ★ NEW
+### 14.7 `GET /cells/network/summary` ★ UPDATED
 
-Returns the complete monthly reporting summary for the **Reports page dashboard** — stat cards, unreported-cell alert, weekly chart data, meeting-type donut, and per-leader breakdown table — all scoped to the caller's network in a single call.
+Returns the complete reporting summary for the **Reports page dashboard** — stat cards, unreported-cell alert, weekly/monthly chart data, meeting-type donut, and per-leader breakdown table — all scoped to the caller's network in a single call.
 
 **Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
 
@@ -3419,7 +3557,10 @@ Returns the complete monthly reporting summary for the **Reports page dashboard*
 
 | Parameter | Type | Required | Description |
 |-----------|------|:--------:|-------------|
-| `month` | `YYYY-MM` | ✅ | Calendar month to summarise (e.g. `2026-05`) |
+| `from` | `YYYY-MM-DD` | ✅ | Start date of the reporting range |
+| `to` | `YYYY-MM-DD` | No | End date (defaults to today when omitted) |
+
+> **Period label behaviour:** When `from` and `to` fall within the same calendar month the `period` field returns `"May 2026"`. For multi-month ranges it returns `"20 May 2025 – 10 Apr 2026"`. The `weeklyBreakdown` uses `W1–W5` labels for spans ≤ 31 days and calendar-month labels (`"May '25"`, `"Jun '25"` …) for longer ranges.
 
 #### Scope (same rule as §14.6)
 
@@ -3434,7 +3575,8 @@ Returns the complete monthly reporting summary for the **Reports page dashboard*
 ```json
 {
   "period": "May 2026",
-  "month":  "2026-05",
+  "from":   "2026-05-01",
+  "to":     "2026-05-31",
   "scope": {
     "totalCells":   18,
     "totalLeaders": 6
