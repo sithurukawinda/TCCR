@@ -1582,6 +1582,165 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     auth: bearerAuth('adminToken'),
     tests: [`pm.test("200 OK — Close Batch", () => pm.response.to.have.status(200));`],
   }),
+
+  // ── Batch Semester Dates ★ NEW ─────────────────────────────────────────────
+
+  buildRequest({
+    name: 'Set Batch Semester Dates (Bulk) ★ NEW',
+    method: 'PUT',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: [
+      'Bulk-set openDate/endDate for every semester in one batch.',
+      'Must include exactly one entry per semester of the course.',
+      'All entries are written atomically (all or nothing).',
+      '',
+      'API ref §7.7',
+    ].join('\n'),
+    body: jsonBody({
+      schedule: [
+        { semesterId: '{{semesterId}}',  openDate: '2026-05-06', endDate: '2026-05-15' },
+        { semesterId: '{{semesterId2}}', openDate: '2026-05-16', endDate: '2026-05-26' },
+      ],
+    }),
+    tests: [
+      `pm.test("200 OK — Set Batch Semester Dates", () => { pm.expect([200, 400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("response is array", () => pm.expect(j).to.be.an("array"));`,
+      `  pm.test("each entry has semesterId", () => j.forEach(e => pm.expect(e.semesterId).to.be.a("string")));`,
+      `}`,
+      `if (pm.response.code === 400) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code present", () => pm.expect(j.error.code).to.be.a("string"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Set Batch Semester Dates — missing semester → 400 ★ NEW',
+    method: 'PUT',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: 'Sending an incomplete schedule (missing a semester) returns MISSING_SEMESTERS.',
+    body: jsonBody({
+      schedule: [
+        { semesterId: '{{semesterId}}', openDate: '2026-05-06', endDate: '2026-05-15' },
+      ],
+    }),
+    tests: [
+      `pm.test("400 or 404 — Missing Semesters", () => { pm.expect([400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("MISSING_SEMESTERS code", () => pm.expect(j.error.code).to.equal("MISSING_SEMESTERS"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Patch Single Semester Date ★ NEW',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates/{{semesterId}}' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: [
+      'Update openDate/endDate for a single semester within one batch.',
+      'Does not require all semesters — updates only the specified one.',
+      '',
+      'API ref §7.8',
+    ].join('\n'),
+    body: jsonBody({ openDate: '2026-05-06', endDate: '2026-05-15' }),
+    tests: [
+      `pm.test("200 or 400 or 404 — Patch Semester Date", () => { pm.expect([200, 400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("semesterId present",  () => pm.expect(j.semesterId).to.be.a("string"));`,
+      `  pm.test("openDate present",    () => pm.expect(j.openDate).to.be.a("string"));`,
+      `  pm.test("endDate present",     () => pm.expect(j.endDate).to.be.a("string"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Patch Semester Date — clear dates ★ NEW',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates/{{semesterId}}' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: 'Pass null for both fields to clear an existing schedule for that semester.',
+    body: jsonBody({ openDate: null, endDate: null }),
+    tests: [
+      `pm.test("200 or 400 or 404 — Clear Semester Date", () => { pm.expect([200, 400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("openDate is null", () => pm.expect(j.openDate).to.be.null);`,
+      `  pm.test("endDate is null",  () => pm.expect(j.endDate).to.be.null);`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Student Course View ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/me/courses/{{courseId}}?batchId={{batchId}}' },
+    auth: bearerAuth('student2Token'),
+    description: [
+      'Student-facing course detail: course structure with openDate, endDate, and',
+      'derived state (open | upcoming | closed | unscheduled) injected from the',
+      "specified batch's BatchSemester schedule. The student only sees their own batch.",
+      '',
+      'API ref §7.9',
+    ].join('\n'),
+    tests: [
+      `pm.test("200 or 400 or 404 — Student Course View", () => { pm.expect([200, 400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("id is string",           () => pm.expect(j.id).to.be.a("string"));`,
+      `  pm.test("title is string",        () => pm.expect(j.title).to.be.a("string"));`,
+      `  pm.test("batch.id is string",     () => pm.expect(j.batch.id).to.be.a("string"));`,
+      `  pm.test("semesters is array",     () => pm.expect(j.semesters).to.be.an("array"));`,
+      `  j.semesters.forEach(s => {`,
+      `    pm.test("semester has state",   () => pm.expect(["open","upcoming","closed","unscheduled"]).to.include(s.state));`,
+      `    pm.test("semester has subjects",() => pm.expect(s.subjects).to.be.an("array"));`,
+      `  });`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Student Course View — missing batchId → 400 ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/me/courses/{{courseId}}' },
+    auth: bearerAuth('student2Token'),
+    description: 'batchId is required. Omitting it returns 400 VALIDATION_ERROR.',
+    tests: [
+      `pm.test("400 or 404 — Missing batchId", () => { pm.expect([400, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR code", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Open Batch — after dates set ★ UPDATED',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/batches/{{batchId}}/open' },
+    auth: bearerAuth('adminToken'),
+    description: [
+      'Open a batch. From v2.31, all semester dates must be set before opening.',
+      'Returns 400 BATCH_SEMESTER_DATES_INCOMPLETE if any semester has null dates.',
+      'Returns 409 INVALID_STATE if batch is not in draft state.',
+    ].join('\n'),
+    tests: [
+      `pm.test("200 or 400 or 409 — Open Batch (v2.31: needs dates set)", () => {`,
+      `  pm.expect([200, 400, 409]).to.include(pm.response.code);`,
+      `});`,
+      `if (pm.response.code === 400) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("BATCH_SEMESTER_DATES_INCOMPLETE code", () => pm.expect(j.error.code).to.equal("BATCH_SEMESTER_DATES_INCOMPLETE"));`,
+      `}`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -2749,24 +2908,28 @@ const joinRequestsSubFolder = folder('Join Requests', [
 
 const cellReportsSubFolder = folder('Cell Reports', [
 
-  // ── Reports Page: Network Summary ★ NEW ─────────────────────────────────────
+  // ── Reports Page: Network Summary (date range) ───────────────────────────────
+  // from is required (YYYY-MM-DD). to is optional — defaults to today.
   buildRequest({
-    name: 'Get Network Summary (Reports page) ★ NEW',
+    name: 'Get Network Summary — from only (to=today)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01' },
     auth: bearerAuth('g12Token'),
     description: [
       'Powers the Reports page dashboard — stat cards, unreported-cell alert,',
       'weekly chart, meeting-type donut, and by-leader table in one call.',
       '',
+      'from is required (YYYY-MM-DD). Omitting to returns data from from up to today.',
+      '',
       'API ref §14.7',
     ].join('\n'),
     tests: [
-      `pm.test("200 or 401 — Network Summary", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `pm.test("200 or 401 — Network Summary (from only)", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) {`,
       `  const j = pm.response.json();`,
       `  pm.test("period is a string",         () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
-      `  pm.test("month is a string",          () => pm.expect(j.month).to.be.a("string").and.not.empty);`,
+      `  pm.test("from is present",            () => pm.expect(j.from).to.be.a("string"));`,
+      `  pm.test("to is present",              () => pm.expect(j.to).to.be.a("string"));`,
       `  pm.test("scope.totalCells is number", () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
       `  pm.test("summary.cellsHeld is number",() => pm.expect(j.summary.cellsHeld).to.be.a("number"));`,
       `  pm.test("summary.reportsFiled",       () => pm.expect(j.summary.reportsFiled).to.be.a("number"));`,
@@ -2783,30 +2946,49 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Summary — missing month → 400 ★ NEW',
+    name: 'Get Network Summary — explicit date range (from + to)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?from=2025-05-20&to=2026-04-10' },
+    auth: bearerAuth('g12Token'),
+    description: 'Custom date range: 20 May 2025 – 10 Apr 2026. Both from and to are YYYY-MM-DD.',
+    tests: [
+      `pm.test("200 or 401 — Network Summary (date range)", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("from matches requested start", () => pm.expect(j.from).to.equal("2025-05-20"));`,
+      `  pm.test("to matches requested end",     () => pm.expect(j.to).to.equal("2026-04-10"));`,
+      `  pm.test("period label is multi-month",  () => pm.expect(j.period).to.include("2025").and.include("2026"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — missing from → 400',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary' },
     auth: bearerAuth('g12Token'),
+    description: 'from is required. Omitting it returns 400 VALIDATION_ERROR.',
     tests: [
-      `pm.test("400 or 401 — missing month param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("error code is VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
+      `pm.test("400 or 401 — missing from param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR code", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — bad month format → 400 ★ NEW',
+    name: 'Get Network Summary — bad from format → 400',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?month=May-2026' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?from=May-2026' },
     auth: bearerAuth('g12Token'),
+    description: 'from must be YYYY-MM-DD. A non-conforming value returns 400.',
     tests: [
-      `pm.test("400 or 401 — invalid month format", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `pm.test("400 or 401 — invalid from format", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — Admin view ★ NEW',
+    name: 'Get Network Summary — Admin view',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01' },
     auth: bearerAuth('adminToken'),
     tests: [
       `pm.test("200 OK — Admin Network Summary", () => pm.response.to.have.status(200));`,
@@ -2816,30 +2998,73 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Summary — student (expect 403) ★ NEW',
+    name: 'Get Network Summary — student (expect 403)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01' },
     auth: bearerAuth('studentToken'),
+    description: 'authorize() fires before Zod validation, so 403 before 400.',
     tests: [`pm.test("403 — student cannot access summary", () => pm.response.to.have.status(403));`],
   }),
 
-  // ── Reports Page: Network Reports with filters ★ UPDATED ─────────────────────
+  // ── Reports Page: Network Reports (date range) ★ UPDATED ─────────────────────
+  // from is required (YYYY-MM-DD). to is optional — defaults to today.
   buildRequest({
-    name: 'Get Network Reports — with month filter ★ UPDATED',
+    name: 'Get Network Reports — from only (to=today)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=20' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&limit=20' },
     auth: bearerAuth('g12Token'),
-    description: 'All Types tab — returns all reports for the month across the G12 network.',
+    description: [
+      'All Types — returns reports from 2026-05-01 up to today across the G12 network.',
+      'from is required. to defaults to today when omitted.',
+      'API ref §14.6',
+    ].join('\n'),
     tests: [
-      `pm.test("200 or 401 — Network Reports with month", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number")); }`,
+      `pm.test("200 or 401 — Network Reports (from only)", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("items is array",       () => pm.expect(j.items).to.be.an("array"));`,
+      `  pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number"));`,
+      `  j.items.forEach(r => pm.test("report date >= from", () => pm.expect(r.date >= "2026-05-01").to.be.true));`,
+      `}`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Care tab (type=care) ★ NEW',
+    name: 'Get Network Reports — explicit date range (from + to)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=care' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2025-05-20&to=2026-04-10&limit=50' },
+    auth: bearerAuth('g12Token'),
+    description: 'Custom range: 20 May 2025 – 10 Apr 2026. Only reports within this window are returned.',
+    tests: [
+      `pm.test("200 or 401 — Network Reports (date range)", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
+      `  j.items.forEach(r => {`,
+      `    pm.test("report date within range", () => {`,
+      `      pm.expect(r.date >= "2025-05-20" && r.date <= "2026-04-10").to.be.true;`,
+      `    });`,
+      `  });`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — missing from → 400',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports' },
+    auth: bearerAuth('g12Token'),
+    description: 'from is required. Omitting it returns 400 VALIDATION_ERROR.',
+    tests: [
+      `pm.test("400 or 401 — missing from param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR code", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — Care tab (type=care)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&type=care' },
     auth: bearerAuth('g12Token'),
     description: 'Cell Type tab filter — Care. Only returns reports where cellType === "care".',
     tests: [
@@ -2849,9 +3074,9 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Children tab (type=children) ★ NEW',
+    name: 'Get Network Reports — Children tab (type=children)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=children' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&type=children' },
     auth: bearerAuth('g12Token'),
     description: 'Cell Type tab filter — Children. Only returns reports where cellType === "children".',
     tests: [
@@ -2861,9 +3086,9 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Outreach tab (type=outreach) ★ NEW',
+    name: 'Get Network Reports — Outreach tab (type=outreach)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=outreach' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&type=outreach' },
     auth: bearerAuth('g12Token'),
     description: 'Cell Type tab filter — Outreach. Only returns reports where cellType === "outreach".',
     tests: [
@@ -2873,9 +3098,9 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — G12 tab (type=g12) ★ NEW',
+    name: 'Get Network Reports — G12 tab (type=g12)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=g12' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&type=g12' },
     auth: bearerAuth('g12Token'),
     description: 'Cell Type tab filter — G12. Only returns reports where cellType === "g12".',
     tests: [
@@ -2884,31 +3109,23 @@ const cellReportsSubFolder = folder('Cell Reports', [
     ],
   }),
 
-  // ── Original network reports (no month filter) ──────────────────────────────
-  buildRequest({
-    name: 'Get Network Reports — G12 view (no filter)',
-    method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?limit=20' },
-    auth: bearerAuth('g12Token'),
-    tests: [
-      `pm.test("200 or 401 — G12 Network Reports", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("totalCells exists", () => pm.expect(j.totalCells).to.be.a("number")); }`,
-    ],
-  }),
   buildRequest({
     name: 'Get Network Reports — Admin (all cells)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?limit=10' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01&limit=10' },
     auth: bearerAuth('adminToken'),
     tests: [
       `pm.test("200 OK — Admin Network Reports", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
     ],
   }),
+
   buildRequest({
-    name: 'Get Network Reports — member (expect 403)',
+    name: 'Get Network Reports — student (expect 403)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?from=2026-05-01' },
     auth: bearerAuth('studentToken'),
+    description: 'authorize() fires before Zod validation — 403 before any date check.',
     tests: [`pm.test("403 — student cannot access network reports", () => pm.response.to.have.status(403));`],
   }),
 

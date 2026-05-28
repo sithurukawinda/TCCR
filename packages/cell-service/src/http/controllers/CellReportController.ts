@@ -18,6 +18,7 @@ import {
   listReportsSchema,
   updateReportSchema,
   networkSummarySchema,
+  networkReportsSchema,
 } from '../validators/reportValidator';
 import { CellType } from '../../domain/entities/CellGroup';
 import { config }   from '../../config';
@@ -169,7 +170,7 @@ export class CellReportController {
    */
   networkReports = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const parsed = listReportsSchema.safeParse(req.query);
+      const parsed = networkReportsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const result = await this.networkReportsUC.execute(parsed.data, uid, roles);
@@ -178,17 +179,18 @@ export class CellReportController {
   };
 
   /**
-   * GET /cells/network/summary?month=YYYY-MM
+   * GET /cells/network/summary?from=YYYY-MM-DD[&to=YYYY-MM-DD]
    * Returns aggregated reporting stats for the Reports page:
-   * stat cards, unreported-cells alert, weekly chart data, meeting-type breakdown,
+   * stat cards, unreported-cells alert, period chart data, meeting-type breakdown,
    * and per-leader table — all scoped to the caller's network.
+   * `to` defaults to today when omitted.
    */
   networkSummary = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parsed = networkSummarySchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const result = await this.networkSummaryUC.execute(uid, roles, parsed.data.month);
+      const result = await this.networkSummaryUC.execute(uid, roles, parsed.data.from, parsed.data.to);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

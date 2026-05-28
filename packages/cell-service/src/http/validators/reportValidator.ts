@@ -75,20 +75,43 @@ export const updateReportSchema = z.object({
   message: 'Request body must contain at least one field to update.',
 });
 
+const dateRangeRegex = /^\d{4}-\d{2}-\d{2}$/;
+
 export const listReportsSchema = z.object({
   limit:     z.coerce.number().int().min(1).max(100).default(20),
   cursor:    z.string().optional(),
-  from:      z.string().optional(),
-  to:        z.string().optional(),
+  from:      z.string().regex(dateRangeRegex, 'from must be YYYY-MM-DD').optional(),
+  to:        z.string().regex(dateRangeRegex, 'to must be YYYY-MM-DD').optional(),
   voided:    z.string().transform(v => v === 'true').optional(),
   leaderUid: z.string().optional(),
   type:      z.enum(['g12', 'care', 'children', 'outreach']).optional(),
   cellId:    z.string().optional(),
-  /** YYYY-MM — when provided, overrides from/to with the full calendar month */
+  /** YYYY-MM — legacy alias; overrides from/to with the full calendar month */
   month:     z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM').optional(),
 });
 
-/** Query params for GET /cells/network/summary */
+/**
+ * Query params for GET /cells/network/summary
+ * from  — required start date (YYYY-MM-DD)
+ * to    — optional end date   (YYYY-MM-DD); defaults to today inside the use case
+ */
 export const networkSummarySchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM format'),
+  from: z.string().regex(dateRangeRegex, 'from must be YYYY-MM-DD'),
+  to:   z.string().regex(dateRangeRegex, 'to must be YYYY-MM-DD').optional(),
+});
+
+/**
+ * Query params for GET /cells/network/reports
+ * from  — required start date (YYYY-MM-DD); data is filtered from this date forward
+ * to    — optional end date   (YYYY-MM-DD); defaults to today inside the use case
+ */
+export const networkReportsSchema = z.object({
+  limit:     z.coerce.number().int().min(1).max(100).default(20),
+  cursor:    z.string().optional(),
+  from:      z.string().regex(dateRangeRegex, 'from must be YYYY-MM-DD'),
+  to:        z.string().regex(dateRangeRegex, 'to must be YYYY-MM-DD').optional(),
+  voided:    z.string().transform(v => v === 'true').optional(),
+  leaderUid: z.string().optional(),
+  type:      z.enum(['g12', 'care', 'children', 'outreach']).optional(),
+  cellId:    z.string().optional(),
 });

@@ -1,7 +1,7 @@
 # CMP / TCCR — Postman Collection
 
 API test collection for the **CMP → TCCR backend** (slp-backend).  
-**192 requests** across 17 folders covering every V1 and V2 endpoint.
+**220 requests** across 17 folders covering every V1 and V2 endpoint.
 
 ---
 
@@ -9,9 +9,10 @@ API test collection for the **CMP → TCCR backend** (slp-backend).
 
 | File | What it is |
 |------|-----------|
-| `CMP_Backend.postman_collection.json` | Main collection — all 175 requests |
+| `CMP_Backend.postman_collection.json` | Main collection — all 220 requests |
 | `CMP_Local.postman_environment.json` | Local dev environment (Firebase emulator) |
 | `CMP_Online.postman_environment.json` | Production environment (online Firebase) |
+| `reports-page-api-guide.md` | Frontend API reference for the TCCR Reports Page — 5-call flow with full response shapes |
 
 ---
 
@@ -161,24 +162,24 @@ All tokens and IDs are **auto-set by test scripts** — you never need to paste 
 | # | Folder | Requests | Caller | Notes |
 |---|--------|:--------:|--------|-------|
 | 0 | 🔐 Sign In | 6 | — | **Run this first.** Saves all tokens and user IDs. |
-| 1 | 1️⃣ Auth Service | 17 | public / any | Register (6 variants: 201, 409, 400×3, si-lang), logout, password reset, OTP verify, track-failure, federated Google, federated Apple. **Register sends welcome email with credentials + login link.** |
-| 2 | 2️⃣ User Service — Me | 10 | student | Get/update profile, avatar upload, change password, FCM tokens, notification preferences, OAuth provider link/unlink |
+| 1 | 1️⃣ Auth Service | 16 | public / any | Register (6 variants: 201, 409, 400×3, si-lang), logout, password reset, OTP verify, track-failure, federated Google, federated Apple. **Register sends welcome email with credentials + login link.** |
+| 2 | 2️⃣ User Service — Me | 11 | student | Get/update profile, avatar upload, change password, FCM tokens, notification preferences, OAuth provider link/unlink |
 | 3 | 3️⃣ User Service — User Management (Admin / Leader / G12) | 30 | admin / leader / g12 | **System User Summary (3 requests: admin full + leader scoped + student 403)**, list users (admin + leader + g12 scoped), search by name, get user (+ 403 guard), create user leader/g12, suspend, reactivate, assign roles, promote (5 scenarios), demote (5 scenarios), delete user |
 | 4 | 4️⃣ User Service — Super Admin | 7 | super_admin | List admins, create admin, get by ID, suspend, reactivate, make-admin, delete admin |
 | 5 | 5️⃣ Course Service — Build a Course | 18 | admin | Full course build: create course → semester → 2 subjects → lesson → publish. Includes update and list operations. |
 | 6 | 6️⃣ Batches (V2) | 6 | admin / student | Create batch, list, get by ID, update, open, close |
 | 7 | 7️⃣ Enrollment | 15 | student / admin | Enroll, list enrollments, list/approve/reject registrations, bulk-approve, list enrollments (admin), **approve enrollment (sends approval email)**, **reject enrollment (sends rejection email)**, withdraw |
-| 8 | 8️⃣ Role Requests (V2) | 8 | member / admin | Create, list mine, list all (admin), get by ID (own + 403), download qualification PDF, approve, reject |
-| 9 | 9️⃣ Progress Service | 5 | student / admin | Mark subject complete, record access, get course progress (student + admin), get subject progress |
+| 8 | 8️⃣ Role Requests (V2) | 9 | member / admin | Create, list mine, list all (admin), get by ID (own + 403), download qualification PDF, approve, reject |
+| 9 | 9️⃣ Progress Service | 10 | student / admin | Mark subject complete, lesson complete, unmark lesson, record access, get course progress (student + admin), get subject progress, lesson progress |
 | 10 | 🔔 Notifications | 4 | student | List notifications, mark one read, mark all read, update preferences |
 | 11 | 📎 Storage Service | 4 | admin / student | Upload attachment (PDF/DOCX), get download URL, delete attachment, upload subject image |
 | 12 | 📋 Audit Log | 3 | admin | List audit log, filter by actor, get per-user timeline |
 | 13 | ⚡ Course Lifecycle | 6 | admin | Archive, restore, delete lesson, delete subject, delete semester, delete course |
-| 14 | 🏘 V2 — Cell Service | 19 | leader / g12 / admin | Sub-folders: Member Search (2), Cell CRUD (5), Members (2), Join Requests (4), Cell Reports (5), Archive (1) |
-| 15 | 📊 V2 — Analytics Service | 10 | g12 / admin | Weekly cells, attendance, meeting types, growth, participation, CSV export, + analytics liveness checks |
+| 14 | 🏘 V2 — Cell Service | 42 | leader / g12 / admin | Sub-folders: Member Search (2), Cell CRUD (5), Members (2), Join Requests (4), Cell Reports (5), Archive (1), + network reports/members/summary |
+| 15 | 📊 V2 — Analytics Service | 21 | g12 / admin | Weekly cells, attendance, meeting types, growth, participation, CSV export — each with base + filter variants (`cellType`, `leaderUid`, `g12Uid`, combined filters) |
 | 16 | 🏥 Health Checks | 12 | — | Liveness + readiness probes for all services via gateway |
 
-**Total: 192 requests**
+**Total: 220 requests**
 
 ---
 
@@ -230,6 +231,11 @@ node scripts/newman-run.js
 # Cell Service only
 node scripts/newman-cell-service.js
 # Report: postman/newman-cell-report.html
+
+# Analytics Service filter variants only (21 requests, online Firebase)
+# Prerequisites: docker-compose up (services against online Firebase)
+node scripts/newman-analytics-filter.js
+# Report: postman/newman-analytics-filter-report.html
 ```
 
 ---

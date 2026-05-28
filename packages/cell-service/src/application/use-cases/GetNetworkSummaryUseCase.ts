@@ -3,13 +3,13 @@ import { Role }            from '@shared/auth-middleware';
 import { ICellGroupRepository }  from '../../domain/repositories/ICellGroupRepository';
 import { ICellReportRepository } from '../../domain/repositories/ICellReportRepository';
 import { UserServiceClient }     from '../../infrastructure/clients/UserServiceClient';
-import { monthToDateRange }      from './GetNetworkReportsUseCase';
 
 // ── Output types ──────────────────────────────────────────────────────────────
 
 export interface NetworkSummaryResult {
-  period:    string;   // e.g. "May 2026"
-  month:     string;   // e.g. "2026-05"
+  period:    string;   // e.g. "May 2026" or "20 May 2025 – 10 Apr 2026"
+  from:      string;   // YYYY-MM-DD start of the queried range
+  to:        string;   // YYYY-MM-DD end of the queried range (resolved to today when omitted)
   scope: {
     totalCells:   number;
     totalLeaders: number;
@@ -57,20 +57,48 @@ export interface NetworkSummaryResult {
   }>;
 }
 
-// ── Helper ────────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Returns the 1-based week-of-month (1–5) for a YYYY-MM-DD date string. */
 function weekOfMonth(dateStr: string): number {
-  const d       = new Date(dateStr);
+  const d        = new Date(dateStr);
   const firstDay = new Date(d.getFullYear(), d.getMonth(), 1);
   return Math.ceil((d.getDate() + firstDay.getDay()) / 7);
 }
 
-/** Format YYYY-MM as "Month YYYY" using UTC to avoid timezone issues. */
-function monthLabel(month: string): string {
-  const [y, m] = month.split('-').map(Number);
-  const date   = new Date(Date.UTC(y, m - 1, 1));
-  return date.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+/**
+ * Human-readable label for the queried date range.
+ *   Same month  → "May 2026"
+ *   Multi-month → "20 May 2025 – 10 Apr 2026"
+ */
+function periodLabel(from: string, to: string): string {
+  const [fy, fm, fd] = from.split('-').map(Number);
+  const [ty, tm, td] = to.split('-').map(Number);
+  if (fy === ty && fm === tm) {
+    return new Date(Date.UTC(fy, fm - 1, 1))
+      .toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  }
+  const fmt = (y: number, mo: number, d: number) =>
+    new Date(Date.UTC(y, mo - 1, d))
+      .toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  return `${fmt(fy, fm, fd)} – ${fmt(ty, tm, td)}`;
+}
+
+/**
+ * Returns a sort key + display label for one data point in the chart breakdown.
+ *   daySpan ≤ 31 → week-of-month labels  ("W1" … "W5")
+ *   daySpan > 31 → calendar-month labels ("May '25", "Jun '25" …)
+ */
+function breakdownKey(dateStr: string, daySpan: number): { sortKey: string; label: string } {
+  if (daySpan <= 31) {
+    const wk = weekOfMonth(dateStr);
+    return { sortKey: String(wk).padStart(2, '0'), label: `W${wk}` };
+  }
+  const ym     = dateStr.slice(0, 7); // YYYY-MM (used as sortKey)
+  const [y, m] = ym.split('-').map(Number);
+  const label  = new Date(Date.UTC(y, m - 1, 1))
+    .toLocaleString('en-US', { month: 'short', timeZone: 'UTC' }) + ` '${String(y).slice(-2)}`;
+  return { sortKey: ym, label };
 }
 
 // ── Use case ──────────────────────────────────────────────────────────────────
@@ -93,7 +121,8 @@ export class GetNetworkSummaryUseCase {
   async execute(
     callerUid:   string,
     callerRoles: Role[],
-    month:       string,
+    from:        string,
+    to?:         string,
   ): Promise<NetworkSummaryResult> {
     const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
     const isG12    = callerRoles.includes('g12');
@@ -113,13 +142,15 @@ export class GetNetworkSummaryUseCase {
     const cellResult = await this.cellRepo.findAll({ limit: 100, state: 'active', ...cellFilter });
     const cells      = cellResult.items;
 
-    // ── 2. Resolve date range from month ──────────────────────────────────────
-    const { from, to } = monthToDateRange(month);
+    // ── 2. Resolve date range (to defaults to today when omitted) ─────────────
+    const resolvedTo = to ?? new Date().toISOString().slice(0, 10);
+    const daySpan    = (new Date(resolvedTo + 'T00:00:00Z').getTime() -
+                        new Date(from        + 'T00:00:00Z').getTime()) / 86_400_000;
 
     // ── 3. Fetch all non-voided reports for the period per cell ───────────────
     const reportPages = await Promise.all(
       cells.map(cell =>
-        this.reportRepo.findByPeriod(cell.id, from, to).catch(() => []),
+        this.reportRepo.findByPeriod(cell.id, from, resolvedTo).catch(() => []),
       ),
     );
     const allReports = reportPages.flat();
@@ -157,20 +188,20 @@ export class GetNetworkSummaryUseCase {
     // ── 6. Unreported cells ───────────────────────────────────────────────────
     const unreportedRaw = cells.filter(c => !reportedCellIds.has(c.id));
 
-    // ── 7. Weekly breakdown ───────────────────────────────────────────────────
-    const weekMap = new Map<number, { reports: number; attendance: number }>();
+    // ── 7. Period breakdown (weekly for ≤31 days, monthly for longer ranges) ──
+    const breakdownMap = new Map<string, { reports: number; attendance: number; sortKey: string }>();
     for (const r of allReports) {
-      const wk    = weekOfMonth(r.date);
-      const entry = weekMap.get(wk) ?? { reports: 0, attendance: 0 };
+      const { sortKey, label } = breakdownKey(r.date, daySpan);
+      const entry = breakdownMap.get(label) ?? { reports: 0, attendance: 0, sortKey };
       entry.reports++;
       if (r.didMeet) {
         entry.attendance += r.attendance.filter(a => a.status === 'present').length;
       }
-      weekMap.set(wk, entry);
+      breakdownMap.set(label, entry);
     }
-    const weeklyBreakdown = Array.from(weekMap.entries())
-      .sort((a, b) => a[0] - b[0])
-      .map(([wk, d]) => ({ weekLabel: `W${wk}`, reportCount: d.reports, attendance: d.attendance }));
+    const weeklyBreakdown = Array.from(breakdownMap.entries())
+      .sort((a, b) => a[1].sortKey.localeCompare(b[1].sortKey))
+      .map(([weekLabel, d]) => ({ weekLabel, reportCount: d.reports, attendance: d.attendance }));
 
     // ── 8. Meeting type breakdown ──────────────────────────────────────────────
     const breakdown = { g12: 0, care: 0, children: 0, outreach: 0 };
@@ -243,8 +274,9 @@ export class GetNetworkSummaryUseCase {
 
     // ── 11. Assemble result ───────────────────────────────────────────────────
     return {
-      period: monthLabel(month),
-      month,
+      period: periodLabel(from, resolvedTo),
+      from,
+      to:     resolvedTo,
       scope: {
         totalCells:   cells.length,
         totalLeaders: new Set(cells.map(c => c.leaderUid)).size,

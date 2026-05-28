@@ -1,12 +1,14 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.29.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.31.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.29.0
+**Version:** 2.31.0
 **Date:** 28 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.28.0 (27 May 2026)
+**Supersedes:** Version 2.30.0 (28 May 2026)
+**Change in 2.31.0:** §7 Batch Endpoints — three additions: §7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` (bulk set per-batch semester schedule), §7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` (single-semester date update), §7.9 `GET /me/courses/:courseId?batchId=` (student-facing course view with batch-injected dates). §7.5 `POST /batches/:id/open` updated — now validates all semester dates are set before opening. `GET /courses/:id` (admin) response gains additive `batches[].semesters[]` schedule field. New `batch_semesters` Firestore collection introduced.
+**Change in 2.30.0:** §14.6 `GET /cells/network/reports` — `from` is now **required** (was optional). Omitting `from` returns `400 VALIDATION_ERROR`. `to` remains optional and defaults to today when absent. The `month` legacy alias is removed from this endpoint; use `from`/`to` instead. This aligns §14.6 with the existing §14.7 `GET /cells/network/summary` date-range behaviour.
 **Change in 2.29.0:** §4.4 and §17.2 `GET /users/:uid/audit-log` — marked as **implemented** (was incorrectly flagged NOT YET IMPLEMENTED). Endpoint is live in audit-service; filters audit entries by `actorUid`.
 **Change in 2.28.0:** Added §14.7 `GET /cells/network/summary` (Reports page stat cards, charts, by-leader table); updated §14.6 `GET /cells/network/reports` with `month` and `type` filter params (Cell Type tab filtering for All Reports table).
 **Change in 2.27.0:** Email verification gate enforced on registration (§1.2, §2.1). `POST /auth/register` now creates accounts with `emailVerified=false` — users must click the verification link in the welcome email before accessing protected routes. Welcome email updated: green "Verify My Email" button (primary) + blue "Log in to TCCR" button (secondary). `POST /auth/password-reset` now sends a direct Firebase reset link (no OTP). `POST /auth/password-reset/verify` deprecated. `docker-compose.yml` fix: `SERVICE_ENROLLMENT_URL` added to `progress-service`.
@@ -51,8 +53,11 @@
    - 7.2 [Create Batch](#72-post-coursesidbatches)
    - 7.3 [Get Batch](#73-get-batchesid)
    - 7.4 [Update Batch](#74-patch-batchesid)
-   - 7.5 [Open Batch (Manual)](#75-post-batchesidopen)
+   - 7.5 [Open Batch (Manual)](#75-post-batchesidopen) ★ UPDATED
    - 7.6 [Close Batch (Manual)](#76-post-batchesidclose)
+   - 7.7 [Set Batch Semester Dates (Bulk)](#77-put-coursescourseidbatchesbatchidsemester-dates) ★ NEW
+   - 7.8 [Patch Single Semester Date](#78-patch-coursescourseidbatchesbatchidsemester-datessemesterid) ★ NEW
+   - 7.9 [Student Course View](#79-get-mecoursescourseid) ★ NEW
 8. [Semester Endpoints](#8-semester-endpoints)
 9. [Subject & Lesson Endpoints](#9-subject--lesson-endpoints)
 10. [Attachment & Image Endpoints](#10-attachment--image-endpoints)
@@ -1969,13 +1974,27 @@ Cannot change dates if approved enrollments exist.
 
 ---
 
-### 7.5 `POST /batches/:id/open`
+### 7.5 `POST /batches/:id/open` ★ UPDATED
 
 Manually open a batch for enrollment before or instead of the `scheduledOpenAt` time. Batch must be in `draft` state.
 
 **Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
+> **V2.31 change:** Before opening, every `batch_semesters` row for this batch must have both `openDate` and `endDate` set. Use `PUT /courses/:courseId/batches/:batchId/semester-dates` (§7.7) to set them first.
+
 **`200 OK`** — Batch with `state: "open"`.
+
+**`400 Bad Request`** — One or more semester windows are not yet scheduled
+```json
+{
+  "error": {
+    "code": "BATCH_SEMESTER_DATES_INCOMPLETE",
+    "message": "All semester dates must be set before opening a batch.",
+    "details": { "missingSemesterIds": ["sem-uuid-1", "sem-uuid-2"] }
+  },
+  "requestId": "..."
+}
+```
 
 **`409 Conflict`** — Batch is not in `draft` state
 ```json
@@ -1995,6 +2014,226 @@ Manually close intake window before `intakeEnd` is reached. No new enrollment re
 **`409 Conflict`** — Batch is not in `open` state
 ```json
 { "error": { "code": "INVALID_STATE", "message": "Only an OPEN batch can be closed." }, "requestId": "..." }
+```
+
+---
+
+### 7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` ★ NEW
+
+Bulk-set the `openDate` / `endDate` for **every** semester of one batch in a single atomic write. Must include one entry per semester template of the course — missing or unknown semester IDs are rejected.
+
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
+
+#### Request Body
+
+```json
+{
+  "schedule": [
+    { "semesterId": "sem-uuid-1", "openDate": "2026-05-06", "endDate": "2026-05-12" },
+    { "semesterId": "sem-uuid-2", "openDate": "2026-05-13", "endDate": "2026-05-19" },
+    { "semesterId": "sem-uuid-3", "openDate": null,          "endDate": null          }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `schedule` | array | ✅ | One entry per semester of the course |
+| `schedule[].semesterId` | UUID | ✅ | Must match an existing non-deleted semester of the course |
+| `schedule[].openDate` | `YYYY-MM-DD` \| `null` | ✅ | Set to `null` to clear the date for this semester |
+| `schedule[].endDate` | `YYYY-MM-DD` \| `null` | ✅ | Must match null/non-null state of `openDate` |
+
+#### Response `200 OK`
+
+```json
+[
+  { "semesterId": "sem-uuid-1", "openDate": "2026-05-06", "endDate": "2026-05-12" },
+  { "semesterId": "sem-uuid-2", "openDate": "2026-05-13", "endDate": "2026-05-19" },
+  { "semesterId": "sem-uuid-3", "openDate": null,          "endDate": null          }
+]
+```
+
+#### Validation Rules (checked in order)
+
+| Code | Trigger |
+|------|---------|
+| `BATCH_NOT_FOUND` | `batchId` does not exist or does not belong to `courseId` |
+| `UNKNOWN_SEMESTER` | A `semesterId` in `schedule` does not belong to this course |
+| `MISSING_SEMESTERS` | Not every non-deleted semester of the course is in `schedule` — `details.missingSemesterIds[]` |
+| `BATCH_SEMESTER_DATES_HALF` | Only one of `openDate` / `endDate` is null for an entry |
+| `BATCH_SEMESTER_DATES_ORDER` | `openDate > endDate` for an entry |
+| `BATCH_SEMESTER_DATES_OUTSIDE_BATCH` | Window falls outside `batch.intakeStart` / `batch.intakeEnd` |
+| `BATCH_SEMESTER_DATES_OVERLAP` | Two entries have overlapping date windows |
+
+#### Error Examples
+
+**`400 Bad Request`** — missing semester in payload
+```json
+{
+  "error": {
+    "code": "MISSING_SEMESTERS",
+    "message": "schedule must contain one entry per semester.",
+    "details": { "missingSemesterIds": ["sem-uuid-2"] }
+  },
+  "requestId": "..."
+}
+```
+
+**`400 Bad Request`** — dates outside batch window
+```json
+{
+  "error": {
+    "code": "BATCH_SEMESTER_DATES_OUTSIDE_BATCH",
+    "message": "Semester sem-uuid-1: dates must lie within the batch window (2026-05-06 – 2026-05-26).",
+    "details": { "semesterId": ["sem-uuid-1"] }
+  },
+  "requestId": "..."
+}
+```
+
+**`400 Bad Request`** — overlapping semester windows
+```json
+{
+  "error": {
+    "code": "BATCH_SEMESTER_DATES_OVERLAP",
+    "message": "Semesters sem-uuid-1 and sem-uuid-2 have overlapping date windows.",
+    "details": { "semesterIds": ["sem-uuid-1", "sem-uuid-2"] }
+  },
+  "requestId": "..."
+}
+```
+
+---
+
+### 7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` ★ NEW
+
+Update the `openDate` / `endDate` for a **single** semester within one batch. Useful when the admin wants to adjust one window without resubmitting the full schedule.
+
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
+
+#### Request Body
+
+```json
+{ "openDate": "2026-05-13", "endDate": "2026-05-19" }
+```
+
+To clear the dates:
+```json
+{ "openDate": null, "endDate": null }
+```
+
+| Field | Type | Required | Notes |
+|-------|------|:--------:|-------|
+| `openDate` | `YYYY-MM-DD` \| `null` | ✅ | Must be null if `endDate` is null |
+| `endDate` | `YYYY-MM-DD` \| `null` | ✅ | Must be null if `openDate` is null |
+
+#### Response `200 OK`
+
+```json
+{ "semesterId": "sem-uuid-2", "openDate": "2026-05-13", "endDate": "2026-05-19" }
+```
+
+Same validation rules as §7.7 (half-set, order, outside-batch) — overlap is not checked against sibling semesters in this single-update path.
+
+**`404 Not Found`** — batch or semester not found
+```json
+{ "error": { "code": "BATCH_NOT_FOUND", "message": "Batch not found." }, "requestId": "..." }
+```
+
+---
+
+### 7.9 `GET /me/courses/:courseId?batchId=:batchId` ★ NEW
+
+Student-facing course detail. Returns the course structure with `openDate`, `endDate`, and derived `state` injected from the specified batch's schedule. A student only ever sees their own batch's dates — they cannot query another batch.
+
+**Authentication:** Bearer required | **Roles:** Any authenticated
+
+#### Query Parameters
+
+| Parameter | Type | Required | Description |
+|-----------|------|:--------:|-------------|
+| `batchId` | UUID | ✅ | The batch the caller is enrolled in |
+
+#### Response `200 OK`
+
+```json
+{
+  "id":    "course-uuid",
+  "title": "Foundations of Faith",
+  "state": "published",
+  "batch": {
+    "id":          "batch-uuid",
+    "name":        "1st batch",
+    "intakeStart": "2026-05-01",
+    "intakeEnd":   "2026-05-31"
+  },
+  "semesters": [
+    {
+      "id":           "sem-uuid-1",
+      "title":        "Old Testament",
+      "order":        1,
+      "subjectCount": 3,
+      "openDate":     "2026-05-06",
+      "endDate":      "2026-05-15",
+      "state":        "open",
+      "subjects": [
+        {
+          "id":        "sub-uuid",
+          "title":     "Genesis",
+          "order":     1,
+          "createdAt": "2026-05-01T00:00:00.000Z",
+          "updatedAt": "2026-05-01T00:00:00.000Z"
+        }
+      ]
+    },
+    {
+      "id":           "sem-uuid-2",
+      "title":        "New Testament",
+      "order":        2,
+      "subjectCount": 4,
+      "openDate":     "2026-05-16",
+      "endDate":      "2026-05-26",
+      "state":        "upcoming",
+      "subjects": [ ... ]
+    },
+    {
+      "id":           "sem-uuid-3",
+      "title":        "Theology Basics",
+      "order":        3,
+      "subjectCount": 2,
+      "openDate":     null,
+      "endDate":      null,
+      "state":        "unscheduled",
+      "subjects": [ ... ]
+    }
+  ]
+}
+```
+
+#### Semester `state` derivation (server-computed)
+
+| Value | Condition |
+|-------|-----------|
+| `unscheduled` | `openDate` or `endDate` is `null` |
+| `upcoming` | Today is before `openDate` |
+| `open` | Today is within `openDate` – `endDate` (inclusive) |
+| `closed` | Today is after `endDate` |
+
+#### Error Responses
+
+**`400 Bad Request`** — `batchId` query param missing or not a UUID
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "batchId must be a UUID" }, "requestId": "..." }
+```
+
+**`404 Not Found`** — course not found or not published
+```json
+{ "error": { "code": "COURSE_NOT_FOUND", "message": "Course not found." }, "requestId": "..." }
+```
+
+**`404 Not Found`** — batch not found or does not belong to this course
+```json
+{ "error": { "code": "BATCH_NOT_FOUND", "message": "Batch not found for this course." }, "requestId": "..." }
 ```
 
 ---
@@ -3171,8 +3410,12 @@ Upload 1–10 meeting photos **before** filing the report. Returns public URLs t
 
 | Parameter | Description |
 |-----------|-------------|
-| `from`, `to` | ISO date range |
-| `voided` | `true` \| `false` (default `false`) |
+| `from` | Filter start date (`YYYY-MM-DD`) |
+| `to` | Filter end date (`YYYY-MM-DD`) |
+| `month` | Calendar month (`YYYY-MM`). When provided, overrides `from`/`to` with the full month range. |
+| `voided` | String query param: `?voided=true` shows voided reports; `?voided=false` shows non-voided. Omit for all (default: all). |
+| `type` | Cell type filter: `g12` \| `care` \| `children` \| `outreach`. Omit for all types. |
+| `leaderUid` | Filter to reports filed by a specific leader (admin/G12 use only). |
 | `limit`, `cursor` | Pagination |
 
 **`200 OK`** — Paginated CellReport list.
@@ -3340,14 +3583,20 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 
 #### Query Parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| `limit` | Reports per cell (default 20, max 100) |
-| `from` | Filter by date (`YYYY-MM-DD`) |
-| `to` | Filter by date (`YYYY-MM-DD`) |
-| `voided` | `true` \| `false` (default: non-voided) |
-| `month` ★ NEW | Calendar month (`YYYY-MM`, e.g. `2026-05`). When provided, overrides `from`/`to` with the full month range (`2026-05-01` → `2026-05-31`). |
-| `type` ★ NEW | Cell type filter: `g12` \| `care` \| `children` \| `outreach`. Omit for all types. **This is the Cell Type tab filter on the Reports page.** |
+| Parameter | Type | Required | Description |
+|-----------|------|:--------:|-------------|
+| `from` | `YYYY-MM-DD` | ✅ | Start date of the date range. All reports on or after this date are included. |
+| `to` | `YYYY-MM-DD` | — | End date of the date range. When omitted, defaults to today's date (i.e. returns all data from `from` up to now). |
+| `limit` | number | — | Reports per cell (default 20, max 100) |
+| `voided` | `"true"` \| `"false"` | — | `?voided=true` shows only voided reports; `?voided=false` shows only non-voided. Omit for all. |
+| `type` | `g12` \| `care` \| `children` \| `outreach` | — | Cell type filter. Omit for all types. **This is the Cell Type tab filter on the Reports page.** |
+| `leaderUid` | string | — | Filter to a specific cell leader's reports (admin/G12 callers only; in-memory filter after cell fetch). |
+| `cellId` | string | — | Narrow to a single cell's reports (any authorised caller). |
+
+> **Date range behaviour:**  
+> Passing `from=2025-05-20` alone returns all reports from 20 May 2025 through today.  
+> Passing `from=2025-05-20&to=2026-04-10` returns only reports within that exact window.  
+> Omitting `from` returns `400 VALIDATION_ERROR`.
 
 #### Scope by role
 
@@ -3508,16 +3757,16 @@ Returns the complete monthly reporting summary for the **Reports page dashboard*
 #### Frontend Integration
 
 ```
-Page load
-  ├─ GET /cells/network/summary?month=2026-05   → stat cards + charts + by-leader table
-  └─ GET /cells/network/reports?month=2026-05   → All reports table (no type filter = all types)
+Page load (default: from = start of current month, to = today)
+  ├─ GET /cells/network/summary?from=2026-05-01            → stat cards + charts + by-leader table
+  └─ GET /cells/network/reports?from=2026-05-01            → All reports table (all types, up to today)
 
-Month picker changes (e.g. Apr 2026)
-  ├─ GET /cells/network/summary?month=2026-04
-  └─ GET /cells/network/reports?month=2026-04
+Custom date range (e.g. 20 May 2025 – 10 Apr 2026)
+  ├─ GET /cells/network/summary?from=2025-05-20&to=2026-04-10
+  └─ GET /cells/network/reports?from=2025-05-20&to=2026-04-10
 
-Cell Type tab click (e.g. "Care")
-  └─ GET /cells/network/reports?month=2026-05&type=care   → All reports table re-renders only
+Cell Type tab click (e.g. "Care") — date range preserved
+  └─ GET /cells/network/reports?from=2026-05-01&type=care  → All reports table re-renders only
      (summary stats NOT re-fetched — they already show all-type totals)
 ```
 

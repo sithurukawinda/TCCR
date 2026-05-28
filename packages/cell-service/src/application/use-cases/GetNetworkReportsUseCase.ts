@@ -59,6 +59,11 @@ export class GetNetworkReportsUseCase {
       opts = { ...opts, from: range.from, to: range.to };
     }
 
+    // ── Default to to today when from is given but to is absent ─────────────
+    if (opts.from && !opts.to) {
+      opts = { ...opts, to: new Date().toISOString().slice(0, 10) };
+    }
+
     // ── Determine which cells to fetch reports from ───────────────────────────
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
 

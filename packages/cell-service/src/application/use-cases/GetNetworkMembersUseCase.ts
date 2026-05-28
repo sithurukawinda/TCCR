@@ -73,21 +73,25 @@ export class GetNetworkMembersUseCase {
       return { items: [], totalCells: 0, totalMembers: 0 };
     }
 
-    // ── Enrich each cell with live member profiles ────────────────────────────
-    const items = await Promise.all(
-      cellResult.items.map(async cell => {
-        const members = await this.userClient.getMemberProfiles(cell.members);
-        return {
-          cellId:      cell.id,
-          cellName:    cell.name,
-          cellType:    cell.type,
-          area:        cell.area,
-          leaderUid:   cell.leaderUid,
-          memberCount: cell.memberCount,
-          members,
-        } satisfies NetworkCellMembers;
-      }),
-    );
+    // ── Collect all unique member UIDs across all cells ──────────────────────
+    const allUids = [...new Set(cellResult.items.flatMap(cell => cell.members))];
+
+    // ── Single batch fetch — one call to user-service regardless of cell count
+    const profiles   = await this.userClient.getMemberProfiles(allUids);
+    const profileMap = new Map(profiles.map(p => [p.uid, p]));
+
+    // ── Distribute profiles back to each cell ─────────────────────────────────
+    const items: NetworkCellMembers[] = cellResult.items.map(cell => ({
+      cellId:      cell.id,
+      cellName:    cell.name,
+      cellType:    cell.type,
+      area:        cell.area,
+      leaderUid:   cell.leaderUid,
+      memberCount: cell.memberCount,
+      members:     cell.members
+        .map(uid => profileMap.get(uid))
+        .filter((p): p is MemberProfile => p !== undefined),
+    }));
 
     const totalMembers = items.reduce((sum, c) => sum + c.members.length, 0);
 
