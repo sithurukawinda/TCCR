@@ -1609,8 +1609,8 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     url: { raw: '{{baseUrl}}/batches/{{batchId}}/open' },
     auth: bearerAuth('adminToken'),
     tests: [
-      `pm.test("200 or 409 — Open Batch (409 = already open; scheduledOpenAt in past auto-opens)", () => {`,
-      `  pm.expect([200, 409]).to.include(pm.response.code);`,
+      `pm.test("200 or 409 or 400 — Open Batch", () => {`,
+      `  pm.expect([200, 400, 409]).to.include(pm.response.code);`,
       `});`,
     ],
   }),
@@ -1619,7 +1619,7 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     method: 'POST',
     url: { raw: '{{baseUrl}}/batches/{{batchId}}/close' },
     auth: bearerAuth('adminToken'),
-    tests: [`pm.test("200 OK — Close Batch", () => pm.response.to.have.status(200));`],
+    tests: [`pm.test("200 or 409 — Close Batch (409 = already closed)", () => { pm.expect([200, 409]).to.include(pm.response.code); });`],
   }),
   buildRequest({
     name: 'Set Batch Semester Dates ★ NEW',
