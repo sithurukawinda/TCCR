@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.38.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.39.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.38.0
+**Version:** 2.39.0
 **Date:** 29 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.37.0 (29 May 2026)
+**Supersedes:** Version 2.38.0 (29 May 2026)
+**Change in 2.39.0:** §6.9 `DELETE /courses/:id` — corrected description from soft-delete (recoverable) to permanent hard-delete; role clarified as `admin` only. §6.10 `DELETE /courses/:id/hard` ★ NEW — documented missing endpoint restricted to `super_admin`; identical permanent hard-delete behaviour. ToC updated.
 **Change in 2.38.0:** §13.9 `DELETE /cells/:id/members/:uid` — full error table added; separate response examples for registered-member and external-member deletion; URL path parameter table added. §13.14 `GET /cells/network/members` — `members[]` updated to discriminated union (`type: "registered" | "external"`) matching §13.4; response example and field-reference table updated to include external-member fields (`id`, `name`, `phone?`, `uid: null`); G12 scope corrected (G12 sees **all** active cells org-wide, not only own-network cells).
 **Change in 2.37.0:** §12.6 `POST /progress/lessons/:lessonId/complete` and §12.8 `POST /progress/lessons/:lessonId/video-position` — both endpoints now update `lastAccessedLessonId` and `lastAccessedSubjectId` on the subject-progress record as a side-effect. Fixes "resume on wrong lesson" bug: after a mid-watch logout the next `GET /me/progress/courses/:courseId` returns the correct `lastAccessedLessonId`.
 **Change in 2.36.0:** §13.4 `GET /cells/:id` — `members[]` response updated to discriminated union (`type: "registered" | "external"`); registered members include `uid`, `firstName`, `lastName`, `displayName`; external members include `id` (UUID), `name`, `phone?`, `displayName`, `uid: null`.
@@ -55,7 +56,7 @@
    - 5.4 [Get Request](#54-get-role-requestsid) · 5.5 [Download Qualification PDF ★](#55-get-role-requestsidqualification) · 5.6 [Approve](#56-post-role-requestsidapprove) · 5.7 [Reject](#57-post-role-requestsidreject)
 6. [Course Endpoints](#6-course-endpoints)
    - 6.1–6.7 [List/Get/Create/Update/Publish/Unpublish/Archive](#61-get-courses)
-   - 6.8 [Restore Course](#68-post-coursesidrestore) · 6.9 [Delete Course](#69-delete-coursesid)
+   - 6.8 [Restore Course](#68-post-coursesidrestore) · 6.9 [Delete Course (admin)](#69-delete-coursesid) · 6.10 [Hard Delete Course (super_admin)](#610-delete-coursesidhard)
 7. [Batch Endpoints — NEW V2](#7-batch-endpoints--new-v2)
    - 7.1 [List Batches](#71-get-coursesidbatches)
    - 7.2 [Create Batch](#72-post-coursesidbatches)
@@ -1983,11 +1984,27 @@ Restore an `archived` course back to `draft`. The course must be re-published be
 
 ### 6.9 `DELETE /courses/:id`
 
-Soft-delete. Sets `deletedAt`; recoverable 30 days.
+Permanently hard-deletes the course and **all** its dependent data in a single atomic Firestore operation: semesters, subjects, lessons, and `batch_semesters` records. There is no recovery window.
 
-**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `admin`
 
 **`204 No Content`**
+
+> The `deletedAt` field still exists on Firestore documents for backward compatibility with legacy soft-deleted data, but new deletes are permanent. `super_admin` may use `DELETE /courses/:id/hard` (§6.10) — same behaviour, separate route.
+
+---
+
+### 6.10 `DELETE /courses/:id/hard` ★ NEW
+
+Permanently hard-deletes the course and all its dependent data. Identical behaviour to `DELETE /courses/:id` (§6.9) but restricted to `super_admin` only.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**`204 No Content`**
+
+**`404 Not Found`** → `COURSE_NOT_FOUND`
+
+> Both §6.9 and §6.10 call the same underlying `courseRepo.hardDelete(id)` operation. The two routes exist to give `admin` a delete capability while reserving the explicit `/hard` path as a super-admin-only action.
 
 ---
 
