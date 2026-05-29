@@ -1,6 +1,8 @@
 import { createHttpError }              from '@shared/errors';
 import { IVideoProgressRepository }     from '../../domain/repositories/IVideoProgressRepository';
 import { VideoProgress }                from '../../domain/entities/VideoProgress';
+import { CourseServiceClient }          from '../../infrastructure/clients/CourseServiceClient';
+import { UpdateLastAccessedUseCase }    from './UpdateLastAccessedUseCase';
 
 export interface SaveVideoPositionResult {
   lessonId:       string;
@@ -9,7 +11,11 @@ export interface SaveVideoPositionResult {
 }
 
 export class SaveVideoPositionUseCase {
-  constructor(private readonly repo: IVideoProgressRepository) {}
+  constructor(
+    private readonly repo:               IVideoProgressRepository,
+    private readonly courseClient:       CourseServiceClient,
+    private readonly updateLastAccessed: UpdateLastAccessedUseCase,
+  ) {}
 
   async execute(
     studentUid:     string,
@@ -40,6 +46,19 @@ export class SaveVideoPositionUseCase {
     }
 
     await this.repo.save(record);
+
+    // Bump lastAccessedSubjectId + lastAccessedLessonId so the frontend can
+    // resume on the correct lesson after a mid-watch logout.
+    const lesson = await this.courseClient.getLesson(lessonId);
+    if (lesson) {
+      await this.updateLastAccessed.execute({
+        studentUid,
+        subjectId:  lesson.subjectId,
+        courseId,
+        semesterId: lesson.semesterId,
+        lessonId,
+      });
+    }
 
     return {
       lessonId,

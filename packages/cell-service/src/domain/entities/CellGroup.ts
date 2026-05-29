@@ -90,7 +90,8 @@ export class CellGroup {
   }
 
   addExternalMember(name: string, phone?: string): ExternalMember {
-    const member: ExternalMember = { id: uuidv4(), name, phone };
+    const member: ExternalMember = { id: uuidv4(), name };
+    if (phone !== undefined) member.phone = phone;
     this.externalMembers.push(member);
     this.memberCount = this.members.length + this.externalMembers.length;
     this.updatedAt   = new Date().toISOString();

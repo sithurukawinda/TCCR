@@ -39,11 +39,12 @@ const markLessonComplete = new MarkLessonCompleteUseCase(
   courseClient,
   enrollmentClient,
   markSubjectComplete,
+  updateAccessed,
 );
 const unmarkLesson = new UnmarkLessonCompleteUseCase(lessonProgressRepo, progressRepo, courseClient);
 
 // Video position use cases
-const saveVideoPosition = new SaveVideoPositionUseCase(videoProgressRepo);
+const saveVideoPosition = new SaveVideoPositionUseCase(videoProgressRepo, courseClient, updateAccessed);
 const getVideoPosition  = new GetVideoPositionUseCase(videoProgressRepo);
 
 export const container = {

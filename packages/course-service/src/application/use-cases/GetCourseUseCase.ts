@@ -106,29 +106,25 @@ export class GetCourseUseCase {
       }),
     );
 
-    // Admins see full batch schedule; non-admins get an empty array
-    let batchViews: BatchView[] = [];
-    if (isAdmin) {
-      const batches = await this.batchRepo.findByCourseId(id);
-      batchViews = await Promise.all(
-        batches.map(async (b: Batch) => {
-          const bsRows = await this.bsRepo.findByBatchId(b.id);
-          return {
-            id:          b.id,
-            name:        b.name,
-            intakeStart: b.intakeStart,
-            intakeEnd:   b.intakeEnd,
-            capacity:    b.capacity,
-            state:       b.state,
-            semesters:   bsRows.map(r => ({
-              semesterId: r.semesterId,
-              openDate:   r.openDate,
-              endDate:    r.endDate,
-            })),
-          };
-        }),
-      );
-    }
+    const batches = await this.batchRepo.findByCourseId(id);
+    const batchViews: BatchView[] = await Promise.all(
+      batches.map(async (b: Batch) => {
+        const bsRows = await this.bsRepo.findByBatchId(b.id);
+        return {
+          id:          b.id,
+          name:        b.name,
+          intakeStart: b.intakeStart,
+          intakeEnd:   b.intakeEnd,
+          capacity:    b.capacity,
+          state:       b.state,
+          semesters:   bsRows.map(r => ({
+            semesterId: r.semesterId,
+            openDate:   r.openDate,
+            endDate:    r.endDate,
+          })),
+        };
+      }),
+    );
 
     return { ...course, semesters: semesterViews, batches: batchViews };
   }

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "62a5d17e-76db-4d08-86d3-10d7c1f8f34b",
     "name": "TCCR Backend — Full API Collection v2.6",
-    "description": "Complete API test collection for TCCR (The Christian Center Rathmalana) backend.\nAligned with API Reference v2.22.0 (26 May 2026).\nCovers all V1 and V2 endpoints across 13 microservices.\n\nTest flow:\n1. Run 🔐 Sign In first — populates all *Token and *Id variables\n2. Run folders in order (1️⃣ → 📊) — each folder saves IDs used by later folders\n3. Before each Newman run: node scripts/_restore-seeds.js\n\nPrerequisites (online Firebase):\n  docker-compose up (services running against e-learning-f4209)\n  node scripts/_restore-seeds.js\n\nPrerequisites (emulator):\n  npx firebase emulators:start\n  node scripts/seed-emulator.js && node scripts/seed-v2-roles.js\n  docker-compose -f docker-compose.yml -f docker-compose.local.yml up\n\nKey V2 changes vs V1:\n  • Registration auto-approves as Member (no pending_approval queue)\n  • Roles are additive arrays: [\"member\",\"student\",\"leader\",\"g12\"]\n  • Role Requests: PATCH /me (profile) → POST /me/qualification (PDF) → POST /role-requests { requestedRole: \"student\" }\n  • Batches: intake cohorts under each course\n  • Cell Groups, Cell Reports, Analytics dashboards\n  • Federated OAuth (Google + Apple SDK + Apple web flow)",
+    "description": "Complete API test collection for TCCR (The Christian Center Rathmalana) backend.\nAligned with API Reference v2.38.0 (29 May 2026).\nCovers all V1 and V2 endpoints across 13 microservices.\n\nTest flow:\n1. Run 🔐 Sign In first — populates all *Token and *Id variables\n2. Run folders in order (1️⃣ → 📊) — each folder saves IDs used by later folders\n3. Before each Newman run: node scripts/_restore-seeds.js\n\nPrerequisites (online Firebase):\n  docker-compose up (services running against e-learning-f4209)\n  node scripts/_restore-seeds.js\n\nPrerequisites (emulator):\n  npx firebase emulators:start\n  node scripts/seed-emulator.js && node scripts/seed-v2-roles.js\n  docker-compose -f docker-compose.yml -f docker-compose.local.yml up\n\nKey V2 changes vs V1:\n  • Registration auto-approves as Member (no pending_approval queue)\n  • Roles are additive arrays: [\"member\",\"student\",\"leader\",\"g12\"]\n  • Role Requests: PATCH /me (profile) → POST /me/qualification (PDF) → POST /role-requests { requestedRole: \"student\" }\n  • Batches: intake cohorts under each course\n  • Cell Groups, Cell Reports, Analytics dashboards\n  • Federated OAuth (Google + Apple SDK + Apple web flow)",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "event": [
@@ -3999,7 +3999,10 @@
                 "id": "c556f720-af38-439a-a34b-098e843bddd6",
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 OK — Get Course\", () => pm.response.to.have.status(200));"
+                  "pm.test(\"200 OK — Get Course\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"batches is array\", () => pm.expect(j.batches).to.be.an(\"array\"));",
+                  "pm.test(\"semesters is array\", () => pm.expect(j.semesters).to.be.an(\"array\"));"
                 ]
               }
             }
@@ -5186,6 +5189,119 @@
                 "type": "text/javascript",
                 "exec": [
                   "pm.test(\"403 or 404 — student cannot patch semester dates\", () => { pm.expect([403, 404]).to.include(pm.response.code); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b1a2c3d4-e5f6-7890-abcd-ef1234567890",
+          "name": "Get Course — admin sees batches ★ NEW",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "courses",
+                "{{courseId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567891",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — admin get course\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"batches is non-empty array\", () => {",
+                  "  pm.expect(j.batches).to.be.an(\"array\");",
+                  "  pm.expect(j.batches.length).to.be.above(0);",
+                  "});",
+                  "pm.test(\"batch has required fields\", () => {",
+                  "  const b = j.batches[0];",
+                  "  pm.expect(b).to.have.property(\"id\").that.is.a(\"string\");",
+                  "  pm.expect(b).to.have.property(\"name\").that.is.a(\"string\");",
+                  "  pm.expect(b).to.have.property(\"state\").that.is.a(\"string\");",
+                  "  pm.expect(b).to.have.property(\"semesters\").that.is.an(\"array\");",
+                  "});",
+                  "pm.test(\"batch.semesters has schedule shape\", () => {",
+                  "  const s = j.batches[0].semesters;",
+                  "  pm.expect(s.length).to.be.above(0);",
+                  "  pm.expect(s[0]).to.have.property(\"semesterId\");",
+                  "  pm.expect(s[0]).to.have.property(\"openDate\");",
+                  "  pm.expect(s[0]).to.have.property(\"endDate\");",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "c2d3e4f5-a6b7-8901-bcde-f12345678902",
+          "name": "Get Course — student sees batches (bug fix) ★ NEW",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "courses",
+                "{{courseId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "d2e3f4a5-b6c7-8901-cdef-123456789003",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — student get course\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "// Bug fix: students previously received batches: [] — assert non-empty now",
+                  "pm.test(\"student sees non-empty batches[]\", () => {",
+                  "  pm.expect(j.batches).to.be.an(\"array\");",
+                  "  pm.expect(j.batches.length).to.be.above(0, \"batches must not be empty for students\");",
+                  "});",
+                  "pm.test(\"student batch has semesters schedule\", () => {",
+                  "  const b = j.batches[0];",
+                  "  pm.expect(b).to.have.property(\"id\").that.is.a(\"string\");",
+                  "  pm.expect(b).to.have.property(\"state\").that.is.a(\"string\");",
+                  "  pm.expect(b.semesters).to.be.an(\"array\");",
+                  "});"
                 ]
               }
             }
@@ -8608,7 +8724,21 @@
                     "id": "9ff1a5c6-dc2a-4a8c-ba1e-f20e4f52ddda",
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"200 OK — Get Cell\", () => pm.response.to.have.status(200));"
+                      "pm.test('200 OK — Get Cell Group by ID', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('has id, name, type, state, memberCount', () => {",
+                      "  pm.expect(b.id).to.be.a('string');",
+                      "  pm.expect(b.name).to.be.a('string');",
+                      "  pm.expect(['g12','care','children','outreach']).to.include(b.type);",
+                      "  pm.expect(['active','archived']).to.include(b.state);",
+                      "  pm.expect(b.memberCount).to.be.a('number');",
+                      "});",
+                      "pm.test('members is an array', () => pm.expect(b.members).to.be.an('array'));",
+                      "b.members.forEach((m, i) => {",
+                      "  pm.test('member[' + i + '] type is registered or external', () => {",
+                      "    pm.expect(['registered','external']).to.include(m.type);",
+                      "  });",
+                      "});"
                     ]
                   }
                 }
@@ -8717,64 +8847,8 @@
           "name": "Members",
           "item": [
             {
-              "id": "367191d8-e649-4723-9cab-fb55aa4866e6",
-              "name": "Get Network Members (G12 View)",
-              "request": {
-                "method": "GET",
-                "header": [],
-                "url": {
-                  "raw": "{{baseUrl}}/cells/network/members",
-                  "host": [
-                    "{{baseUrl}}"
-                  ],
-                  "path": [
-                    "cells",
-                    "network",
-                    "members"
-                  ]
-                },
-                "auth": {
-                  "type": "bearer",
-                  "bearer": [
-                    {
-                      "key": "token",
-                      "value": "{{g12Token}}",
-                      "type": "string"
-                    }
-                  ]
-                }
-              },
-              "response": [],
-              "event": [
-                {
-                  "listen": "test",
-                  "script": {
-                    "id": "b5fb2701-275d-4afa-9e21-beb24a75d011",
-                    "type": "text/javascript",
-                    "exec": [
-                      "pm.test(\"200 or 401 — Network Members\", () => { pm.expect([200, 401]).to.include(pm.response.code); });",
-                      "if (pm.response.code === 200) {",
-                      "  const b = pm.response.json();",
-                      "  pm.test(\"Has items, totalCells, totalMembers\", () => {",
-                      "    pm.expect(b).to.have.property('items').that.is.an('array');",
-                      "    pm.expect(b).to.have.property('totalCells').that.is.a('number');",
-                      "    pm.expect(b).to.have.property('totalMembers').that.is.a('number');",
-                      "  });",
-                      "  if (b.items.length > 0) {",
-                      "    const c = b.items[0];",
-                      "    pm.test(\"Cell entry has required fields\", () => {",
-                      "      pm.expect(c).to.have.all.keys('cellId','cellName','cellType','area','leaderUid','memberCount','members');",
-                      "    });",
-                      "  }",
-                      "}"
-                    ]
-                  }
-                }
-              ]
-            },
-            {
               "id": "f75e74c2-23d8-4791-8d89-6f683c3bd15f",
-              "name": "Add Member to Cell",
+              "name": "Add Registered + External Members",
               "request": {
                 "method": "POST",
                 "header": [
@@ -8785,7 +8859,7 @@
                 ],
                 "body": {
                   "mode": "raw",
-                  "raw": "{\n  \"userUids\": [\n    \"{{student2Id}}\"\n  ]\n}",
+                  "raw": "{\n  \"userUids\": [\n    \"{{student2Id}}\"\n  ],\n  \"externalMembers\": [\n    { \"name\": \"Priya Perera\", \"phone\": \"+94771234567\" },\n    { \"name\": \"Nimal Silva\" }\n  ]\n}",
                   "options": {
                     "raw": {
                       "language": "json"
@@ -8822,7 +8896,474 @@
                     "id": "30afb6d4-af09-40f0-8402-0c7f46b4938c",
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"200 OK — Add Member\", () => pm.response.to.have.status(200));"
+                      "pm.test('200 OK — Add Registered + External Members', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('added contains student2Id', () => {",
+                      "  pm.expect(b.added).to.be.an('array');",
+                      "  pm.expect(b.added).to.include(pm.environment.get('student2Id'));",
+                      "});",
+                      "pm.test('addedExternal has 2 entries', () => {",
+                      "  pm.expect(b.addedExternal).to.be.an('array').with.lengthOf(2);",
+                      "});",
+                      "pm.test('first external has id, name=Priya Perera, phone=+94771234567', () => {",
+                      "  const e = b.addedExternal[0];",
+                      "  pm.expect(e.id).to.be.a('string');",
+                      "  pm.expect(e.name).to.eql('Priya Perera');",
+                      "  pm.expect(e.phone).to.eql('+94771234567');",
+                      "});",
+                      "pm.test('second external has name=Nimal Silva, no phone', () => {",
+                      "  const e = b.addedExternal[1];",
+                      "  pm.expect(e.name).to.eql('Nimal Silva');",
+                      "  pm.expect(e.phone).to.be.undefined;",
+                      "});",
+                      "pm.test('memberCount is a positive number', () => {",
+                      "  pm.expect(b.memberCount).to.be.a('number').and.greaterThan(0);",
+                      "});",
+                      "if (b.addedExternal && b.addedExternal[0] && b.addedExternal[0].id) {",
+                      "  pm.environment.set('externalMemberId', b.addedExternal[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+              "name": "Add External Members Only",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"externalMembers\": [\n    { \"name\": \"Kasun Fernando\", \"phone\": \"+94712345678\" }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK — Add External Members Only', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('added is empty array (no registered UIDs sent)', () => {",
+                      "  pm.expect(b.added).to.be.an('array').with.lengthOf(0);",
+                      "});",
+                      "pm.test('addedExternal has 1 entry with id, name, phone', () => {",
+                      "  pm.expect(b.addedExternal).to.be.an('array').with.lengthOf(1);",
+                      "  pm.expect(b.addedExternal[0].id).to.be.a('string');",
+                      "  pm.expect(b.addedExternal[0].name).to.eql('Kasun Fernando');",
+                      "  pm.expect(b.addedExternal[0].phone).to.eql('+94712345678');",
+                      "});",
+                      "pm.test('memberCount is a positive number', () => {",
+                      "  pm.expect(b.memberCount).to.be.a('number').and.greaterThan(0);",
+                      "});",
+                      "if (b.addedExternal && b.addedExternal[0]) {",
+                      "  pm.environment.set('externalMemberId2', b.addedExternal[0].id);",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "a7b8c9d0-e1f2-3456-0123-789012345678",
+              "name": "Get Cell by ID — verify member discriminated union",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "b8c9d0e1-f2a3-4567-1234-890123456789",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK — Get Cell by ID', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('cell has all required top-level fields', () => {",
+                      "  ['id','name','type','area','leaderUid','g12LeaderUid','members','memberCount','reportCount','state','createdAt','updatedAt'].forEach(k => {",
+                      "    pm.expect(b).to.have.property(k);",
+                      "  });",
+                      "});",
+                      "pm.test('type is valid CellType', () => pm.expect(['g12','care','children','outreach']).to.include(b.type));",
+                      "pm.test('state is active or archived', () => pm.expect(['active','archived']).to.include(b.state));",
+                      "pm.test('members is an array', () => pm.expect(b.members).to.be.an('array'));",
+                      "pm.test('memberCount equals members.length', () => pm.expect(b.memberCount).to.eql(b.members.length));",
+                      "pm.test('all members have type: registered or external', () => {",
+                      "  b.members.forEach(m => pm.expect(['registered','external']).to.include(m.type));",
+                      "});",
+                      "const reg = b.members.filter(m => m.type === 'registered');",
+                      "const ext = b.members.filter(m => m.type === 'external');",
+                      "if (reg.length > 0) {",
+                      "  pm.test('registered member has uid (string) and displayName', () => {",
+                      "    pm.expect(reg[0].uid).to.be.a('string');",
+                      "    pm.expect(reg[0].displayName).to.be.a('string');",
+                      "  });",
+                      "}",
+                      "if (ext.length > 0) {",
+                      "  pm.test('external member has id (string), name, uid=null', () => {",
+                      "    pm.expect(ext[0].id).to.be.a('string');",
+                      "    pm.expect(ext[0].name).to.be.a('string');",
+                      "    pm.expect(ext[0].uid).to.be.null;",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "367191d8-e649-4723-9cab-fb55aa4866e6",
+              "name": "Get Network Members (G12 View)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/network/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "network",
+                    "members"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{g12Token}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "b5fb2701-275d-4afa-9e21-beb24a75d011",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 or 401 — Network Members', () => { pm.expect([200, 401]).to.include(pm.response.code); });",
+                      "if (pm.response.code === 200) {",
+                      "  const b = pm.response.json();",
+                      "  pm.test('has items array, totalCells number, totalMembers number', () => {",
+                      "    pm.expect(b.items).to.be.an('array');",
+                      "    pm.expect(b.totalCells).to.be.a('number');",
+                      "    pm.expect(b.totalMembers).to.be.a('number');",
+                      "  });",
+                      "  pm.test('totalMembers equals sum of all cell memberCounts', () => {",
+                      "    const sum = b.items.reduce((acc, c) => acc + c.memberCount, 0);",
+                      "    pm.expect(b.totalMembers).to.eql(sum);",
+                      "  });",
+                      "  pm.test('totalMembers is > 0 (external members included in count)', () => {",
+                      "    pm.expect(b.totalMembers).to.be.greaterThan(0);",
+                      "  });",
+                      "  if (b.items.length > 0) {",
+                      "    const c = b.items[0];",
+                      "    pm.test('cell entry has required fields', () => {",
+                      "      pm.expect(c).to.have.all.keys('cellId','cellName','cellType','area','leaderUid','memberCount','members');",
+                      "    });",
+                      "    pm.test('all members in first cell have type field', () => {",
+                      "      c.members.forEach(m => pm.expect(['registered','external']).to.include(m.type));",
+                      "    });",
+                      "    const allMembers = b.items.flatMap(ci => ci.members);",
+                      "    const hasExternal = allMembers.some(m => m.type === 'external');",
+                      "    pm.test('at least one external member present after POST (type=external)', () => {",
+                      "      pm.expect(hasExternal).to.be.true;",
+                      "    });",
+                      "    const extMember = allMembers.find(m => m.type === 'external');",
+                      "    if (extMember) {",
+                      "      pm.test('external member shape: id (string), name (string), uid=null', () => {",
+                      "        pm.expect(extMember.id).to.be.a('string');",
+                      "        pm.expect(extMember.name).to.be.a('string');",
+                      "        pm.expect(extMember.uid).to.be.null;",
+                      "      });",
+                      "    }",
+                      "    const regMember = allMembers.find(m => m.type === 'registered');",
+                      "    if (regMember) {",
+                      "      pm.test('registered member shape: uid (string), displayName (string)', () => {",
+                      "        pm.expect(regMember.uid).to.be.a('string');",
+                      "        pm.expect(regMember.displayName).to.be.a('string');",
+                      "      });",
+                      "    }",
+                      "  }",
+                      "}"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+              "name": "Add Members — Both Arrays Empty (→ 400)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userUids\": [],\n  \"externalMembers\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "d4e5f6a7-b8c9-0123-def0-456789012345",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('400 — both arrays empty fails Zod refinement', () => pm.response.to.have.status(400));",
+                      "const e = pm.response.json().error;",
+                      "pm.test('error object present', () => pm.expect(e).to.be.an('object'));",
+                      "pm.test('error code is VALIDATION_ERROR or BAD_REQUEST', () => {",
+                      "  pm.expect(['VALIDATION_ERROR','BAD_REQUEST']).to.include(e.code);",
+                      "});"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "e5f6a7b8-c9d0-1234-ef01-567890123456",
+              "name": "Add Members — Student Unauthorized (→ 403)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"userUids\": [\n    \"{{student2Id}}\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{studentToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "f6a7b8c9-d0e1-2345-f012-678901234567",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('403 — student role cannot add members (authorize guard)', () => pm.response.to.have.status(403));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "c9d1e2f3-a4b5-6789-cdef-012345678901",
+              "name": "Remove External Member from Cell",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members/{{externalMemberId}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members",
+                    "{{externalMemberId}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "d0e1f2a3-b4c5-6789-def0-123456789012",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK — Remove External Member', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('removed matches externalMemberId', () => {",
+                      "  pm.expect(b.removed).to.eql(pm.environment.get('externalMemberId'));",
+                      "});",
+                      "pm.test('memberCount is a number', () => pm.expect(b.memberCount).to.be.a('number'));",
+                      "pm.environment.unset('externalMemberId');"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "d0e1f2a3-b4c5-6789-def1-234567890123",
+              "name": "Remove External Member 2 from Cell",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members/{{externalMemberId2}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members",
+                    "{{externalMemberId2}}"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "e1f2a3b4-c5d6-7890-ef12-345678901234",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('200 OK — Remove External Member 2', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('removed matches externalMemberId2', () => {",
+                      "  pm.expect(b.removed).to.eql(pm.environment.get('externalMemberId2'));",
+                      "});",
+                      "pm.test('memberCount is a number', () => pm.expect(b.memberCount).to.be.a('number'));",
+                      "pm.environment.unset('externalMemberId2');"
                     ]
                   }
                 }
@@ -8830,7 +9371,7 @@
             },
             {
               "id": "8456611e-16de-4377-b675-c5eb0cfdd22a",
-              "name": "Remove Member from Cell",
+              "name": "Remove Registered Member from Cell",
               "request": {
                 "method": "DELETE",
                 "header": [],
@@ -8865,7 +9406,60 @@
                     "id": "551f11b3-74e0-47b6-871b-c84b4fd44e04",
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test(\"200 OK — Remove Member\", () => pm.response.to.have.status(200));"
+                      "pm.test('200 OK — Remove Registered Member', () => pm.response.to.have.status(200));",
+                      "const b = pm.response.json();",
+                      "pm.test('removed equals student2Id', () => {",
+                      "  pm.expect(b.removed).to.eql(pm.environment.get('student2Id'));",
+                      "});",
+                      "pm.test('memberCount is a number', () => pm.expect(b.memberCount).to.be.a('number'));"
+                    ]
+                  }
+                }
+              ]
+            },
+            {
+              "id": "f0a1b2c3-d4e5-6789-fa01-b23456789abc",
+              "name": "Remove Member — Not Found (→ 404)",
+              "request": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/cells/{{cellId}}/members/nonexistent-uuid-000",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "cells",
+                    "{{cellId}}",
+                    "members",
+                    "nonexistent-uuid-000"
+                  ]
+                },
+                "auth": {
+                  "type": "bearer",
+                  "bearer": [
+                    {
+                      "key": "token",
+                      "value": "{{leaderToken}}",
+                      "type": "string"
+                    }
+                  ]
+                }
+              },
+              "response": [],
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "id": "a1b2c3d4-e5f6-7890-ab01-c23456789def",
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('404 — MEMBER_NOT_FOUND for nonexistent member', () => pm.response.to.have.status(404));",
+                      "const e = pm.response.json().error;",
+                      "pm.test('error code is MEMBER_NOT_FOUND', () => {",
+                      "  pm.expect(e).to.have.property('code');",
+                      "  pm.expect(e.code).to.eql('MEMBER_NOT_FOUND');",
+                      "});"
                     ]
                   }
                 }
@@ -11913,6 +12507,18 @@
           ]
         }
       ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "externalMemberId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "externalMemberId2",
+      "value": "",
+      "type": "string"
     }
   ]
 }

@@ -3,10 +3,10 @@ import { IProgressRepository }       from '../../../src/domain/repositories/IPro
 import { SubjectProgress }           from '../../../src/domain/entities/SubjectProgress';
 
 const makeProgress = (completedAt: string | null = null): SubjectProgress =>
-  new SubjectProgress({ id: 'uid1_sub1', studentUid: 'uid1', subjectId: 'sub1', courseId: 'c1', semesterId: 'sem1', state: completedAt ? 'completed' : 'not_started', completedAt, lastAccessedAt: null });
+  new SubjectProgress({ id: 'uid1_sub1', studentUid: 'uid1', subjectId: 'sub1', courseId: 'c1', semesterId: 'sem1', state: completedAt ? 'completed' : 'not_started', completedAt, lastAccessedAt: null, lastAccessedLessonId: null });
 
 const makeRepo = (): jest.Mocked<IProgressRepository> =>
-  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn() });
+  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn(), revertCompletion: jest.fn() });
 
 const INPUT = { studentUid: 'uid1', subjectId: 'sub1', courseId: 'c1', semesterId: 'sem1' };
 
@@ -44,5 +44,23 @@ describe('UpdateLastAccessedUseCase', () => {
     const result = await useCase.execute(INPUT);
     expect(result.lastAccessedAt).not.toBeNull();
     expect(result.studentUid).toBe('uid1');
+  });
+
+  it('sets lastAccessedLessonId when lessonId is provided', async () => {
+    repo.findByStudentAndSubject.mockResolvedValue(makeProgress());
+    repo.upsert.mockResolvedValue(undefined);
+
+    const result = await useCase.execute({ ...INPUT, lessonId: 'les-042' });
+    expect(result.lastAccessedLessonId).toBe('les-042');
+  });
+
+  it('does not overwrite lastAccessedLessonId when lessonId is omitted', async () => {
+    const existing = makeProgress();
+    existing.lastAccessedLessonId = 'les-001';
+    repo.findByStudentAndSubject.mockResolvedValue(existing);
+    repo.upsert.mockResolvedValue(undefined);
+
+    const result = await useCase.execute(INPUT);
+    expect(result.lastAccessedLessonId).toBe('les-001');
   });
 });

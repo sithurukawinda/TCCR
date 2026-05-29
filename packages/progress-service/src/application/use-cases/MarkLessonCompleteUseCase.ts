@@ -4,6 +4,7 @@ import { LessonProgress }             from '../../domain/entities/LessonProgress
 import { CourseServiceClient }        from '../../infrastructure/clients/CourseServiceClient';
 import { EnrollmentServiceClient }    from '../../infrastructure/clients/EnrollmentServiceClient';
 import { MarkSubjectCompleteUseCase } from './MarkSubjectCompleteUseCase';
+import { UpdateLastAccessedUseCase }  from './UpdateLastAccessedUseCase';
 
 export interface MarkLessonCompleteInput {
   studentUid: string;
@@ -28,6 +29,7 @@ export class MarkLessonCompleteUseCase {
     private readonly courseClient:        CourseServiceClient,
     private readonly enrollmentClient:    EnrollmentServiceClient,
     private readonly markSubjectComplete: MarkSubjectCompleteUseCase,
+    private readonly updateLastAccessed:  UpdateLastAccessedUseCase,
   ) {}
 
   async execute(input: MarkLessonCompleteInput, requestId: string): Promise<MarkLessonCompleteResult> {
@@ -72,6 +74,15 @@ export class MarkLessonCompleteUseCase {
       input.batchId,
     );
     await this.lessonProgressRepo.save(progress);
+
+    // 4a. Bump lastAccessedSubjectId + lastAccessedLessonId
+    await this.updateLastAccessed.execute({
+      studentUid: input.studentUid,
+      subjectId:  input.subjectId,
+      courseId:   input.courseId,
+      semesterId: input.semesterId,
+      lessonId:   input.lessonId,
+    });
 
     // 5. Auto-rollup: mark subject complete when every lesson in the subject is done
     const [totalLessons, completedInSubject] = await Promise.all([

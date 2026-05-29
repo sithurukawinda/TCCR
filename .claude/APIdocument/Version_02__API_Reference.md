@@ -1,12 +1,18 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.32.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.38.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.32.0
+**Version:** 2.38.0
 **Date:** 29 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.31.0 (29 May 2026)
+**Supersedes:** Version 2.37.0 (29 May 2026)
+**Change in 2.38.0:** §13.9 `DELETE /cells/:id/members/:uid` — full error table added; separate response examples for registered-member and external-member deletion; URL path parameter table added. §13.14 `GET /cells/network/members` — `members[]` updated to discriminated union (`type: "registered" | "external"`) matching §13.4; response example and field-reference table updated to include external-member fields (`id`, `name`, `phone?`, `uid: null`); G12 scope corrected (G12 sees **all** active cells org-wide, not only own-network cells).
+**Change in 2.37.0:** §12.6 `POST /progress/lessons/:lessonId/complete` and §12.8 `POST /progress/lessons/:lessonId/video-position` — both endpoints now update `lastAccessedLessonId` and `lastAccessedSubjectId` on the subject-progress record as a side-effect. Fixes "resume on wrong lesson" bug: after a mid-watch logout the next `GET /me/progress/courses/:courseId` returns the correct `lastAccessedLessonId`.
+**Change in 2.36.0:** §13.4 `GET /cells/:id` — `members[]` response updated to discriminated union (`type: "registered" | "external"`); registered members include `uid`, `firstName`, `lastName`, `displayName`; external members include `id` (UUID), `name`, `phone?`, `displayName`, `uid: null`.
+**Change in 2.35.0:** §13.8 `POST /cells/:id/members` — extended to support external (unregistered) members via `externalMembers[]` alongside existing `userUids[]`; response now includes `addedExternal[]`. §13.9 `DELETE /cells/:id/members/:uid` — clarified that `:uid` accepts both Firebase UIDs and external member UUIDs.
+**Change in 2.34.0:** §6.2 `GET /courses/:id` — bug fix: `batches[]` is now returned for all callers (admin, student, anonymous). Previously, non-admin callers received `batches: []` regardless of course state. Response example and field reference updated.
+**Change in 2.33.0:** Documentation drift corrections — §14.7 `GET /cells/network/summary` query param reverted to `?month=YYYY-MM` (required); §14.7 response field table corrected (`month` row replaced with `from`/`to` rows); §14.7 response JSON example values updated to match actual output; §14.6 already correct (no change needed); §4.5–4.6 already correct; §10.3 `GET /attachments/:id/download-url` role restriction clarified (`leader`/`g12` → `403 FORBIDDEN`).
 **Change in 2.32.0:** §12 Progress Endpoints — two new endpoints: §12.8 `POST /progress/lessons/:lessonId/video-position` (save YouTube playback position in seconds) and §12.9 `GET /progress/lessons/:lessonId/video-position` (retrieve saved position; returns `{ watchedSeconds: 0 }` when never watched). New `video_progress` Firestore collection. Enables frontend video resume feature across devices.
 **Change in 2.31.0:** §12.6 and §12.7 lesson-level progress endpoints documented. §7.7, §7.8, §7.9 batch semester scheduling endpoints added.
 **Change in 2.30.0:** Added §3.11 `GET /me/courses/:courseId` (student batch-aware course view with semester states); added §7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` and §7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` (batch semester scheduling); updated §14.7 `GET /cells/network/summary` from `?month=` to `?from=`/`?to=` date-range signature with adaptive period labels; updated §14.6 `GET /cells/network/reports` and §14.1 `GET /cells/:id/reports` with `leaderUid`, `cellId`, and corrected `voided` param type.
@@ -1835,34 +1841,67 @@ List courses. Member/Student/public see `published` only. Admin sees all states.
 
 ### 6.2 `GET /courses/:id`
 
-Get course with semester and subject tree. Student/public get `404` if draft or archived.
+Get course with full semester/subject tree and batch schedule. Student/public get `404` if draft or archived. `batches[]` is returned for **all** callers — no authentication required to read it.
 
 **Authentication:** Optional | **Roles:** All
 
 **`200 OK`**
 ```json
 {
-  "id":           "course-abc",
-  "title":        "Bible Foundations",
-  "description":  "An introduction to the Bible.",
+  "id":            "course-abc",
+  "title":         "Bible Foundations",
+  "description":   "An introduction to the Bible.",
   "coverImageUrl": null,
-  "state":        "published",
-  "createdBy":    "admin-uid-xyz",
+  "state":         "published",
+  "createdBy":     "admin-uid-xyz",
   "semesterCount": 2,
-  "publishedAt":  "2026-02-01T08:00:00.000Z",
-  "deletedAt":    null,
-  "createdAt":    "2026-01-01T08:00:00.000Z",
-  "updatedAt":    "2026-05-01T09:00:00.000Z",
-  "semesters": [{
-    "id": "sem-001", "title": "Semester 1 — Foundations",
-    "order": 1, "openDate": "2026-07-01", "endDate": "2026-09-30",
-    "status": "active",
-    "subjects": [{ "id": "sub-001", "title": "The Gospel of John", "order": 1 }]
-  }]
+  "publishedAt":   "2026-02-01T08:00:00.000Z",
+  "deletedAt":     null,
+  "createdAt":     "2026-01-01T08:00:00.000Z",
+  "updatedAt":     "2026-05-01T09:00:00.000Z",
+  "semesters": [
+    {
+      "id": "sem-001", "title": "Semester 1 — Foundations",
+      "order": 1, "openDate": "2026-07-01", "endDate": "2026-09-30",
+      "status": "active",
+      "subjects": [{ "id": "sub-001", "title": "The Gospel of John", "order": 1 }]
+    }
+  ],
+  "batches": [
+    {
+      "id":          "batch-xyz",
+      "name":        "2026 Intake 01",
+      "intakeStart": "2026-06-01",
+      "intakeEnd":   "2026-06-30",
+      "capacity":    50,
+      "state":       "open",
+      "semesters": [
+        { "semesterId": "sem-001", "openDate": "2026-07-01", "endDate": "2026-09-30" },
+        { "semesterId": "sem-002", "openDate": null,          "endDate": null }
+      ]
+    }
+  ]
 }
 ```
 
-**`404`** → `COURSE_NOT_FOUND`
+#### Response field reference — `batches[]`
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `batches[].id` | string | Batch UUID |
+| `batches[].name` | string | Human-readable intake name (e.g. `"2026 Intake 01"`) |
+| `batches[].intakeStart` | `YYYY-MM-DD` | Enrolment window start date |
+| `batches[].intakeEnd` | `YYYY-MM-DD` | Enrolment window end date |
+| `batches[].capacity` | number \| null | Max enrolments; `null` = unlimited |
+| `batches[].state` | string | `draft` \| `open` \| `closed` |
+| `batches[].semesters[]` | array | Per-batch semester schedule written via `PUT /courses/:cid/batches/:bid/semester-dates` |
+| `batches[].semesters[].semesterId` | string | Matches a `semesters[].id` in this response |
+| `batches[].semesters[].openDate` | `YYYY-MM-DD` \| null | Null when not yet scheduled for this batch |
+| `batches[].semesters[].endDate` | `YYYY-MM-DD` \| null | Null when not yet scheduled for this batch |
+
+> **Student use:** To derive a semester's open/close state for a specific student, cross-reference `batches[].semesters[]` against the student's enrolled batch ID (available from `GET /me/courses/:courseId` §3.11, which computes states server-side). `GET /courses/:id` returns the raw schedule for all batches; §3.11 returns computed states for the student's own batch only.
+
+**`404 Not Found`** — `COURSE_NOT_FOUND`
 
 ---
 
@@ -2399,14 +2438,16 @@ Upload PNG or JPG cover image (FR-CRS-005). Max **10 MB**.
 
 Short-lived signed URL. Expires in **15 minutes** (FR-LRN-002). Student must have approved enrollment.
 
-**Authentication:** Bearer required | **Roles:** `student` (enrolled), `admin`+
+**Authentication:** Bearer required | **Roles:** `student` (enrolled), `admin`, `super_admin`
+
+> **Role restriction:** `leader` and `g12` callers receive `403 FORBIDDEN` — only enrolled students and admins can generate download URLs.
 
 **`200 OK`**
 ```json
 { "downloadUrl": "https://storage.googleapis.com/...?X-Goog-Signature=...", "expiresAt": "2026-05-15T11:00:00.000Z" }
 ```
 
-**`403`** → `FORBIDDEN` (not enrolled) | **`404`** → `ATTACHMENT_NOT_FOUND`
+**`403`** → `FORBIDDEN` (not enrolled, or caller is `leader`/`g12`) | **`404`** → `ATTACHMENT_NOT_FOUND`
 
 ---
 
@@ -2695,6 +2736,7 @@ Course-level progress aggregate (FR-LRN-004).
   "totalSubjects":          10,
   "completionPercent":      40.0,
   "lastAccessedSubjectId":  "sub-003",
+  "lastAccessedLessonId":   "les-007",
   "lastAccessedAt":         "2026-05-27T11:30:00.000Z",
 
   "completedLessonIds":     ["les-001", "les-002", "les-005"],
@@ -2709,8 +2751,9 @@ Course-level progress aggregate (FR-LRN-004).
 | `pendingCount` | number | Subjects not yet completed (`totalSubjects − completedCount`) |
 | `totalSubjects` | number | Total non-deleted subjects in the course |
 | `completionPercent` | number | Subject-weighted percent — one decimal place e.g. `66.7`. **Dashboard uses this field.** |
-| `lastAccessedSubjectId` | string \| null | Most-recently accessed subject UID |
-| `lastAccessedAt` | string \| null | ISO 8601 timestamp of the most-recent subject access |
+| `lastAccessedSubjectId` | string \| null | Most-recently accessed subject UID — use as fallback when `lastAccessedLessonId` is null |
+| `lastAccessedLessonId` | string \| null | Most-recently accessed lesson UID — updated by both `POST …/video-position` and `POST …/complete`. `null` if the student has never opened a lesson. Use this field to resume on the correct lesson. |
+| `lastAccessedAt` | string \| null | ISO 8601 timestamp of the most-recent lesson access |
 | `completedLessonIds` | string[] | IDs of every lesson the student has marked complete — use to rehydrate lesson tick-boxes in the course viewer |
 | `totalLessons` | number | Total non-deleted lessons across all subjects in the course |
 | `lessonCompletionPercent` | number | `Math.round(completedLessons / totalLessons * 100)` — integer percent. **Course-viewer progress bar uses this field.** |
@@ -2747,6 +2790,8 @@ Admin view. Supports `?batchId` to scope to one intake.
 Mark an individual lesson complete. **Idempotent** — calling again for the same lesson returns `200` with the original `completedAt` unchanged.
 
 **Auto-rollup:** When every lesson in the parent subject is now complete, the backend automatically marks the subject complete — the frontend does **not** need to make a second call to `POST /progress/subjects/:id/complete`.
+
+**Side-effect — last-accessed tracking:** Every call (including idempotent repeats) updates `lastAccessedLessonId` and `lastAccessedSubjectId` on the student's subject-progress record. The next `GET /me/progress/courses/:courseId` will reflect this lesson as the resume point.
 
 **Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`  
 **Content-Type:** `application/json`
@@ -2837,6 +2882,8 @@ Unmark a lesson as complete — removes the completion record. Intended for mist
 ### 12.8 `POST /progress/lessons/:lessonId/video-position` ★ NEW
 
 Save the student's current YouTube video playback position (in seconds). Called every few seconds while the video plays, and on pause/close. Allows the frontend to resume from the exact position on return.
+
+**Side-effect — last-accessed tracking:** Every call also updates `lastAccessedLessonId` and `lastAccessedSubjectId` on the student's subject-progress record. This is what powers the "Continue learning" resume feature — after a mid-watch logout, the next `GET /me/progress/courses/:courseId` returns the correct `lastAccessedLessonId` pointing to the lesson the student was watching, not the last *completed* lesson.
 
 **Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`
 
@@ -3032,15 +3079,61 @@ Fetch cell with full member roster (FR-CG-005).
 **`200 OK`**
 ```json
 {
-  "id": "cell-001", "name": "Rathmalana West G12",
-  "type": "g12", "area": "Rathmalana",
-  "leaderUid": "usr-leader1", "g12LeaderUid": "usr-g12-1",
-  "members": [{ "uid": "usr-mem1", "firstName": "Sapna", "lastName": "Nethmini", "displayName": "Sapna Nethmini" }],
-  "memberCount": 8, "reportCount": 12, "state": "active",
-  "createdAt": "2026-01-15T00:00:00.000Z", "updatedAt": "2026-05-14T00:00:00.000Z"
+  "id": "cell-001",
+  "name": "Rathmalana West G12",
+  "type": "g12",
+  "area": "Rathmalana",
+  "leaderUid": "usr-leader1",
+  "g12LeaderUid": "usr-g12-1",
+  "memberCount": 3,
+  "reportCount": 12,
+  "state": "active",
+  "createdAt": "2026-01-15T00:00:00.000Z",
+  "updatedAt": "2026-05-14T00:00:00.000Z",
+  "members": [
+    {
+      "type": "registered",
+      "uid": "usr-mem1",
+      "firstName": "Sapna",
+      "lastName": "Nethmini",
+      "displayName": "Sapna Nethmini"
+    },
+    {
+      "type": "external",
+      "id": "ext-uuid-xyz789",
+      "name": "Suresh Fernando",
+      "phone": "+94771234567",
+      "displayName": "Suresh Fernando",
+      "uid": null
+    },
+    {
+      "type": "external",
+      "id": "ext-uuid-abc456",
+      "name": "Priya Jayasinghe",
+      "displayName": "Priya Jayasinghe",
+      "uid": null
+    }
+  ]
 }
 ```
 
+**`members[]` field reference**
+
+| Field | Type | Present when |
+|-------|------|-------------|
+| `type` | `"registered"` \| `"external"` | Always — discriminator |
+| `uid` | string | `type: "registered"` — Firebase Auth UID |
+| `uid` | `null` | `type: "external"` — always null |
+| `id` | string (UUID) | `type: "external"` — server-generated; use as `:uid` in `DELETE /cells/:id/members/:uid` |
+| `firstName` | string | `type: "registered"` |
+| `lastName` | string | `type: "registered"` |
+| `name` | string | `type: "external"` |
+| `phone` | string \| absent | `type: "external"` — optional |
+| `displayName` | string | Always — `"firstName lastName"` for registered; same as `name` for external |
+
+> `memberCount` equals `registered members + external members` combined.
+
+**`403`** → `FORBIDDEN` (caller is not a member, owner, or admin)  
 **`404`** → `CELL_NOT_FOUND`
 
 ---
@@ -3152,28 +3245,102 @@ On success the new owner(s) receive:
 ---
 ### 13.8 `POST /cells/:id/members`
 
-Directly add members to a cell (admin/leader/g12 path — no join request needed). Used when a leader physically recruits a member and adds them on their behalf. Atomically increments `memberCount`.
+Add members to a cell directly — no join request needed. Supports both registered app users (via `userUids`) and external/unregistered people (via `externalMembers`). Both arrays can be supplied in the same request; at least one must be non-empty. Atomically updates `memberCount`.
 
 **Authentication:** Bearer required | **Roles:** Owning `leader`, `g12`, `admin`, `super_admin`
+
+#### Request Body
 
 ```json
-{ "userUids": ["usr-mem2", "usr-mem3"] }
+{
+  "userUids": ["usr-mem2", "usr-mem3"],
+  "externalMembers": [
+    { "name": "Priya Perera", "phone": "+94771234567" },
+    { "name": "Nimal Silva" }
+  ]
+}
 ```
 
-**`200 OK`** → `{ "added": ["usr-mem2", "usr-mem3"], "memberCount": 10 }`
+| Field | Type | Required | Validation |
+|-------|------|:--------:|-----------|
+| `userUids` | string[] | No | Max 50 UIDs; defaults to `[]` |
+| `externalMembers` | object[] | No | Max 50 entries; defaults to `[]` |
+| `externalMembers[].name` | string | Yes | 1`-`200 chars |
+| `externalMembers[].phone` | string | No | Max 30 chars |
+
+> At least one of `userUids` or `externalMembers` must be non-empty — sending both empty arrays returns `400 VALIDATION_ERROR`.
+
+#### Response `200 OK`
+
+```json
+{
+  "added":         ["usr-mem2", "usr-mem3"],
+  "addedExternal": [
+    { "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "name": "Priya Perera", "phone": "+94771234567" },
+    { "id": "b2c3d4e5-f6a7-8901-bcde-f12345678901", "name": "Nimal Silva" }
+  ],
+  "memberCount": 12
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `added` | string[] | Firebase UIDs of newly added registered members (already-members are silently skipped) |
+| `addedExternal` | object[] | External members created; each has a server-generated UUID `id`, `name`, and optional `phone` |
+| `addedExternal[].id` | string | Server-generated UUID — use this as `:uid` in `DELETE /cells/:id/members/:uid` |
+| `memberCount` | number | Updated total: registered + external combined |
+
+> **Registered-only request** (backward compatible): omit `externalMembers` or pass `[]` — `addedExternal` will be `[]` in the response.
 
 ---
-
 ### 13.9 `DELETE /cells/:id/members/:uid`
 
-Remove a member from the cell. Atomically decrements `memberCount`.
+Remove a member from the cell. Works for **both registered members and external (unregistered) members** — pass either a Firebase UID or an external member's server-generated UUID as `:uid`. The server auto-disambiguates. Atomically decrements `memberCount`.
 
 **Authentication:** Bearer required | **Roles:** Owning `leader`, `g12`, `admin`, `super_admin`
 
-**`200 OK`** → `{ "removed": "usr-mem2", "memberCount": 9 }`
+#### Path Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `:id` | Cell group ID |
+| `:uid` | Firebase UID (registered member) **or** external member UUID returned by `POST /cells/:id/members` in `addedExternal[].id` |
+
+#### Disambiguation Logic
+
+```
+if :uid matches externalMembers[].id  →  removes external member
+else                                  →  removes registered member by Firebase UID
+```
+
+> Store the `addedExternal[].id` value returned by `POST /cells/:id/members` — this is the only reference to an external member's server-assigned UUID.
+
+#### Response `200 OK` — removing an external member
+
+```json
+{ "removed": "a1b2c3d4-e5f6-7890-abcd-ef1234567890", "memberCount": 11 }
+```
+
+#### Response `200 OK` — removing a registered member
+
+```json
+{ "removed": "usr-firebase-uid-abc123", "memberCount": 10 }
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `removed` | string | The `:uid` value that was removed (UUID for external, Firebase UID for registered) |
+| `memberCount` | number | Updated total after removal: `registered + external` combined |
+
+#### Error Responses
+
+| Status | Code | Reason |
+|--------|------|--------|
+| 403 | `FORBIDDEN` | Caller is not the cell owner (`leaderUid` / `g12LeaderUid`) or an `admin` / `super_admin` |
+| 404 | `CELL_NOT_FOUND` | No cell group exists with the given `:id` |
+| 404 | `MEMBER_NOT_FOUND` | `:uid` does not match any registered UID or external member UUID in this cell |
 
 ---
-
 ### 13.10 `POST /cells/:id/join-requests`
 
 Member applies to join a cell group. Admin or Super Admin must approve before the member is added to the cell.
@@ -3280,7 +3447,7 @@ Reject a member's request to join the cell. The member is not added.
 
 ### 13.14 `GET /cells/network/members` ★ NEW
 
-Returns all cell members across every cell in the caller's network, grouped by cell. Allows a G12 leader to see every member under every leader they oversee in one call.
+Returns all cell members across every active cell in scope, grouped by cell. Each cell's `members[]` is a **discriminated union** of registered and external (unregistered) members — same shape as `GET /cells/:id`.
 
 **Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
 
@@ -3288,7 +3455,7 @@ Returns all cell members across every cell in the caller's network, grouped by c
 
 | Caller | Cells included |
 |--------|---------------|
-| `g12` | All **active** cells where `g12LeaderUid === callerUid` |
+| `g12` | **All** active cells org-wide (no UID filter) |
 | `leader` | Only the leader's **own** active cell (`leaderUid === callerUid`) |
 | `admin` / `super_admin` | **All** active cells (no UID filter) |
 
@@ -3304,11 +3471,37 @@ Returns all cell members across every cell in the caller's network, grouped by c
       "cellType":    "g12",
       "area":        "Rathmalana",
       "leaderUid":   "usr-leader1",
-      "memberCount": 3,
+      "memberCount": 4,
       "members": [
-        { "uid": "usr-mem1", "firstName": "Sapna",  "lastName": "Nethmini", "displayName": "Sapna Nethmini" },
-        { "uid": "usr-mem2", "firstName": "Viruli", "lastName": "W.",       "displayName": "Viruli W." },
-        { "uid": "usr-mem3", "firstName": "Nimal",  "lastName": "Perera",   "displayName": "Nimal Perera" }
+        {
+          "type":        "registered",
+          "uid":         "usr-mem1",
+          "firstName":   "Sapna",
+          "lastName":    "Nethmini",
+          "displayName": "Sapna Nethmini"
+        },
+        {
+          "type":        "registered",
+          "uid":         "usr-mem2",
+          "firstName":   "Viruli",
+          "lastName":    "W.",
+          "displayName": "Viruli W."
+        },
+        {
+          "type":        "external",
+          "id":          "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          "name":        "Priya Perera",
+          "phone":       "+94771234567",
+          "displayName": "Priya Perera",
+          "uid":         null
+        },
+        {
+          "type":        "external",
+          "id":          "b2c3d4e5-f6a7-8901-bcde-f12345678901",
+          "name":        "Nimal Silva",
+          "displayName": "Nimal Silva",
+          "uid":         null
+        }
       ]
     },
     {
@@ -3319,36 +3512,60 @@ Returns all cell members across every cell in the caller's network, grouped by c
       "leaderUid":   "usr-leader2",
       "memberCount": 2,
       "members": [
-        { "uid": "usr-mem4", "firstName": "Chamari", "lastName": "Silva", "displayName": "Chamari Silva" },
-        { "uid": "usr-mem5", "firstName": "Ruwan",   "lastName": "K.",    "displayName": "Ruwan K." }
+        {
+          "type":        "registered",
+          "uid":         "usr-mem4",
+          "firstName":   "Chamari",
+          "lastName":    "Silva",
+          "displayName": "Chamari Silva"
+        },
+        {
+          "type":        "registered",
+          "uid":         "usr-mem5",
+          "firstName":   "Ruwan",
+          "lastName":    "K.",
+          "displayName": "Ruwan K."
+        }
       ]
     }
   ],
   "totalCells":   2,
-  "totalMembers": 5
+  "totalMembers": 6
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `items[]` | One entry per cell in scope |
-| `items[].cellId` | Cell group ID |
-| `items[].cellName` | Cell display name |
-| `items[].cellType` | `g12` \| `care` \| `children` \| `outreach` |
-| `items[].area` | Geographic area of the cell |
-| `items[].leaderUid` | UID of the cell leader |
-| `items[].memberCount` | Total approved members in the cell |
-| `items[].members[]` | Live member profiles enriched from user-service |
-| `items[].members[].uid` | User UID |
-| `items[].members[].firstName` | First name (empty string if profile unavailable) |
-| `items[].members[].lastName` | Last name (empty string if profile unavailable) |
-| `items[].members[].displayName` | `firstName + ' ' + lastName` trimmed |
-| `totalCells` | Number of cells in scope |
-| `totalMembers` | Total distinct member slots across all cells (not deduplicated — a member in 2 cells counts twice) |
+#### Field Reference
 
-> **Graceful degradation:** If user-service is temporarily unavailable for a specific member lookup, that member is returned with `firstName: ""`, `lastName: ""`, `displayName: ""` rather than failing the entire request (uses `Promise.allSettled`). The cell is still included.
+| Field | Type | Description |
+|-------|------|-------------|
+| `items[]` | object[] | One entry per active cell in scope |
+| `items[].cellId` | string | Cell group ID |
+| `items[].cellName` | string | Cell display name |
+| `items[].cellType` | string | `g12` \| `care` \| `children` \| `outreach` |
+| `items[].area` | string | Geographic area of the cell |
+| `items[].leaderUid` | string | UID of the cell leader |
+| `items[].memberCount` | number | `registered members + external members` combined |
+| `items[].members[]` | `CellMember[]` | Discriminated union — see below |
+| `totalCells` | number | Number of cells included in the response |
+| `totalMembers` | number | Sum of all `memberCount` values (not deduplicated across cells) |
 
-> **No pagination:** Results are capped at 100 cells per call (sufficient for any realistic G12 network). Member lists are returned in full per cell.
+**`members[]` discriminated union:**
+
+| Field | Present when | Description |
+|-------|-------------|-------------|
+| `type` | Always | `"registered"` or `"external"` — discriminator field |
+| `uid` | `type: "registered"` | Firebase UID |
+| `firstName` | `type: "registered"` | First name (empty string if user-service unavailable) |
+| `lastName` | `type: "registered"` | Last name (empty string if user-service unavailable) |
+| `displayName` | Always | `"firstName lastName"` for registered; same as `name` for external |
+| `id` | `type: "external"` | Server-generated UUID — use as `:uid` in `DELETE /cells/:id/members/:uid` |
+| `name` | `type: "external"` | Full name supplied when the external member was added |
+| `phone` | `type: "external"` (optional) | Phone number; absent if not provided |
+| `uid` | `type: "external"` | Always `null` |
+
+> **Graceful degradation:** If user-service is temporarily unavailable for a registered member lookup, that member is returned with `firstName: ""`, `lastName: ""`, `displayName: ""` rather than failing the entire request. The cell is still included in the response.
+
+> **No pagination:** Results are capped at 100 cells per call. Member lists are returned in full per cell.
 
 **`403 Forbidden`** → `FORBIDDEN` — caller does not hold `leader`, `g12`, `admin`, or `super_admin`
 
@@ -3648,10 +3865,7 @@ Returns the complete reporting summary for the **Reports page dashboard** — st
 
 | Parameter | Type | Required | Description |
 |-----------|------|:--------:|-------------|
-| `from` | `YYYY-MM-DD` | ✅ | Start date of the reporting range |
-| `to` | `YYYY-MM-DD` | No | End date (defaults to today when omitted) |
-
-> **Period label behaviour:** When `from` and `to` fall within the same calendar month the `period` field returns `"May 2026"`. For multi-month ranges it returns `"20 May 2025 – 10 Apr 2026"`. The `weeklyBreakdown` uses `W1–W5` labels for spans ≤ 31 days and calendar-month labels (`"May '25"`, `"Jun '25"` …) for longer ranges.
+| `month` | `YYYY-MM` | ✅ | Calendar month to summarise (e.g. `2026-05`) |
 
 #### Scope (same rule as §14.6)
 
@@ -3666,8 +3880,8 @@ Returns the complete reporting summary for the **Reports page dashboard** — st
 ```json
 {
   "period": "May 2026",
-  "from":   "2026-05-01",
-  "to":     "2026-05-31",
+  "from":   "2026-05",
+  "to":     "2026-05-29",
   "scope": {
     "totalCells":   18,
     "totalLeaders": 6
@@ -3721,7 +3935,8 @@ Returns the complete reporting summary for the **Reports page dashboard** — st
 | Field | Type | Frontend Use |
 |-------|------|-------------|
 | `period` | string | Page heading — *"May 2026"* |
-| `month` | string | Pass back to `/network/reports?month=` on month-picker change |
+| `from`   | string | Month string echoed back from the request (e.g. `"2026-05"`) |
+| `to`     | string | End date resolved server-side (today's date in `YYYY-MM-DD`) |
 | `scope.totalCells` | number | Denominator for *"X of Y in scope"* sub-label |
 | `scope.totalLeaders` | number | Total leader count in scope |
 | `summary.cellsHeld` | number | **Cells held** stat card (numerator) |

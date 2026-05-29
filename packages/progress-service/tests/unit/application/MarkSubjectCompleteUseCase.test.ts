@@ -4,10 +4,10 @@ import { OutboxEventPublisher }       from '@shared/events';
 import { SubjectProgress }            from '../../../src/domain/entities/SubjectProgress';
 
 const makeProgress = (state: 'not_started' | 'in_progress' | 'completed', completedAt: string | null = null): SubjectProgress =>
-  new SubjectProgress({ id: 'uid1_sub1', studentUid: 'uid1', subjectId: 'sub1', courseId: 'c1', semesterId: 'sem1', state, completedAt, lastAccessedAt: null });
+  new SubjectProgress({ id: 'uid1_sub1', studentUid: 'uid1', subjectId: 'sub1', courseId: 'c1', semesterId: 'sem1', state, completedAt, lastAccessedAt: null, lastAccessedLessonId: null });
 
 const makeRepo   = (): jest.Mocked<IProgressRepository> =>
-  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn() });
+  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn(), revertCompletion: jest.fn() });
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>
   ({ publishWithBatch: jest.fn() } as unknown as jest.Mocked<OutboxEventPublisher>);
 
