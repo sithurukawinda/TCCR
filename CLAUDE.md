@@ -100,7 +100,7 @@ node scripts/seed-new-g12.js
 node scripts/seed-new-g12-online.js
 
 # Regenerate the Postman collection from source (overwrites postman/CMP_Backend.postman_collection.json)
-# Run this after adding new endpoints — generates 225 requests across 17 folders
+# Run this after adding new endpoints — generates 230 requests across 17 folders
 node scripts/build-postman-collection.js
 
 # Audit the Postman collection against implemented routes â€” reports missing/extra requests
@@ -939,7 +939,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 
 **Firebase emulator ports** (from `firebase.json`): Auth `9099`, Firestore `8080`, Storage `9199`, UI `4000` (`http://localhost:4000`).
 
-**Postman:** Import `postman/CMP_Backend.postman_collection.json` (225 requests across 17 folders) with one of the two environment files:
+**Postman:** Import `postman/CMP_Backend.postman_collection.json` (230 requests across 17 folders) with one of the two environment files:
 
 | Environment file | `baseUrl` | `authBaseUrl` | `firebaseWebApiKey` |
 |-----------------|-----------|--------------|-------------------|

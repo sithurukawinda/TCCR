@@ -2648,11 +2648,30 @@ const courseLifecycleFolder = folder('⚡ Course Lifecycle', [
     tests: [`pm.test("204 No Content — Delete Semester", () => pm.response.to.have.status(204));`],
   }),
   buildRequest({
-    name: 'Delete Course',
+    name: 'Delete Course (soft)',
     method: 'DELETE',
     url: { raw: '{{baseUrl}}/courses/{{courseId}}' },
     auth: bearerAuth('adminToken'),
-    tests: [`pm.test("204 No Content — Delete Course", () => pm.response.to.have.status(204));`],
+    description: 'Soft-delete — sets deletedAt timestamp. Recoverable via POST /courses/:id/restore. Admin only.',
+    tests: [`pm.test("204 No Content — Soft Delete Course", () => pm.response.to.have.status(204));`],
+  }),
+  buildRequest({
+    name: 'Hard Delete Course ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/hard' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Permanently removes the course and ALL related Firestore data: semesters, subjects, lessons, batches, batch_semesters. IRREVERSIBLE. super_admin only. Runs after soft-delete — findById works on soft-deleted docs.',
+    tests: [
+      `pm.test("204 or 404 — Hard Delete Course", () => { pm.expect([204, 404]).to.include(pm.response.code); });`,
+    ],
+  }),
+  buildRequest({
+    name: 'Hard Delete — admin blocked (expect 403) ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/hard' },
+    auth: bearerAuth('adminToken'),
+    description: 'Admin cannot hard-delete — only super_admin can.',
+    tests: [`pm.test("403 — admin cannot hard delete", () => pm.response.to.have.status(403));`],
   }),
 ]);
 
