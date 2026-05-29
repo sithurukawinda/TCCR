@@ -41,9 +41,10 @@ export class FirestoreCourseRepository implements ICourseRepository {
   }
 
   async findByTitle(title: string): Promise<Course | null> {
-    // Check ALL courses including soft-deleted — title can never be reused
+    // Only check active (non-deleted) courses — soft-deleted courses do not reserve their title
     const snap = await this.col
-      .where('title', '==', title)
+      .where('title',     '==', title)
+      .where('deletedAt', '==', null)
       .limit(1)
       .get();
     if (snap.empty) return null;
