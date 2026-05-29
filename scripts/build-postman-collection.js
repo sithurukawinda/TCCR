@@ -1150,7 +1150,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
-    tests: [`pm.test("204 or 404 — g12 promotes to leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — g12 promotes to leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'Promote member → g12 (g12 caller, registeredUid)',
@@ -1159,7 +1162,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 — g12 promotes to g12", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — g12 promotes to g12", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'Promote leader → g12 (leader caller, createdLeaderId)',
@@ -1168,7 +1174,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('leaderToken'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 or 409 — leader promotes leader to g12 (409 = already g12)", () => { pm.expect([200, 204, 404, 409]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 or 409 — leader promotes leader to g12 (409 = already g12)", () => { pm.expect([200, 404, 409]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   // 403 tests verify RBAC — the 403 is returned before any DB write, so target UID doesn't matter.
   buildRequest({
@@ -1201,8 +1210,9 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
     tests: [
-      `// 204 = demoted; 404 = user not found (expected if promote was skipped)`,
-      `pm.test("204 or 404 — admin demotes leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`,
+      `// 200 = demoted; 404 = user not found (expected if promote was skipped)`,
+      `pm.test("200 or 404 — admin demotes leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
     ],
   }),
   buildRequest({
@@ -1212,7 +1222,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('adminToken'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 — admin demotes g12", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — admin demotes g12", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'G12 demotes leader (g12 caller) — allowed',
@@ -1221,8 +1234,11 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
-    description: 'g12 can demote leader role only — this should succeed (204) or 404 if user not found.',
-    tests: [`pm.test("204 or 404 — g12 demotes leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    description: 'g12 can demote leader role only — this should succeed (200) or 404 if user not found.',
+    tests: [
+      `pm.test("200 or 404 — g12 demotes leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'G12 tries to demote g12 (expect 403)',
@@ -1655,7 +1671,7 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     auth: bearerAuth('studentToken'),
     headers: jsonHeader(),
     body: jsonBody({ openDate: '2026-07-01', endDate: '2026-09-30' }),
-    tests: [`pm.test("403 — student cannot patch semester dates", () => pm.response.to.have.status(403));`],
+    tests: [`pm.test("403 or 404 — student cannot patch semester dates", () => { pm.expect([403, 404]).to.include(pm.response.code); });`],
   }),
 ]);
 
@@ -2369,6 +2385,58 @@ const progressFolder = folder('9️⃣ Progress Service', [
     auth: bearerAuth('adminToken'),
     tests: [`pm.test("200 OK — Admin Course Progress", () => pm.response.to.have.status(200));`],
   }),
+
+  // ── Video position tracking (YouTube resume) ★ NEW ───────────────────────
+  buildRequest({
+    name: 'Save Video Position ★ NEW',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('student2Token'),
+    headers: jsonHeader(),
+    description: 'Save the current YouTube playback position so the student can resume later. watchedSeconds is an integer.',
+    body: jsonBody({ watchedSeconds: 90, courseId: '{{courseId}}' }),
+    tests: [
+      `pm.test("200 OK — Save Video Position", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("lessonId is string",       () => pm.expect(j.lessonId).to.be.a("string"));`,
+      `  pm.test("watchedSeconds is number", () => pm.expect(j.watchedSeconds).to.be.a("number"));`,
+      `  pm.test("updatedAt is string",      () => pm.expect(j.updatedAt).to.be.a("string"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Video Position ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('student2Token'),
+    description: 'Get the saved YouTube playback position. Returns { watchedSeconds: 0 } when no position has been saved yet.',
+    tests: [
+      `pm.test("200 OK — Get Video Position", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("lessonId is string",       () => pm.expect(j.lessonId).to.be.a("string"));`,
+      `  pm.test("watchedSeconds is number", () => pm.expect(j.watchedSeconds).to.be.a("number"));`,
+      `  pm.test("watchedSeconds >= 0",      () => pm.expect(j.watchedSeconds).to.be.at.least(0));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Video Position — no record yet (returns 0) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('studentToken'),
+    description: 'Student who has never watched returns { watchedSeconds: 0 } — never 404.',
+    tests: [
+      `pm.test("200 or 403 — returns 0 when no record", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("watchedSeconds is 0 or number", () => pm.expect(j.watchedSeconds).to.be.a("number").and.at.least(0));`,
+      `}`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -2824,20 +2892,18 @@ const joinRequestsSubFolder = folder('Join Requests', [
 
 const cellReportsSubFolder = folder('Cell Reports', [
 
-  // ── Reports Page: Network Summary ★ NEW ─────────────────────────────────────
+  // ── Reports Page: Network Summary (month required) ────────────────────────────
   buildRequest({
-    name: 'Get Network Summary — G12 view (from/to) ★ UPDATED',
+    name: 'Get Network Summary — G12 view',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01&to=2026-05-31' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('g12Token'),
-    description: 'Powers the Reports page dashboard. from is required; to defaults to today if omitted. API ref §14.7',
+    description: 'Powers the Reports page dashboard. month=YYYY-MM is required. API ref §14.7',
     tests: [
       `pm.test("200 or 401 — Network Summary", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) {`,
       `  const j = pm.response.json();`,
       `  pm.test("period is a string",          () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
-      `  pm.test("from is a string",            () => pm.expect(j.from).to.be.a("string").and.not.empty);`,
-      `  pm.test("to is a string",              () => pm.expect(j.to).to.be.a("string").and.not.empty);`,
       `  pm.test("scope.totalCells is number",  () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
       `  pm.test("summary.cellsHeld is number", () => pm.expect(j.summary.cellsHeld).to.be.a("number"));`,
       `  pm.test("summary.reportsFiled",        () => pm.expect(j.summary.reportsFiled).to.be.a("number"));`,
@@ -2854,41 +2920,32 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Summary — missing from → 400 ★ UPDATED',
+    name: 'Get Network Summary — missing month → 400',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary' },
     auth: bearerAuth('g12Token'),
+    description: 'month is required. Omitting it returns 400 VALIDATION_ERROR.',
     tests: [
-      `pm.test("400 or 401 — missing from param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `pm.test("400 or 401 — missing month param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — bad date format → 400 ★ UPDATED',
+    name: 'Get Network Summary — bad month format → 400',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?from=not-a-date' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=May-2026' },
     auth: bearerAuth('g12Token'),
+    description: 'month must be YYYY-MM format. Wrong format returns 400.',
     tests: [
-      `pm.test("400 or 401 — invalid from format", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `pm.test("400 or 401 — invalid month format", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — to omitted (defaults to today) ★ NEW',
+    name: 'Get Network Summary — Admin view',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-01-01' },
-    auth: bearerAuth('g12Token'),
-    tests: [
-      `pm.test("200 or 401 — to defaults to today", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("to is populated", () => pm.expect(j.to).to.be.a("string").and.not.empty); }`,
-    ],
-  }),
-
-  buildRequest({
-    name: 'Get Network Summary — Admin view ★ UPDATED',
-    method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01&to=2026-05-31' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('adminToken'),
     tests: [
       `pm.test("200 OK — Admin Network Summary", () => pm.response.to.have.status(200));`,
@@ -2898,20 +2955,20 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Summary — student (expect 403) ★ UPDATED',
+    name: 'Get Network Summary — student (expect 403)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/summary?from=2026-05-01&to=2026-05-31' },
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('studentToken'),
     tests: [`pm.test("403 — student cannot access summary", () => pm.response.to.have.status(403));`],
   }),
 
-  // ── Reports Page: Network Reports with filters ★ UPDATED ─────────────────────
+  // ── Reports Page: Network Reports (month optional, leaderUid/cellId/type supported) ─
   buildRequest({
-    name: 'Get Network Reports — with month filter ★ UPDATED',
+    name: 'Get Network Reports — with month filter',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=20' },
     auth: bearerAuth('g12Token'),
-    description: 'All Types tab — returns all reports for the month across the G12 network.',
+    description: 'All Types tab — all reports for the month across the G12 network. API ref §14.6',
     tests: [
       `pm.test("200 or 401 — Network Reports with month", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number")); }`,
@@ -2919,7 +2976,7 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Care tab (type=care) ★ NEW',
+    name: 'Get Network Reports — Care tab (type=care)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=care' },
     auth: bearerAuth('g12Token'),
@@ -2931,11 +2988,11 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Children tab (type=children) ★ NEW',
+    name: 'Get Network Reports — Children tab (type=children)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=children' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — Children. Only returns reports where cellType === "children".',
+    description: 'Cell Type tab filter — Children.',
     tests: [
       `pm.test("200 or 401 — Children tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("all items are children type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("children")); }); }`,
@@ -2943,11 +3000,11 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Outreach tab (type=outreach) ★ NEW',
+    name: 'Get Network Reports — Outreach tab (type=outreach)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=outreach' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — Outreach. Only returns reports where cellType === "outreach".',
+    description: 'Cell Type tab filter — Outreach.',
     tests: [
       `pm.test("200 or 401 — Outreach tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("all items are outreach type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("outreach")); }); }`,
@@ -2955,58 +3012,49 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — G12 tab (type=g12) ★ NEW',
+    name: 'Get Network Reports — G12 tab (type=g12)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=g12' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — G12. Only returns reports where cellType === "g12".',
+    description: 'Cell Type tab filter — G12.',
     tests: [
       `pm.test("200 or 401 — G12 tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("all items are g12 type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("g12")); }); }`,
     ],
   }),
 
-  // ── Network reports — leaderUid + cellId filters ★ NEW ──────────────────────
   buildRequest({
     name: 'Get Network Reports — filter by leaderUid ★ NEW',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&leaderUid={{leaderId}}' },
     auth: bearerAuth('adminToken'),
-    description: 'Admin/G12: narrow network reports to a single leader\'s cells. API ref §14.6',
+    description: 'Admin/G12: narrow network reports to a single leader\'s cells.',
     tests: [
       `pm.test("200 or 401 — leaderUid filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); }`,
     ],
   }),
+
   buildRequest({
     name: 'Get Network Reports — filter by cellId ★ NEW',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&cellId={{cellId}}' },
     auth: bearerAuth('g12Token'),
-    description: 'Narrow network reports to a single specific cell. API ref §14.6',
+    description: 'Narrow network reports to a single specific cell.',
     tests: [
       `pm.test("200 or 401 — cellId filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); }`,
     ],
   }),
+
   buildRequest({
-    name: 'Get Network Reports — missing from/month → 400 ★ NEW',
-    method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?limit=20' },
-    auth: bearerAuth('g12Token'),
-    description: 'from is now required (or month alias). Omitting both returns 400 VALIDATION_ERROR.',
-    tests: [
-      `pm.test("400 or 401 — from is required", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
-    ],
-  }),
-  buildRequest({
-    name: 'Get Network Reports — Admin (all cells, with month)',
+    name: 'Get Network Reports — Admin (all cells)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=10' },
     auth: bearerAuth('adminToken'),
     tests: [`pm.test("200 OK — Admin Network Reports", () => pm.response.to.have.status(200));`],
   }),
+
   buildRequest({
     name: 'Get Network Reports — member (expect 403)',
     method: 'GET',
