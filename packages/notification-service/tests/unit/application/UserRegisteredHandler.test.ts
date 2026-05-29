@@ -100,14 +100,14 @@ describe('UserRegisteredHandler', () => {
     );
   });
 
-  it('subject says "Your Account is Ready"', async () => {
+  it('subject says "Please Verify Your Email"', async () => {
     userClient.getAdminUids.mockResolvedValue([]);
     dispatcher.dispatchEmail.mockResolvedValue(undefined);
 
     await handler.handle(PAYLOAD, 'req-subject');
 
     const [, subject] = dispatcher.dispatchEmail.mock.calls[0];
-    expect(subject).toMatch(/your account is ready/i);
+    expect(subject).toMatch(/verify your email/i);
   });
 
   it('subject is the same regardless of whether appUrl is present', async () => {
@@ -132,24 +132,26 @@ describe('UserRegisteredHandler', () => {
     expect(html).toContain('Alice Smith');
   });
 
-  it('email body includes the user email address', async () => {
+  it('email body greets user by name (email address not shown in body)', async () => {
     userClient.getAdminUids.mockResolvedValue([]);
     dispatcher.dispatchEmail.mockResolvedValue(undefined);
 
     await handler.handle(PAYLOAD, 'req-email');
 
     const [, , html] = dispatcher.dispatchEmail.mock.calls[0];
-    expect(html).toContain('alice@example.com');
+    // New verification-link email greets by name — email address is the recipient, not in body
+    expect(html).toContain('Alice Smith');
   });
 
-  it('email body includes the password when present in payload', async () => {
+  it('email body does not expose the plain-text password (verification-link flow)', async () => {
     userClient.getAdminUids.mockResolvedValue([]);
     dispatcher.dispatchEmail.mockResolvedValue(undefined);
 
     await handler.handle(PAYLOAD, 'req-password');
 
     const [, , html] = dispatcher.dispatchEmail.mock.calls[0];
-    expect(html).toContain('SecurePass@2026');
+    // Password is no longer included in the welcome email — user sets it via reset link
+    expect(html).not.toContain('SecurePass@2026');
   });
 
   it('email body contains Login button with the appUrl', async () => {

@@ -28,14 +28,15 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
 });
 
 const makeAuthClient = (): jest.Mocked<FirebaseAuthClient> => ({
-  createUser:                jest.fn(),
-  setCustomClaims:           jest.fn(),
-  disableUser:               jest.fn(),
-  enableUser:                jest.fn(),
-  updatePassword:            jest.fn(),
-  deleteUser:                jest.fn(),
-  verifyPassword:            jest.fn(),
-  generatePasswordResetLink: jest.fn(),
+  createUser:                     jest.fn(),
+  setCustomClaims:                jest.fn(),
+  disableUser:                    jest.fn(),
+  enableUser:                     jest.fn(),
+  updatePassword:                 jest.fn(),
+  deleteUser:                     jest.fn(),
+  verifyPassword:                 jest.fn(),
+  generatePasswordResetLink:      jest.fn(),
+  generateEmailVerificationLink:  jest.fn().mockResolvedValue(null),
 } as unknown as jest.Mocked<FirebaseAuthClient>);
 
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>

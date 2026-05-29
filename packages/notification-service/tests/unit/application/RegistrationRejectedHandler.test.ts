@@ -44,7 +44,7 @@ describe('RegistrationRejectedHandler', () => {
     await handler.handle({ studentUid: 'uid-1', email: 'u@example.com', reason: null }, 'req-1');
 
     expect(repo.create).toHaveBeenCalledWith(
-      expect.objectContaining({ body: 'Your registration was not approved.' }),
+      expect.objectContaining({ body: 'Your registration was not approved at this time.' }),
     );
   });
 

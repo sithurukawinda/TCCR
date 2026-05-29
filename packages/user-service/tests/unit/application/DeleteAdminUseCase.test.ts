@@ -43,15 +43,15 @@ describe('DeleteAdminUseCase', () => {
     useCase    = new DeleteAdminUseCase(repo, authClient);
   });
 
-  it('soft-deletes admin and disables Firebase user', async () => {
+  it('hard-deletes admin and removes Firebase user', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1');
 
-    expect(repo.softDelete).toHaveBeenCalledWith('uid-1');
-    expect(authClient.disableUser).toHaveBeenCalledWith('uid-1');
+    expect(repo.hardDelete).toHaveBeenCalledWith('uid-1');
+    expect(authClient.deleteUser).toHaveBeenCalledWith('uid-1');
   });
 
   it('throws 404 USER_NOT_FOUND when user does not exist', async () => {
@@ -71,10 +71,10 @@ describe('DeleteAdminUseCase', () => {
     expect(repo.softDelete).not.toHaveBeenCalled();
   });
 
-  it('propagates errors from disableUser', async () => {
+  it('propagates errors from deleteUser', async () => {
     repo.findById.mockResolvedValue(makeUser());
-    repo.softDelete.mockResolvedValue(undefined);
-    authClient.disableUser.mockRejectedValue(new Error('Firebase error'));
+    repo.hardDelete.mockResolvedValue(undefined);
+    authClient.deleteUser.mockRejectedValue(new Error('Firebase error'));
 
     await expect(useCase.execute('uid-1')).rejects.toThrow('Firebase error');
   });

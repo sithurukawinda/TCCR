@@ -76,8 +76,8 @@ describe('snapshotJob', () => {
 
     await runSnapshotJob();
 
-    // Should write: org + leader:leader-1 + g12:g12-1 = 3 snapshots
-    expect(mockBatchSet).toHaveBeenCalledTimes(3);
+    // Writes base scopes (org, leader:leader-1, g12:g12-1) + cellType-dimension variants per scope
+    expect(mockBatchSet).toHaveBeenCalledTimes(9);
     expect(mockBatchCommit).toHaveBeenCalledTimes(1);
   });
 

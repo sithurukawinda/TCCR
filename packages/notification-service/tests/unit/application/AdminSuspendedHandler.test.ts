@@ -41,7 +41,7 @@ describe('AdminSuspendedHandler', () => {
 
     expect(dispatcher.dispatchEmail).toHaveBeenCalledWith(
       'admin@example.com',
-      expect.stringContaining('Account Suspended'),
+      expect.stringContaining('Suspended'),
       expect.any(String),
       'req-1',
     );

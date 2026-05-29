@@ -10,9 +10,10 @@ jest.mock('../../../src/utils/emailValidator', () => ({
 // ─── Firebase Mocks ──────────────────────────────────────────────────────────
 
 const authMock = {
-  createUser:          jest.fn().mockResolvedValue({ uid: 'new-uid' }),
-  setCustomUserClaims: jest.fn().mockResolvedValue(undefined),
-  deleteUser:          jest.fn().mockResolvedValue(undefined),
+  createUser:                   jest.fn().mockResolvedValue({ uid: 'new-uid' }),
+  setCustomUserClaims:          jest.fn().mockResolvedValue(undefined),
+  deleteUser:                   jest.fn().mockResolvedValue(undefined),
+  generateEmailVerificationLink: jest.fn().mockResolvedValue(null),
 };
 jest.mock('firebase-admin/auth', () => ({ getAuth: () => authMock }));
 
@@ -65,13 +66,13 @@ describe('RegisterUseCase', () => {
       const result = await useCase.execute(BASE_INPUT, 'req-1');
 
       expect(result.uid).toBe('new-uid');
-      expect(result.message).toMatch(/you can now log in/i);
+      expect(result.message).toMatch(/verification link/i);
       expect(client.emailExists).toHaveBeenCalledWith(BASE_INPUT.email);
       expect(authMock.createUser).toHaveBeenCalledWith({
         email:         BASE_INPUT.email,
         password:      BASE_INPUT.password,
         displayName:   'Viruli Wijesinghe',
-        emailVerified: true,
+        emailVerified: false,
       });
       expect(authMock.setCustomUserClaims).toHaveBeenCalledWith(
         'new-uid',

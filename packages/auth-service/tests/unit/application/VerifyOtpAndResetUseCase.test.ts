@@ -37,10 +37,8 @@ describe('VerifyOtpAndResetUseCase', () => {
     await useCase.execute('user@example.com', '123456');
 
     expect(otpRepo.delete).toHaveBeenCalledWith('user@example.com');
-    expect(global.fetch).toHaveBeenCalledWith(
-      expect.stringContaining('accounts:sendOobCode'),
-      expect.objectContaining({ method: 'POST' }),
-    );
+    // Step 2 no longer triggers a Firebase reset email — the link was already
+    // sent in Step 1 (RequestPasswordResetUseCase), so fetch is not called here.
   });
 
   it('throws 400 INVALID_OTP when no record exists', async () => {
