@@ -100,7 +100,7 @@ node scripts/seed-new-g12.js
 node scripts/seed-new-g12-online.js
 
 # Regenerate the Postman collection from source (overwrites postman/CMP_Backend.postman_collection.json)
-# Run this after adding new endpoints — generates 220 requests across 17 folders
+# Run this after adding new endpoints — generates 225 requests across 17 folders
 node scripts/build-postman-collection.js
 
 # Audit the Postman collection against implemented routes â€” reports missing/extra requests
@@ -119,6 +119,7 @@ node scripts/migrations/004-verify-migration.js            # validate migration 
 node scripts/migrations/005-legacy-batches.js              # create 'Legacy' batch per course; backfill enrollments.batchId
 node scripts/migrations/006-semester-dates.js              # set openDate=createdAt, endDate=null on semesters missing openDate
 node scripts/migrations/007-backfill-leader-g12-firebase-auth.js --temp-password=Change@Me2026  # create missing Firebase Auth accounts for seeded leader/g12 users
+node scripts/migrations/008-batch-semester-dates.js              # backfill batch_semesters collection for existing batches
 
 # Live API tests â€” verify V2 registration behaviour (requires running services)
 node scripts/test-phase1-apis.js
@@ -238,6 +239,10 @@ node scripts/trigger-snapshot.js
 # Requires services running + online Firebase credentials hardcoded to seed accounts
 node scripts/check-reports-data.js
 
+# Check how many emails were sent today (outbox + notifications + OTP collections)
+# Reads credentials from .env.local — useful for verifying Gmail daily quota (500/day free)
+node scripts/check-emails-today.js
+
 # -- One-time migrations / TCCR seeds --
 
 # One-time: send email-verification links to all existing unverified Firebase Auth users
@@ -288,7 +293,7 @@ The gateway rewrites all proxied paths by stripping the `/api/v1` prefix before 
 The gateway also blocks all `/api/v1/internal/*` paths with 404 before proxying â€” internal routes are never reachable from outside the cluster.
 
 **Route ordering in `gateway/src/app.ts` is load-bearing.** More-specific prefixes must be registered before their broader siblings:
-- `/api/v1/me/notifications/preferences` (userProxy) before `/api/v1/me/notifications` (notifyProxy); then `/api/v1/me/enrollments`, `/api/v1/me/progress` each before `/api/v1/me`
+- `/api/v1/me/notifications/preferences` (userProxy) before `/api/v1/me/notifications` (notifyProxy); then `/api/v1/me/enrollments`, `/api/v1/me/progress`, `/api/v1/me/courses` each before `/api/v1/me`
 - `/api/v1/users/:uid/audit-log` (auditProxy) before `/api/v1/users` (userProxy)
 - `/api/v1/courses/:id/enroll` before `/api/v1/courses`
 - `/api/v1/subjects/:id/lessons` (courseProxy), `/api/v1/subjects/:id/attachments` (storageProxy), and `/api/v1/subjects/:id/images` (storageProxy) each before `/api/v1/subjects`
@@ -305,6 +310,7 @@ Adding a new proxied route in the wrong order will silently send traffic to the 
 | `/api/v1/me/notifications` | notification-service |
 | `/api/v1/me/enrollments` | enrollment-service |
 | `/api/v1/me/progress` | progress-service |
+| `/api/v1/me/courses` | course-service (V2 — must precede `/api/v1/me` → user-service) |
 | `/api/v1/me` | user-service |
 | `/api/v1/users/:uid/audit-log` | audit-service (must precede `/api/v1/users`) |
 | `/api/v1/users`, `/api/v1/super-admin` | user-service |
@@ -520,7 +526,7 @@ helmet() â†’ cors() â†’ requestId â†’ httpLogger â†’ general
 
 **Exception â€” the gateway does not register `errorHandler`.** It is a pure reverse proxy (`http-proxy-middleware`) with no business logic; all responses pass through from upstream services unchanged.
 
-**Gateway CORS details:** Methods allowed: `GET, POST, PATCH, DELETE, OPTIONS`. Headers allowed: `Authorization, Content-Type, Accept-Language, X-Request-Id, X-Idempotency-Key`. Preflight OPTIONS requests return 204 and are handled entirely by `cors()` (`preflightContinue: false`). Any new request header used by a service must be added to this allowlist or browser preflight will fail silently.
+**Gateway CORS details:** Methods allowed: `GET, POST, PUT, PATCH, DELETE, OPTIONS`. Headers allowed: `Authorization, Content-Type, Accept-Language, X-Request-Id, X-Idempotency-Key`. Preflight OPTIONS requests return 204 and are handled entirely by `cors()` (`preflightContinue: false`). Any new request header used by a service must be added to this allowlist or browser preflight will fail silently.
 
 ### Error Handling
 
@@ -616,6 +622,7 @@ No service reads another service's Firestore collections directly. Cross-service
 | `courses/{id}/semesters` | course-service | auto UUID |
 | `courses/{id}/semesters/{id}/subjects` | course-service | auto UUID |
 | `courses/{id}/batches` | course-service | auto UUID â€” V2; state machine: `draft â†’ open â†’ closed`; fields: `name`, `scheduledOpenAt`, `scheduledCloseAt`, `status` |
+| `batch_semesters` | course-service | flat collection (not sub-collection); composite key `batchId + semesterId`; fields: `batchId`, `courseId`, `semesterId`, `openDate` (YYYY-MM-DD or null), `endDate` (YYYY-MM-DD or null); written by `SetBatchSemesterDatesUseCase` / `PatchBatchSemesterDateUseCase`; read by `GetStudentCourseUseCase` to derive per-semester state |
 | `lessons` | course-service | auto UUID â€” flat collection; fields: `title`, `description`, `youtubeVideoId` (nullable), `attachmentIds[]`, `subjectId`, `semesterId`, `courseId` foreign keys, `order` |
 | `registrations` | enrollment-service | Firebase Auth UID (studentUid) â€” V1 legacy; new users bypass this via V2 registration |
 | `role_requests` | enrollment-service | auto UUID â€” V2; tracks role grants for non-member roles; state machine: `pending â†’ approved / rejected` |
@@ -732,6 +739,8 @@ DRAFT â†’ open() â†’ OPEN â†’ close() â†’ CLOSED
 ```
 
 `CreateBatchUseCase` auto-transitions to `OPEN` if `scheduledOpenAt` is in the past at creation time. Date fields (`scheduledOpenAt`, `scheduledCloseAt`) cannot be changed once a batch leaves `DRAFT`. Endpoints: `GET /courses/:id/batches`, `POST /courses/:id/batches`, `GET /batches/:id`, `PATCH /batches/:id`, `POST /batches/:id/open`, `POST /batches/:id/close`.
+
+**Batch semester scheduling (V2):** Each batch can define its own open/end dates per semester via the `batch_semesters` flat collection. `PUT /courses/:courseId/batches/:batchId/semester-dates` sets all semester dates at once; `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` updates one. Both are `admin` only. `GET /me/courses/:courseId` (proxied to course-service via `/api/v1/me/courses`) returns the authenticated student's course view with each semester's computed `state` — `unscheduled | upcoming | open | closed` — derived from the `batch_semesters` record for their enrolled batch. Semesters with no `batch_semesters` record return `state: "unscheduled"`.
 
 **YouTube field validation:** The `youtubeVideoId` field on lessons accepts full YouTube URLs (not raw IDs) and extracts the 11-char ID at validation time. Supported formats: `youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/embed/ID`. The extracted ID is what's stored in Firestore. Passing a raw ID directly will fail validation.
 
@@ -930,7 +939,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 
 **Firebase emulator ports** (from `firebase.json`): Auth `9099`, Firestore `8080`, Storage `9199`, UI `4000` (`http://localhost:4000`).
 
-**Postman:** Import `postman/CMP_Backend.postman_collection.json` (220 requests across 17 folders) with one of the two environment files:
+**Postman:** Import `postman/CMP_Backend.postman_collection.json` (225 requests across 17 folders) with one of the two environment files:
 
 | Environment file | `baseUrl` | `authBaseUrl` | `firebaseWebApiKey` |
 |-----------------|-----------|--------------|-------------------|
