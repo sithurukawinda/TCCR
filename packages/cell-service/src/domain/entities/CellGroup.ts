@@ -11,14 +11,14 @@ export interface ExternalMember {
 }
 
 export interface CellGroupProps {
-  id:              string;
-  name:            string;
-  type:            CellType;
-  area:            string;
-  leaderUid:       string;
-  g12LeaderUid:    string;
-  members:         string[];
-  externalMembers: ExternalMember[];
+  id:               string;
+  name:             string;
+  type:             CellType;
+  area:             string;
+  leaderUid:        string;
+  g12LeaderUid:     string;
+  members:          string[];
+  externalMembers?: ExternalMember[];
   memberCount:     number;
   reportCount:     number;
   state:           CellState;

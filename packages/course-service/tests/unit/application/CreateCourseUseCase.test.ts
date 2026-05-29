@@ -17,6 +17,7 @@ const makeRepo = (): jest.Mocked<ICourseRepository> => ({
   create:      jest.fn(),
   update:      jest.fn(),
   softDelete:  jest.fn(),
+  hardDelete:  jest.fn(),
 });
 
 describe('CreateCourseUseCase', () => {

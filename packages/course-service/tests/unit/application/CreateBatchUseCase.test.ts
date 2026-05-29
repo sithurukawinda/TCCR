@@ -9,13 +9,13 @@ const makeCourse = (): Course =>
   new Course({ id: 'course-1', title: 'T', description: '', coverImageUrl: null, state: 'draft', createdBy: 'u1', semesterCount: 0, publishedAt: null, deletedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
 
 const makeCourseRepo = (): jest.Mocked<ICourseRepository> =>
-  ({ findById: jest.fn(), findByTitle: jest.fn(), findPublished: jest.fn(), findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn() });
+  ({ findById: jest.fn(), findByTitle: jest.fn(), findPublished: jest.fn(), findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn() });
 
 const makeBatchRepo = (): jest.Mocked<IBatchRepository> =>
   ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn() });
 
 const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> =>
-  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn() });
+  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn() });
 
 const makeBsRepo = (): jest.Mocked<IBatchSemesterRepository> =>
   ({ findByBatchId: jest.fn(), findBySemesterId: jest.fn(), upsertMany: jest.fn(), deleteBySemesterId: jest.fn(), deleteByBatchId: jest.fn() });

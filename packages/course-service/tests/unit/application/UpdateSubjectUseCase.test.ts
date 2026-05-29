@@ -12,6 +12,8 @@ const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> => ({
   create:         jest.fn(),
   update:         jest.fn(),
   softDelete:     jest.fn(),
+  hardDelete:     jest.fn(),
+  deleteBySemesterId: jest.fn(),
 });
 
 describe('UpdateSubjectUseCase', () => {

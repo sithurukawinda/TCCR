@@ -7,7 +7,7 @@ const makeLesson = (deletedAt: string | null = null): Lesson =>
 
 const makeLessonRepo = (): jest.Mocked<ILessonRepository> => ({
   findById: jest.fn(), findBySubject: jest.fn(), create: jest.fn(),
-  update: jest.fn(), softDelete: jest.fn(), nextOrder: jest.fn(),
+  update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), deleteBySubjectId: jest.fn(), nextOrder: jest.fn(),
   countBySubject: jest.fn(), countByCourse: jest.fn(),
 });
 
@@ -21,13 +21,13 @@ describe('DeleteLessonUseCase', () => {
     useCase = new DeleteLessonUseCase(repo);
   });
 
-  it('soft-deletes an existing lesson', async () => {
+  it('hard-deletes an existing lesson', async () => {
     repo.findById.mockResolvedValue(makeLesson());
-    repo.softDelete.mockResolvedValue(undefined);
+    repo.hardDelete.mockResolvedValue(undefined);
 
     await useCase.execute('l1');
 
-    expect(repo.softDelete).toHaveBeenCalledWith('l1');
+    expect(repo.hardDelete).toHaveBeenCalledWith('l1');
   });
 
   it('throws 404 LESSON_NOT_FOUND when lesson does not exist', async () => {
@@ -36,12 +36,12 @@ describe('DeleteLessonUseCase', () => {
       status:    404,
       errorCode: 'LESSON_NOT_FOUND',
     });
-    expect(repo.softDelete).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 
   it('throws 404 LESSON_NOT_FOUND when lesson is already soft-deleted', async () => {
     repo.findById.mockResolvedValue(makeLesson('2026-01-01T00:00:00.000Z'));
     await expect(useCase.execute('l1')).rejects.toMatchObject({ status: 404 });
-    expect(repo.softDelete).not.toHaveBeenCalled();
+    expect(repo.hardDelete).not.toHaveBeenCalled();
   });
 });

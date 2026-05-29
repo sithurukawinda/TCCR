@@ -23,16 +23,16 @@ const makeSubject = (): Subject =>
 
 const makeCourseRepo = (): jest.Mocked<ICourseRepository> => ({
   findById: jest.fn(), findByTitle: jest.fn(), findPublished: jest.fn(),
-  findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> => ({
-  findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> => ({
   findById: jest.fn(), findBySemesterId: jest.fn(), findByCourseId: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), deleteBySemesterId: jest.fn(),
 });
 
 const makeBatchRepo = (): jest.Mocked<IBatchRepository> =>

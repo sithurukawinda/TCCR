@@ -8,12 +8,12 @@ const makeSubject = (deletedAt: string | null = null): Subject =>
 
 const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> => ({
   findById: jest.fn(), findBySemesterId: jest.fn(), findByCourseId: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), deleteBySemesterId: jest.fn(),
 });
 
 const makeLessonRepo = (): jest.Mocked<ILessonRepository> => ({
   findById: jest.fn(), findBySubject: jest.fn(), create: jest.fn(),
-  update: jest.fn(), softDelete: jest.fn(), nextOrder: jest.fn(),
+  update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), deleteBySubjectId: jest.fn(), nextOrder: jest.fn(),
   countBySubject: jest.fn(), countByCourse: jest.fn(),
 });
 

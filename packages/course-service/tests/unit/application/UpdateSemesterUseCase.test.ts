@@ -11,6 +11,7 @@ const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> => ({
   create:        jest.fn(),
   update:        jest.fn(),
   softDelete:    jest.fn(),
+  hardDelete:    jest.fn(),
 });
 
 describe('UpdateSemesterUseCase', () => {

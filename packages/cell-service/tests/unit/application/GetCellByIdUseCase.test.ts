@@ -60,8 +60,8 @@ describe('GetCellByIdUseCase', () => {
     const result = await useCase.execute('cell-1', 'member-uid', ['member']);
 
     expect(result.id).toBe('cell-1');
-    expect(result.members[0].firstName).toBe('Leader');
-    expect(result.members[1].firstName).toBe('Member');
+    expect((result.members[0] as { firstName: string }).firstName).toBe('Leader');
+    expect((result.members[1] as { firstName: string }).firstName).toBe('Member');
   });
 
   it('returns cell when caller is admin (even if not a member)', async () => {

@@ -7,10 +7,10 @@ const makeSemester = (): Semester =>
   new Semester({ id: 's1', courseId: 'c1', title: 'S1', subjectCount: 0, order: 1, deletedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
 
 const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> =>
-  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn() });
+  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn() });
 
 const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> =>
-  ({ findById: jest.fn(), findBySemesterId: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn() });
+  ({ findById: jest.fn(), findBySemesterId: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), deleteBySemesterId: jest.fn() });
 
 describe('CreateSubjectUseCase', () => {
   let semesterRepo: jest.Mocked<ISemesterRepository>;

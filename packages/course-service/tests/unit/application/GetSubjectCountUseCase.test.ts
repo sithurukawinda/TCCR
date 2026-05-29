@@ -16,11 +16,11 @@ const makeSemester = (id: string, subjectCount: number): Semester =>
 
 const makeCourseRepo = (): jest.Mocked<ICourseRepository> => ({
   findById: jest.fn(), findByTitle: jest.fn(), findPublished: jest.fn(),
-  findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  findAll: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> => ({
-  findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
+  findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
 });
 
 describe('GetSubjectCountUseCase', () => {
