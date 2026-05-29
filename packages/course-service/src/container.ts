@@ -64,12 +64,12 @@ const hardDeleteCourse = new HardDeleteCourseUseCase(courseRepo);
 // Semester use cases
 const createSemester = new CreateSemesterUseCase(courseRepo, semesterRepo, batchRepo, bsRepo);
 const updateSemester = new UpdateSemesterUseCase(semesterRepo);
-const deleteSemester = new DeleteSemesterUseCase(courseRepo, semesterRepo, bsRepo);
+const deleteSemester = new DeleteSemesterUseCase(courseRepo, semesterRepo, subjectRepo, lessonRepo, bsRepo);
 
 // Subject use cases
 const createSubject = new CreateSubjectUseCase(semesterRepo, subjectRepo);
 const updateSubject = new UpdateSubjectUseCase(subjectRepo);
-const deleteSubject = new DeleteSubjectUseCase(semesterRepo, subjectRepo);
+const deleteSubject = new DeleteSubjectUseCase(semesterRepo, subjectRepo, lessonRepo);
 
 const getSubjectCount = new GetSubjectCountUseCase(courseRepo, semesterRepo);
 

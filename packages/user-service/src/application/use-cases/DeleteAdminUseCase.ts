@@ -13,7 +13,7 @@ export class DeleteAdminUseCase {
     if (!user) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
     if (user.role !== 'admin') throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
 
-    await this.userRepo.softDelete(uid);
-    await this.authClient.disableUser(uid);
+    await this.userRepo.hardDelete(uid);
+    await this.authClient.deleteUser(uid);
   }
 }

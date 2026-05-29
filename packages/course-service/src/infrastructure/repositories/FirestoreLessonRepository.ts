@@ -61,6 +61,21 @@ export class FirestoreLessonRepository implements ILessonRepository {
     });
   }
 
+  async hardDelete(id: string): Promise<void> {
+    await this.col.doc(id).delete();
+  }
+
+  async deleteBySubjectId(subjectId: string): Promise<void> {
+    let snap = await this.col.where('subjectId', '==', subjectId).limit(100).get();
+    while (!snap.empty) {
+      const batch = this.col.firestore.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      if (snap.docs.length < 100) break;
+      snap = await this.col.where('subjectId', '==', subjectId).limit(100).get();
+    }
+  }
+
   async nextOrder(subjectId: string): Promise<number> {
     const snap = await this.col
       .where('subjectId', '==', subjectId)

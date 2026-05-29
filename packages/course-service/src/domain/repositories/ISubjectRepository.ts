@@ -7,4 +7,6 @@ export interface ISubjectRepository {
   create(subject: Subject): Promise<void>;
   update(subject: Subject): Promise<void>;
   softDelete(id: string): Promise<void>;
+  hardDelete(id: string): Promise<void>;
+  deleteBySemesterId(semesterId: string): Promise<void>;
 }

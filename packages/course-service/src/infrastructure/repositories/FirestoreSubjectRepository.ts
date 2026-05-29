@@ -49,4 +49,19 @@ export class FirestoreSubjectRepository implements ISubjectRepository {
   async softDelete(id: string): Promise<void> {
     await this.col.doc(id).update({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.col.doc(id).delete();
+  }
+
+  async deleteBySemesterId(semesterId: string): Promise<void> {
+    let snap = await this.col.where('semesterId', '==', semesterId).limit(100).get();
+    while (!snap.empty) {
+      const batch = this.col.firestore.batch();
+      snap.docs.forEach(d => batch.delete(d.ref));
+      await batch.commit();
+      if (snap.docs.length < 100) break;
+      snap = await this.col.where('semesterId', '==', semesterId).limit(100).get();
+    }
+  }
 }

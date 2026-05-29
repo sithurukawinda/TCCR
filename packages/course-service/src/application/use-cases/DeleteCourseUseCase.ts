@@ -8,6 +8,6 @@ export class DeleteCourseUseCase {
     const course = await this.courseRepo.findById(id);
     if (!course) throw createHttpError(404, 'COURSE_NOT_FOUND', 'Course not found.');
 
-    await this.courseRepo.softDelete(id);
+    await this.courseRepo.hardDelete(id);
   }
 }

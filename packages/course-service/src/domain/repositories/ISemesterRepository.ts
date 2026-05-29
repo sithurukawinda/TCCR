@@ -6,4 +6,5 @@ export interface ISemesterRepository {
   create(semester: Semester): Promise<void>;
   update(semester: Semester): Promise<void>;
   softDelete(id: string): Promise<void>;
+  hardDelete(id: string): Promise<void>;
 }

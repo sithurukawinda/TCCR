@@ -7,6 +7,6 @@ export class DeleteLessonUseCase {
   async execute(id: string): Promise<void> {
     const lesson = await this.lessonRepo.findById(id);
     if (!lesson || lesson.deletedAt) throw createHttpError(404, 'LESSON_NOT_FOUND', 'Lesson not found.');
-    await this.lessonRepo.softDelete(id);
+    await this.lessonRepo.hardDelete(id);
   }
 }

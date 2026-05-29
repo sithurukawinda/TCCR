@@ -54,4 +54,8 @@ export class FirestoreSemesterRepository implements ISemesterRepository {
   async softDelete(id: string): Promise<void> {
     await this.col.doc(id).update({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
   }
+
+  async hardDelete(id: string): Promise<void> {
+    await this.col.doc(id).delete();
+  }
 }
