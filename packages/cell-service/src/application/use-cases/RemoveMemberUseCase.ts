@@ -19,7 +19,19 @@ export class RemoveMemberUseCase {
       throw createHttpError(403, 'FORBIDDEN', 'Only the cell owner or an admin can remove members.');
     }
 
-    cell.removeMember(memberUid);
+    const inRegistered = cell.members.includes(memberUid);
+    const inExternal   = cell.externalMembers.some(e => e.id === memberUid);
+
+    if (!inRegistered && !inExternal) {
+      throw createHttpError(404, 'MEMBER_NOT_FOUND', 'User is not a member of this cell.');
+    }
+
+    if (inRegistered) {
+      cell.removeMember(memberUid);
+    } else {
+      cell.removeExternalMember(memberUid);
+    }
+
     await this.cellRepo.update(cell);
     return { removed: memberUid, memberCount: cell.memberCount };
   }

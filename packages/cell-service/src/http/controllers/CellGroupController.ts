@@ -121,7 +121,7 @@ export class CellGroupController {
       const parsed = addMembersSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const result = await this.addMembersUC.execute(req.params.id, parsed.data.userUids, uid, roles);
+      const result = await this.addMembersUC.execute(req.params.id, parsed.data.userUids, uid, roles, parsed.data.externalMembers);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

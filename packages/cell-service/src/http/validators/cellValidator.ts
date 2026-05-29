@@ -14,9 +14,18 @@ export const updateCellSchema = z.object({
   g12LeaderUid: z.string().min(1).optional(),
 });
 
-export const addMembersSchema = z.object({
-  userUids: z.array(z.string().min(1)).min(1).max(50),
+export const externalMemberInputSchema = z.object({
+  name:  z.string().min(1).max(200),
+  phone: z.string().max(30).optional(),
 });
+
+export const addMembersSchema = z.object({
+  userUids:        z.array(z.string().min(1)).max(50).default([]),
+  externalMembers: z.array(externalMemberInputSchema).max(50).default([]),
+}).refine(
+  data => data.userUids.length > 0 || data.externalMembers.length > 0,
+  { message: 'At least one of userUids or externalMembers must be non-empty.' },
+);
 
 export const createJoinRequestSchema = z.object({
   message: z.string().max(500).nullable().optional(),

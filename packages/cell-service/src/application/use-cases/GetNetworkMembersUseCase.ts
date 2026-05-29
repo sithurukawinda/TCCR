@@ -1,8 +1,8 @@
-import { createHttpError }       from '@shared/errors';
-import { Role }                  from '@shared/auth-middleware';
-import { ICellGroupRepository }  from '../../domain/repositories/ICellGroupRepository';
-import { UserServiceClient,
-         MemberProfile }         from '../../infrastructure/clients/UserServiceClient';
+import { createHttpError }                                     from '@shared/errors';
+import { Role }                                                from '@shared/auth-middleware';
+import { ICellGroupRepository }                                from '../../domain/repositories/ICellGroupRepository';
+import { UserServiceClient }                                   from '../../infrastructure/clients/UserServiceClient';
+import { CellMember, RegisteredMember, ExternalMemberResponse } from './GetCellByIdUseCase';
 
 export interface NetworkCellMembers {
   cellId:      string;
@@ -11,7 +11,7 @@ export interface NetworkCellMembers {
   area:        string;
   leaderUid:   string;
   memberCount: number;
-  members:     MemberProfile[];
+  members:     CellMember[];
 }
 
 export interface NetworkMembersResult {
@@ -22,12 +22,13 @@ export interface NetworkMembersResult {
 
 /**
  * Returns all members across every cell in the caller's G12 network,
- * grouped by cell so the G12 can see which members belong to each leader.
+ * grouped by cell. Members include both registered (enriched via user-service)
+ * and external (unregistered) members.
  *
  * Scope by role:
  *   G12         → members from ALL active cells (org-wide read access)
- *   Leader      → members from their own cell only (leaderUid === callerUid)
- *   Admin/SA    → members from ALL active cells (no UID filter)
+ *   Leader      → members from their own cell only
+ *   Admin/SA    → members from ALL active cells
  */
 export class GetNetworkMembersUseCase {
   constructor(
@@ -35,10 +36,7 @@ export class GetNetworkMembersUseCase {
     private readonly userClient: UserServiceClient,
   ) {}
 
-  async execute(
-    callerUid:   string,
-    callerRoles: Role[],
-  ): Promise<NetworkMembersResult> {
+  async execute(callerUid: string, callerRoles: Role[]): Promise<NetworkMembersResult> {
     const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
     const isG12    = callerRoles.includes('g12');
     const isLeader = callerRoles.includes('leader');
@@ -51,32 +49,29 @@ export class GetNetworkMembersUseCase {
       );
     }
 
-    // ── Determine which cells to query ───────────────────────────────────────
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
-
-    if (isAdmin) {
-      cellFilter = {}; // all cells
-    } else if (isG12) {
-      cellFilter = {}; // G12 — org-wide read access (all cells)
-    } else {
-      cellFilter = { leaderUid: callerUid }; // leader sees their own cell
+    if (!isAdmin && !isG12) {
+      cellFilter = { leaderUid: callerUid };
     }
 
-    // Fetch up to 100 active cells in this network
-    const cellResult = await this.cellRepo.findAll({
-      limit: 100,
-      state: 'active',
-      ...cellFilter,
-    });
+    const cellResult = await this.cellRepo.findAll({ limit: 100, state: 'active', ...cellFilter });
 
     if (cellResult.items.length === 0) {
       return { items: [], totalCells: 0, totalMembers: 0 };
     }
 
-    // ── Enrich each cell with live member profiles ────────────────────────────
     const items = await Promise.all(
       cellResult.items.map(async cell => {
-        const members = await this.userClient.getMemberProfiles(cell.members);
+        const profiles = await this.userClient.getMemberProfiles(cell.members);
+        const registered: RegisteredMember[] = profiles.map(p => ({ ...p, type: 'registered' as const }));
+        const external: ExternalMemberResponse[] = cell.externalMembers.map(e => ({
+          type:        'external' as const,
+          id:          e.id,
+          name:        e.name,
+          phone:       e.phone,
+          displayName: e.name,
+          uid:         null,
+        }));
         return {
           cellId:      cell.id,
           cellName:    cell.name,
@@ -84,17 +79,13 @@ export class GetNetworkMembersUseCase {
           area:        cell.area,
           leaderUid:   cell.leaderUid,
           memberCount: cell.memberCount,
-          members,
+          members:     [...registered, ...external],
         } satisfies NetworkCellMembers;
       }),
     );
 
     const totalMembers = items.reduce((sum, c) => sum + c.members.length, 0);
 
-    return {
-      items,
-      totalCells:   cellResult.items.length,
-      totalMembers,
-    };
+    return { items, totalCells: cellResult.items.length, totalMembers };
   }
 }
