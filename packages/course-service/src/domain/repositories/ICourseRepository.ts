@@ -27,4 +27,5 @@ export interface ICourseRepository {
   create(course: Course): Promise<void>;
   update(course: Course): Promise<void>;
   softDelete(id: string): Promise<void>;
+  hardDelete(id: string): Promise<void>;
 }

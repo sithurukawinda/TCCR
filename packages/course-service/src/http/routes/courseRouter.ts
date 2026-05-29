@@ -16,7 +16,8 @@ courseRouter.post(  '/courses/:id/publish',      authenticate(), authorize('admi
 courseRouter.post(  '/courses/:id/unpublish',    authenticate(), authorize('admin'), container.courseController.unpublish);
 courseRouter.post(  '/courses/:id/archive',      authenticate(), authorize('admin'), container.courseController.archive);
 courseRouter.post(  '/courses/:id/restore',      authenticate(), authorize('admin'), container.courseController.restore);
-courseRouter.delete('/courses/:id',              authenticate(), authorize('admin'), container.courseController.remove);
+courseRouter.delete('/courses/:id',              authenticate(), authorize('admin'),       container.courseController.remove);
+courseRouter.delete('/courses/:id/hard',         authenticate(), authorize('super_admin'), container.courseController.hardDelete);
 
 // Semesters (under course)
 courseRouter.get( '/courses/:id/semesters', authenticate(), authorize('member', 'student', 'leader', 'g12', 'admin', 'super_admin'), container.semesterController.listByCourse);

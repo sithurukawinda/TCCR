@@ -13,6 +13,7 @@ import { UnpublishCourseUseCase }                from './application/use-cases/U
 import { ArchiveCourseUseCase }                  from './application/use-cases/ArchiveCourseUseCase';
 import { RestoreCourseUseCase }                  from './application/use-cases/RestoreCourseUseCase';
 import { DeleteCourseUseCase }                   from './application/use-cases/DeleteCourseUseCase';
+import { HardDeleteCourseUseCase }              from './application/use-cases/HardDeleteCourseUseCase';
 import { CreateSemesterUseCase }                 from './application/use-cases/CreateSemesterUseCase';
 import { UpdateSemesterUseCase }                 from './application/use-cases/UpdateSemesterUseCase';
 import { DeleteSemesterUseCase }                 from './application/use-cases/DeleteSemesterUseCase';
@@ -58,6 +59,7 @@ const unpublishCourse = new UnpublishCourseUseCase(courseRepo);
 const archiveCourse   = new ArchiveCourseUseCase(courseRepo);
 const restoreCourse   = new RestoreCourseUseCase(courseRepo);
 const deleteCourse    = new DeleteCourseUseCase(courseRepo);
+const hardDeleteCourse = new HardDeleteCourseUseCase(courseRepo);
 
 // Semester use cases
 const createSemester = new CreateSemesterUseCase(courseRepo, semesterRepo, batchRepo, bsRepo);
@@ -88,7 +90,7 @@ const updateLesson = new UpdateLessonUseCase(lessonRepo);
 const deleteLesson = new DeleteLessonUseCase(lessonRepo);
 
 export const container = {
-  courseController:         new CourseController(courseRepo, createCourse, updateCourse, getCourse, publishCourse, unpublishCourse, archiveCourse, restoreCourse, deleteCourse),
+  courseController:         new CourseController(courseRepo, createCourse, updateCourse, getCourse, publishCourse, unpublishCourse, archiveCourse, restoreCourse, deleteCourse, hardDeleteCourse),
   semesterController:       new SemesterController(createSemester, updateSemester, deleteSemester, semesterRepo),
   subjectController:        new SubjectController(createSubject, updateSubject, deleteSubject, subjectRepo),
   lessonController:         new LessonController(lessonRepo, createLesson, updateLesson, deleteLesson),
