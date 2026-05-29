@@ -3,11 +3,12 @@ import { IProgressRepository }  from '../../../src/domain/repositories/IProgress
 import { OutboxEventPublisher } from '@shared/events';
 
 const makeRepo = (): jest.Mocked<IProgressRepository> => ({
-  findByStudentAndSubject: jest.fn(),
-  findByCourseAndStudent:  jest.fn(),
-  findByCourse:            jest.fn(),
-  upsert:                  jest.fn(),
+  findByStudentAndSubject:  jest.fn(),
+  findByCourseAndStudent:   jest.fn(),
+  findByCourse:             jest.fn(),
+  upsert:                   jest.fn(),
   deleteByStudentAndCourse: jest.fn(),
+  revertCompletion:         jest.fn(),
 });
 
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>

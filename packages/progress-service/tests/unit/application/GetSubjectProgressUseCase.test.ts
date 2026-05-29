@@ -3,14 +3,15 @@ import { IProgressRepository }      from '../../../src/domain/repositories/IProg
 import { SubjectProgress }          from '../../../src/domain/entities/SubjectProgress';
 
 const makeProgress = (): SubjectProgress =>
-  new SubjectProgress({ id: 'uid-1_sub-1', studentUid: 'uid-1', subjectId: 'sub-1', courseId: 'c1', semesterId: 's1', state: 'in_progress', completedAt: null, lastAccessedAt: null });
+  new SubjectProgress({ id: 'uid-1_sub-1', studentUid: 'uid-1', subjectId: 'sub-1', courseId: 'c1', semesterId: 's1', state: 'in_progress', completedAt: null, lastAccessedAt: null, lastAccessedLessonId: null });
 
 const makeRepo = (): jest.Mocked<IProgressRepository> => ({
-  findByStudentAndSubject: jest.fn(),
-  findByCourseAndStudent:  jest.fn(),
-  findByCourse:            jest.fn(),
-  upsert:                  jest.fn(),
+  findByStudentAndSubject:  jest.fn(),
+  findByCourseAndStudent:   jest.fn(),
+  findByCourse:             jest.fn(),
+  upsert:                   jest.fn(),
   deleteByStudentAndCourse: jest.fn(),
+  revertCompletion:         jest.fn(),
 });
 
 describe('GetSubjectProgressUseCase', () => {

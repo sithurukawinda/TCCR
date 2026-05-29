@@ -1,7 +1,7 @@
 import { createHttpError }   from '@shared/errors';
 import { ICourseRepository } from '../../domain/repositories/ICourseRepository';
 
-export class DeleteCourseUseCase {
+export class HardDeleteCourseUseCase {
   constructor(private readonly courseRepo: ICourseRepository) {}
 
   async execute(id: string): Promise<void> {

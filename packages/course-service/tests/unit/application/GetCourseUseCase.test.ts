@@ -1,10 +1,12 @@
-import { GetCourseUseCase }     from '../../../src/application/use-cases/GetCourseUseCase';
-import { ICourseRepository }   from '../../../src/domain/repositories/ICourseRepository';
-import { ISemesterRepository } from '../../../src/domain/repositories/ISemesterRepository';
-import { ISubjectRepository }  from '../../../src/domain/repositories/ISubjectRepository';
-import { Course }              from '../../../src/domain/entities/Course';
-import { Semester }            from '../../../src/domain/entities/Semester';
-import { Subject }             from '../../../src/domain/entities/Subject';
+import { GetCourseUseCase }          from '../../../src/application/use-cases/GetCourseUseCase';
+import { ICourseRepository }         from '../../../src/domain/repositories/ICourseRepository';
+import { ISemesterRepository }       from '../../../src/domain/repositories/ISemesterRepository';
+import { ISubjectRepository }        from '../../../src/domain/repositories/ISubjectRepository';
+import { IBatchRepository }          from '../../../src/domain/repositories/IBatchRepository';
+import { IBatchSemesterRepository }  from '../../../src/domain/repositories/IBatchSemesterRepository';
+import { Course }                    from '../../../src/domain/entities/Course';
+import { Semester }                  from '../../../src/domain/entities/Semester';
+import { Subject }                   from '../../../src/domain/entities/Subject';
 
 const makeCourse = (state: 'draft' | 'published' | 'archived' = 'published'): Course =>
   new Course({
@@ -33,10 +35,18 @@ const makeSubjectRepo = (): jest.Mocked<ISubjectRepository> => ({
   create: jest.fn(), update: jest.fn(), softDelete: jest.fn(),
 });
 
+const makeBatchRepo = (): jest.Mocked<IBatchRepository> =>
+  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn() });
+
+const makeBsRepo = (): jest.Mocked<IBatchSemesterRepository> =>
+  ({ findByBatchId: jest.fn(), findBySemesterId: jest.fn(), upsertMany: jest.fn(), deleteBySemesterId: jest.fn(), deleteByBatchId: jest.fn() });
+
 describe('GetCourseUseCase', () => {
   let courseRepo:   jest.Mocked<ICourseRepository>;
   let semesterRepo: jest.Mocked<ISemesterRepository>;
   let subjectRepo:  jest.Mocked<ISubjectRepository>;
+  let batchRepo:    jest.Mocked<IBatchRepository>;
+  let bsRepo:       jest.Mocked<IBatchSemesterRepository>;
   let useCase:      GetCourseUseCase;
 
   beforeEach(() => {
@@ -44,13 +54,17 @@ describe('GetCourseUseCase', () => {
     courseRepo   = makeCourseRepo();
     semesterRepo = makeSemesterRepo();
     subjectRepo  = makeSubjectRepo();
-    useCase      = new GetCourseUseCase(courseRepo, semesterRepo, subjectRepo);
+    batchRepo    = makeBatchRepo();
+    bsRepo       = makeBsRepo();
+    useCase      = new GetCourseUseCase(courseRepo, semesterRepo, subjectRepo, batchRepo, bsRepo);
   });
 
   it('returns course detail with semesters and subjects for admin', async () => {
     courseRepo.findById.mockResolvedValue(makeCourse('draft'));
     semesterRepo.findByCourseId.mockResolvedValue([makeSemester()]);
     subjectRepo.findBySemesterId.mockResolvedValue([makeSubject()]);
+    batchRepo.findByCourseId.mockResolvedValue([]);
+    bsRepo.findByBatchId.mockResolvedValue([]);
 
     const result = await useCase.execute('c1', true);
 
@@ -63,6 +77,8 @@ describe('GetCourseUseCase', () => {
     courseRepo.findById.mockResolvedValue(makeCourse('published'));
     semesterRepo.findByCourseId.mockResolvedValue([]);
     subjectRepo.findBySemesterId.mockResolvedValue([]);
+    batchRepo.findByCourseId.mockResolvedValue([]);
+    bsRepo.findByBatchId.mockResolvedValue([]);
 
     const result = await useCase.execute('c1', false);
 

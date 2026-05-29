@@ -1,10 +1,27 @@
 import { createHttpError }       from '@shared/errors';
 import { ICellGroupRepository }  from '../../domain/repositories/ICellGroupRepository';
-import { CellType, CellState } from '../../domain/entities/CellGroup';
+import { CellType, CellState }   from '../../domain/entities/CellGroup';
 import { Role }                  from '@shared/auth-middleware';
 import { UserServiceClient, MemberProfile } from '../../infrastructure/clients/UserServiceClient';
 
-/** Response shape for GET /cells/:id — members enriched with names from user-service */
+// ── Discriminated union for mixed registered + external members ─────────────
+
+export interface RegisteredMember extends MemberProfile {
+  type: 'registered';
+}
+
+export interface ExternalMemberResponse {
+  type:        'external';
+  id:          string;
+  name:        string;
+  phone?:      string;
+  displayName: string;
+  uid:         null;
+}
+
+export type CellMember = RegisteredMember | ExternalMemberResponse;
+
+/** Response shape for GET /cells/:id */
 export interface CellGroupDetail {
   id:           string;
   name:         string;
@@ -12,7 +29,7 @@ export interface CellGroupDetail {
   area:         string;
   leaderUid:    string;
   g12LeaderUid: string;
-  members:      MemberProfile[];
+  members:      CellMember[];
   memberCount:  number;
   reportCount:  number;
   state:        CellState;
@@ -22,8 +39,8 @@ export interface CellGroupDetail {
 
 export class GetCellByIdUseCase {
   constructor(
-    private readonly cellRepo:    ICellGroupRepository,
-    private readonly userClient:  UserServiceClient,
+    private readonly cellRepo:   ICellGroupRepository,
+    private readonly userClient: UserServiceClient,
   ) {}
 
   async execute(id: string, callerUid: string, callerRoles: Role[]): Promise<CellGroupDetail> {
@@ -38,12 +55,19 @@ export class GetCellByIdUseCase {
       throw createHttpError(403, 'FORBIDDEN', 'You do not have access to this cell group.');
     }
 
-    // Enrich member UIDs with firstName + lastName from user-service.
-    // Failures are non-fatal — placeholder names are returned instead.
-    const members = await this.userClient.getMemberProfiles(cell.members);
+    // Enrich registered UIDs with names from user-service (failures are non-fatal).
+    const profiles = await this.userClient.getMemberProfiles(cell.members);
+    const registered: RegisteredMember[] = profiles.map(p => ({ ...p, type: 'registered' as const }));
 
-    // Spread the cell entity fields and replace the raw members string[]
-    // with the enriched MemberProfile[].
+    const external: ExternalMemberResponse[] = cell.externalMembers.map(e => ({
+      type:        'external' as const,
+      id:          e.id,
+      name:        e.name,
+      phone:       e.phone,
+      displayName: e.name,
+      uid:         null,
+    }));
+
     return {
       id:           cell.id,
       name:         cell.name,
@@ -51,7 +75,7 @@ export class GetCellByIdUseCase {
       area:         cell.area,
       leaderUid:    cell.leaderUid,
       g12LeaderUid: cell.g12LeaderUid,
-      members,
+      members:      [...registered, ...external],
       memberCount:  cell.memberCount,
       reportCount:  cell.reportCount,
       state:        cell.state,

@@ -6,6 +6,7 @@ export interface UpdateLastAccessedInput {
   subjectId:  string;
   courseId:   string;
   semesterId: string;
+  lessonId?:  string;
 }
 
 export class UpdateLastAccessedUseCase {
@@ -18,7 +19,7 @@ export class UpdateLastAccessedUseCase {
       progress = SubjectProgress.createNew(input.studentUid, input.subjectId, input.courseId, input.semesterId);
     }
 
-    progress.updateLastAccessed();
+    progress.updateLastAccessed(input.lessonId);
     await this.progressRepo.upsert(progress);
     return progress;
   }

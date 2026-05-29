@@ -21,3 +21,8 @@ export const lessonCompleteSchema = z.object({
   semesterId: z.string().min(1),
   batchId:    z.string().min(1).optional(),
 });
+
+export const saveVideoPositionSchema = z.object({
+  watchedSeconds: z.number().int().min(0),
+  courseId:       z.string().uuid(),
+});

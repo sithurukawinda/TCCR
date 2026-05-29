@@ -8,6 +8,7 @@ const makeLesson = (deletedAt: string | null = null): Lesson =>
 const makeLessonRepo = (): jest.Mocked<ILessonRepository> => ({
   findById: jest.fn(), findBySubject: jest.fn(), create: jest.fn(),
   update: jest.fn(), softDelete: jest.fn(), nextOrder: jest.fn(),
+  countBySubject: jest.fn(), countByCourse: jest.fn(),
 });
 
 describe('UpdateLessonUseCase', () => {

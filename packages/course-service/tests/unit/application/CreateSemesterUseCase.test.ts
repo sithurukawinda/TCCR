@@ -1,7 +1,9 @@
-import { CreateSemesterUseCase } from '../../../src/application/use-cases/CreateSemesterUseCase';
-import { ICourseRepository }    from '../../../src/domain/repositories/ICourseRepository';
-import { ISemesterRepository }  from '../../../src/domain/repositories/ISemesterRepository';
-import { Course }               from '../../../src/domain/entities/Course';
+import { CreateSemesterUseCase }        from '../../../src/application/use-cases/CreateSemesterUseCase';
+import { ICourseRepository }            from '../../../src/domain/repositories/ICourseRepository';
+import { ISemesterRepository }          from '../../../src/domain/repositories/ISemesterRepository';
+import { IBatchRepository }             from '../../../src/domain/repositories/IBatchRepository';
+import { IBatchSemesterRepository }     from '../../../src/domain/repositories/IBatchSemesterRepository';
+import { Course }                       from '../../../src/domain/entities/Course';
 
 const makeCourse = (): Course =>
   new Course({ id: 'c1', title: 'T', description: '', coverImageUrl: null, state: 'draft', createdBy: 'u1', semesterCount: 0, publishedAt: null, deletedAt: null, createdAt: '2026-01-01T00:00:00.000Z', updatedAt: '2026-01-01T00:00:00.000Z' });
@@ -12,16 +14,26 @@ const makeCourseRepo = (): jest.Mocked<ICourseRepository> =>
 const makeSemesterRepo = (): jest.Mocked<ISemesterRepository> =>
   ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn(), softDelete: jest.fn() });
 
+const makeBatchRepo = (): jest.Mocked<IBatchRepository> =>
+  ({ findById: jest.fn(), findByCourseId: jest.fn(), create: jest.fn(), update: jest.fn() });
+
+const makeBsRepo = (): jest.Mocked<IBatchSemesterRepository> =>
+  ({ findByBatchId: jest.fn(), findBySemesterId: jest.fn(), upsertMany: jest.fn(), deleteBySemesterId: jest.fn(), deleteByBatchId: jest.fn() });
+
 describe('CreateSemesterUseCase', () => {
   let courseRepo:   jest.Mocked<ICourseRepository>;
   let semesterRepo: jest.Mocked<ISemesterRepository>;
+  let batchRepo:    jest.Mocked<IBatchRepository>;
+  let bsRepo:       jest.Mocked<IBatchSemesterRepository>;
   let useCase:      CreateSemesterUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
     courseRepo   = makeCourseRepo();
     semesterRepo = makeSemesterRepo();
-    useCase      = new CreateSemesterUseCase(courseRepo, semesterRepo);
+    batchRepo    = makeBatchRepo();
+    bsRepo       = makeBsRepo();
+    useCase      = new CreateSemesterUseCase(courseRepo, semesterRepo, batchRepo, bsRepo);
   });
 
   it('creates a semester and increments semesterCount', async () => {
@@ -29,6 +41,8 @@ describe('CreateSemesterUseCase', () => {
     semesterRepo.findByCourseId.mockResolvedValue([]);
     semesterRepo.create.mockResolvedValue(undefined);
     courseRepo.update.mockResolvedValue(undefined);
+    batchRepo.findByCourseId.mockResolvedValue([]);
+    bsRepo.upsertMany.mockResolvedValue(undefined);
 
     const semester = await useCase.execute({ courseId: 'c1', title: 'Sem 1' });
 

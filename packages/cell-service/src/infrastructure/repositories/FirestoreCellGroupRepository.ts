@@ -5,7 +5,7 @@ import { ICellGroupRepository,
          CellGroupListResult }       from '../../domain/repositories/ICellGroupRepository';
 
 function toEntity(id: string, data: Omit<CellGroupProps, 'id'>): CellGroup {
-  return new CellGroup({ ...data, id });
+  return new CellGroup({ ...data, id, externalMembers: data.externalMembers ?? [] });
 }
 
 export class FirestoreCellGroupRepository implements ICellGroupRepository {

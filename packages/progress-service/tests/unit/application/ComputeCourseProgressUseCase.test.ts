@@ -1,26 +1,44 @@
-import { ComputeCourseProgressUseCase } from '../../../src/application/use-cases/ComputeCourseProgressUseCase';
-import { IProgressRepository }          from '../../../src/domain/repositories/IProgressRepository';
-import { CourseServiceClient }          from '../../../src/infrastructure/clients/CourseServiceClient';
-import { SubjectProgress }              from '../../../src/domain/entities/SubjectProgress';
+import { ComputeCourseProgressUseCase }  from '../../../src/application/use-cases/ComputeCourseProgressUseCase';
+import { IProgressRepository }           from '../../../src/domain/repositories/IProgressRepository';
+import { ILessonProgressRepository }     from '../../../src/domain/repositories/ILessonProgressRepository';
+import { CourseServiceClient }           from '../../../src/infrastructure/clients/CourseServiceClient';
+import { SubjectProgress }               from '../../../src/domain/entities/SubjectProgress';
 
-const makeProgress = (state: 'not_started' | 'completed', subjectId: string, lastAccessedAt: string | null = null): SubjectProgress =>
-  new SubjectProgress({ id: `uid1_${subjectId}`, studentUid: 'uid1', subjectId, courseId: 'c1', semesterId: 'sem1', state, completedAt: state === 'completed' ? '2026-05-01T00:00:00.000Z' : null, lastAccessedAt });
+const makeProgress = (
+  state: 'not_started' | 'completed',
+  subjectId: string,
+  lastAccessedAt: string | null = null,
+  lastAccessedLessonId: string | null = null,
+): SubjectProgress =>
+  new SubjectProgress({
+    id: `uid1_${subjectId}`, studentUid: 'uid1', subjectId, courseId: 'c1', semesterId: 'sem1',
+    state, completedAt: state === 'completed' ? '2026-05-01T00:00:00.000Z' : null,
+    lastAccessedAt, lastAccessedLessonId,
+  });
 
-const makeRepo   = (): jest.Mocked<IProgressRepository> =>
-  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn() });
+const makeRepo = (): jest.Mocked<IProgressRepository> =>
+  ({ findByStudentAndSubject: jest.fn(), findByCourseAndStudent: jest.fn(), findByCourse: jest.fn(), upsert: jest.fn(), deleteByStudentAndCourse: jest.fn(), revertCompletion: jest.fn() });
+
+const makeLessonRepo = (): jest.Mocked<ILessonProgressRepository> =>
+  ({ findByStudentAndLesson: jest.fn(), findByCourseAndStudent: jest.fn(), findBySubjectAndStudent: jest.fn(), save: jest.fn(), delete: jest.fn() } as unknown as jest.Mocked<ILessonProgressRepository>);
+
 const makeClient = (): jest.Mocked<CourseServiceClient> =>
-  ({ getSubjectCount: jest.fn() } as unknown as jest.Mocked<CourseServiceClient>);
+  ({ getSubjectCount: jest.fn(), getCourseLessonCount: jest.fn() } as unknown as jest.Mocked<CourseServiceClient>);
 
 describe('ComputeCourseProgressUseCase', () => {
-  let repo:    jest.Mocked<IProgressRepository>;
-  let client:  jest.Mocked<CourseServiceClient>;
-  let useCase: ComputeCourseProgressUseCase;
+  let repo:        jest.Mocked<IProgressRepository>;
+  let lessonRepo:  jest.Mocked<ILessonProgressRepository>;
+  let client:      jest.Mocked<CourseServiceClient>;
+  let useCase:     ComputeCourseProgressUseCase;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repo    = makeRepo();
-    client  = makeClient();
-    useCase = new ComputeCourseProgressUseCase(repo, client);
+    repo       = makeRepo();
+    lessonRepo = makeLessonRepo();
+    client     = makeClient();
+    useCase    = new ComputeCourseProgressUseCase(repo, lessonRepo, client);
+    lessonRepo.findByCourseAndStudent.mockResolvedValue([]);
+    client.getCourseLessonCount.mockResolvedValue(0);
   });
 
   it('returns 0% when no subjects are completed', async () => {
@@ -62,5 +80,22 @@ describe('ComputeCourseProgressUseCase', () => {
     ]);
     const result = await useCase.execute('uid1', 'c1');
     expect(result.lastAccessedSubjectId).toBe('sub2');
+  });
+
+  it('returns lastAccessedLessonId from the most recently accessed record', async () => {
+    client.getSubjectCount.mockResolvedValue(2);
+    repo.findByCourseAndStudent.mockResolvedValue([
+      makeProgress('not_started', 'sub1', '2026-05-01T09:00:00.000Z', 'les-001'),
+      makeProgress('not_started', 'sub2', '2026-05-01T10:00:00.000Z', 'les-007'),
+    ]);
+    const result = await useCase.execute('uid1', 'c1');
+    expect(result.lastAccessedLessonId).toBe('les-007');
+  });
+
+  it('returns null lastAccessedLessonId when no lesson has been accessed', async () => {
+    client.getSubjectCount.mockResolvedValue(1);
+    repo.findByCourseAndStudent.mockResolvedValue([makeProgress('not_started', 'sub1')]);
+    const result = await useCase.execute('uid1', 'c1');
+    expect(result.lastAccessedLessonId).toBeNull();
   });
 });

@@ -1,9 +1,12 @@
-import { createHttpError }     from '@shared/errors';
-import { ICourseRepository }   from '../../domain/repositories/ICourseRepository';
-import { ISemesterRepository } from '../../domain/repositories/ISemesterRepository';
-import { ISubjectRepository }  from '../../domain/repositories/ISubjectRepository';
-import { Semester }            from '../../domain/entities/Semester';
-import { Subject }             from '../../domain/entities/Subject';
+import { createHttpError }              from '@shared/errors';
+import { ICourseRepository }            from '../../domain/repositories/ICourseRepository';
+import { ISemesterRepository }          from '../../domain/repositories/ISemesterRepository';
+import { ISubjectRepository }           from '../../domain/repositories/ISubjectRepository';
+import { IBatchRepository }             from '../../domain/repositories/IBatchRepository';
+import { IBatchSemesterRepository }     from '../../domain/repositories/IBatchSemesterRepository';
+import { Semester }                     from '../../domain/entities/Semester';
+import { Subject }                      from '../../domain/entities/Subject';
+import { Batch, BatchState }            from '../../domain/entities/Batch';
 
 export interface SubjectView {
   id:        string;
@@ -23,6 +26,22 @@ export interface SemesterView {
   subjects:     SubjectView[];
 }
 
+export interface BatchSemesterSchedule {
+  semesterId: string;
+  openDate:   string | null;
+  endDate:    string | null;
+}
+
+export interface BatchView {
+  id:          string;
+  name:        string;
+  intakeStart: string;
+  intakeEnd:   string;
+  capacity:    number | null;
+  state:       BatchState;
+  semesters:   BatchSemesterSchedule[];
+}
+
 export interface CourseDetail {
   id:            string;
   title:         string;
@@ -34,6 +53,7 @@ export interface CourseDetail {
   createdAt:     string;
   updatedAt:     string;
   semesters:     SemesterView[];
+  batches:       BatchView[];
 }
 
 export class GetCourseUseCase {
@@ -41,6 +61,8 @@ export class GetCourseUseCase {
     private readonly courseRepo:   ICourseRepository,
     private readonly semesterRepo: ISemesterRepository,
     private readonly subjectRepo:  ISubjectRepository,
+    private readonly batchRepo:    IBatchRepository,
+    private readonly bsRepo:       IBatchSemesterRepository,
   ) {}
 
   async execute(id: string, isAdmin: boolean): Promise<CourseDetail> {
@@ -84,6 +106,26 @@ export class GetCourseUseCase {
       }),
     );
 
-    return { ...course, semesters: semesterViews };
+    const batches = await this.batchRepo.findByCourseId(id);
+    const batchViews: BatchView[] = await Promise.all(
+      batches.map(async (b: Batch) => {
+        const bsRows = await this.bsRepo.findByBatchId(b.id);
+        return {
+          id:          b.id,
+          name:        b.name,
+          intakeStart: b.intakeStart,
+          intakeEnd:   b.intakeEnd,
+          capacity:    b.capacity,
+          state:       b.state,
+          semesters:   bsRows.map(r => ({
+            semesterId: r.semesterId,
+            openDate:   r.openDate,
+            endDate:    r.endDate,
+          })),
+        };
+      }),
+    );
+
+    return { ...course, semesters: semesterViews, batches: batchViews };
   }
 }

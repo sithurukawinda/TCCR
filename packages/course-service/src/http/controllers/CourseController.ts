@@ -10,6 +10,7 @@ import { UnpublishCourseUseCase }           from '../../application/use-cases/Un
 import { ArchiveCourseUseCase }             from '../../application/use-cases/ArchiveCourseUseCase';
 import { RestoreCourseUseCase }             from '../../application/use-cases/RestoreCourseUseCase';
 import { DeleteCourseUseCase }              from '../../application/use-cases/DeleteCourseUseCase';
+import { HardDeleteCourseUseCase }          from '../../application/use-cases/HardDeleteCourseUseCase';
 import { TtlCache }                         from '../../infrastructure/cache/TtlCache';
 import { CourseListResult }                 from '../../domain/repositories/ICourseRepository';
 import { ICourseRepository }               from '../../domain/repositories/ICourseRepository';
@@ -25,7 +26,8 @@ export class CourseController {
     private readonly unpublishUseCase: UnpublishCourseUseCase,
     private readonly archiveUseCase:   ArchiveCourseUseCase,
     private readonly restoreUseCase:   RestoreCourseUseCase,
-    private readonly deleteUseCase:    DeleteCourseUseCase,
+    private readonly deleteUseCase:     DeleteCourseUseCase,
+    private readonly hardDeleteUseCase: HardDeleteCourseUseCase,
   ) {}
 
   private static readonly listCache = new TtlCache<CourseListResult>(30_000);
@@ -128,6 +130,14 @@ export class CourseController {
   remove = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       await this.deleteUseCase.execute(req.params.id);
+      CourseController.listCache.clear();
+      res.status(204).send();
+    } catch (err) { next(err); }
+  };
+
+  hardDelete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      await this.hardDeleteUseCase.execute(req.params.id);
       CourseController.listCache.clear();
       res.status(204).send();
     } catch (err) { next(err); }

@@ -16,7 +16,8 @@ courseRouter.post(  '/courses/:id/publish',      authenticate(), authorize('admi
 courseRouter.post(  '/courses/:id/unpublish',    authenticate(), authorize('admin'), container.courseController.unpublish);
 courseRouter.post(  '/courses/:id/archive',      authenticate(), authorize('admin'), container.courseController.archive);
 courseRouter.post(  '/courses/:id/restore',      authenticate(), authorize('admin'), container.courseController.restore);
-courseRouter.delete('/courses/:id',              authenticate(), authorize('admin'), container.courseController.remove);
+courseRouter.delete('/courses/:id',              authenticate(), authorize('admin'),       container.courseController.remove);
+courseRouter.delete('/courses/:id/hard',         authenticate(), authorize('super_admin'), container.courseController.hardDelete);
 
 // Semesters (under course)
 courseRouter.get( '/courses/:id/semesters', authenticate(), authorize('member', 'student', 'leader', 'g12', 'admin', 'super_admin'), container.semesterController.listByCourse);
@@ -29,3 +30,10 @@ courseRouter.get(  '/batches/:id',           authenticate(), authorize('member',
 courseRouter.patch('/batches/:id',           authenticate(), authorize('admin'), container.batchController.update);
 courseRouter.post( '/batches/:id/open',      authenticate(), authorize('admin'), container.batchController.open);
 courseRouter.post( '/batches/:id/close',     authenticate(), authorize('admin'), container.batchController.close);
+
+// Batch semester dates — V2 (admin only)
+courseRouter.put(  '/courses/:courseId/batches/:batchId/semester-dates',                authenticate(), authorize('admin'), container.batchController.setSemesterDates);
+courseRouter.patch('/courses/:courseId/batches/:batchId/semester-dates/:semesterId',    authenticate(), authorize('admin'), container.batchController.patchSemesterDate);
+
+// Student course detail — V2 (any authenticated user; scoped to their enrolled batch)
+courseRouter.get('/me/courses/:courseId', authenticate(), container.studentCourseController.getOne);

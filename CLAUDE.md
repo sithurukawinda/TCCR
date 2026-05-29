@@ -100,7 +100,7 @@ node scripts/seed-new-g12.js
 node scripts/seed-new-g12-online.js
 
 # Regenerate the Postman collection from source (overwrites postman/CMP_Backend.postman_collection.json)
-# Run this after adding new endpoints — generates 220 requests across 17 folders
+# Run this after adding new endpoints — generates 230 requests across 17 folders
 node scripts/build-postman-collection.js
 
 # Audit the Postman collection against implemented routes â€” reports missing/extra requests
@@ -119,6 +119,7 @@ node scripts/migrations/004-verify-migration.js            # validate migration 
 node scripts/migrations/005-legacy-batches.js              # create 'Legacy' batch per course; backfill enrollments.batchId
 node scripts/migrations/006-semester-dates.js              # set openDate=createdAt, endDate=null on semesters missing openDate
 node scripts/migrations/007-backfill-leader-g12-firebase-auth.js --temp-password=Change@Me2026  # create missing Firebase Auth accounts for seeded leader/g12 users
+node scripts/migrations/008-batch-semester-dates.js              # backfill batch_semesters collection for existing batches
 
 # Live API tests â€” verify V2 registration behaviour (requires running services)
 node scripts/test-phase1-apis.js
@@ -238,6 +239,10 @@ node scripts/trigger-snapshot.js
 # Requires services running + online Firebase credentials hardcoded to seed accounts
 node scripts/check-reports-data.js
 
+# Check how many emails were sent today (outbox + notifications + OTP collections)
+# Reads credentials from .env.local — useful for verifying Gmail daily quota (500/day free)
+node scripts/check-emails-today.js
+
 # -- One-time migrations / TCCR seeds --
 
 # One-time: send email-verification links to all existing unverified Firebase Auth users
@@ -288,7 +293,7 @@ The gateway rewrites all proxied paths by stripping the `/api/v1` prefix before 
 The gateway also blocks all `/api/v1/internal/*` paths with 404 before proxying â€” internal routes are never reachable from outside the cluster.
 
 **Route ordering in `gateway/src/app.ts` is load-bearing.** More-specific prefixes must be registered before their broader siblings:
-- `/api/v1/me/notifications/preferences` (userProxy) before `/api/v1/me/notifications` (notifyProxy); then `/api/v1/me/enrollments`, `/api/v1/me/progress` each before `/api/v1/me`
+- `/api/v1/me/notifications/preferences` (userProxy) before `/api/v1/me/notifications` (notifyProxy); then `/api/v1/me/enrollments`, `/api/v1/me/progress`, `/api/v1/me/courses` each before `/api/v1/me`
 - `/api/v1/users/:uid/audit-log` (auditProxy) before `/api/v1/users` (userProxy)
 - `/api/v1/courses/:id/enroll` before `/api/v1/courses`
 - `/api/v1/subjects/:id/lessons` (courseProxy), `/api/v1/subjects/:id/attachments` (storageProxy), and `/api/v1/subjects/:id/images` (storageProxy) each before `/api/v1/subjects`
@@ -305,6 +310,7 @@ Adding a new proxied route in the wrong order will silently send traffic to the 
 | `/api/v1/me/notifications` | notification-service |
 | `/api/v1/me/enrollments` | enrollment-service |
 | `/api/v1/me/progress` | progress-service |
+| `/api/v1/me/courses` | course-service (V2 — must precede `/api/v1/me` → user-service) |
 | `/api/v1/me` | user-service |
 | `/api/v1/users/:uid/audit-log` | audit-service (must precede `/api/v1/users`) |
 | `/api/v1/users`, `/api/v1/super-admin` | user-service |
@@ -373,7 +379,7 @@ Controllers are thin â€” they call one use case and delegate errors with `n
 
 - `notification-service` â€” has `src/application/handlers/` (e.g. `UserRegisteredHandler`) that call a `NotificationDispatcher` service. Email dispatch retries 3Ã— with exponential backoff (1 s â†’ 2 s â†’ 4 s); failure is logged but never thrown. Push notifications are best-effort â€” a failure logs a warning and is silently swallowed. The service still exposes `/notifications` read endpoints for the frontend via the standard route â†’ controller path.
 - `audit-service` â€” has `src/application/handlers/` that write append-only entries to `audit_log` via a repository. No HTTP creation endpoint exists; entries are only created by event handlers. `GET /audit-log` supports `?actorUid=:uid` for per-user timeline filtering; `GET /users/:uid/audit-log` is the per-user timeline endpoint (admin + super_admin).
-- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells` is role-scoped: **G12 and leader callers see all active cells** (`active` by default — pass `?state=archived` for archived); members/students see all active cells; admins see all cells across all states. (Note: network endpoints `GET /cells/network/reports` and `GET /cells/network/members` remain scoped to the G12 leader's own network.) `GET /cells/network/reports` follows the same G12 scoping rule. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below.
+- `cell-service` (:3009, V2) â€” full Clean Architecture stack. 23 endpoints for cell group CRUD, ownership transfer, network reports, network members, cell report edit, member management, join request workflow, and cell report filing. **Cell types:** `g12 | care | children | outreach` (required on create; filterable on list). **Cell states:** `active | archived` (filterable on list). Cell report idempotency: the `X-Idempotency-Key` request header value is stored as `clientReqId` on the `cell_reports` Firestore document; a composite index enforces uniqueness and the controller returns the existing report on duplicate submission. **Cell report authorization:** only the owning leader, the G12 leader, or `super_admin` may file a report — plain `admin` is explicitly excluded (`FileReportUseCase` checks `isSuperAdmin || isOwner`; throws 403 `FORBIDDEN` otherwise). Cell report photos can be pre-uploaded via `POST /cells/:id/report-photos` (returns URLs to pass in `photoUrls[]`) or submitted inline with `POST /cells/:id/reports` as `multipart/form-data` â€” both routes share the same multer middleware family (`handleReportPhotos` / `handleFileReport`). **Key cell-service behaviours:** `DELETE /cells/:id` is a **hard delete** (not soft-delete/archive); authorized for the cell leader, G12 leader, admin, or super_admin — archived cells cannot be deleted. `PATCH /cells/:id/reports/:rid` enforces a **24-hour edit window** from `createdAt`; only the original filer or `super_admin` may edit; voided reports are immutable; `clientReqId` is immutable (cannot be changed on edit). `GET /cells` is role-scoped: **G12 and leader callers see all active cells** (`active` by default — pass `?state=archived` for archived); members/students see all active cells; admins see all cells across all states. (Note: network endpoints `GET /cells/network/reports` and `GET /cells/network/members` remain scoped to the G12 leader's own network.) `GET /cells/network/reports` follows the same G12 scoping rule. `GET /cells/network/members` follows the same scoping rule but returns member rosters grouped by cell — each entry has `cellId`, `cellName`, `cellType`, `area`, `leaderUid`, `memberCount`, and a `members[]` array enriched with live profiles from user-service (`GetNetworkMembersUseCase`). `POST /cells/:id/transfer-ownership` is restricted to `admin` and `super_admin` only — leaders and G12s no longer have access. Admin may transfer the leader and/or G12 role independently; publishes `cell.ownership_transferred` to the outbox with `initiatedByOwner: false` (no auto-demotion — previous owner retains their role unless separately demoted). Cell domain events (join requests, approvals, rejections, reports filed, ownership transfer) are all wired to notify and audit handlers â€” see outbox table below. **External (unregistered) members:** `POST /cells/:id/members` accepts an optional `externalMembers[]` array (up to 50 entries, each `{ name: string, phone?: string }`) alongside `userUids[]`; at least one array must be non-empty. The server assigns a UUID `id` to each external member, stored on `CellGroup` as `externalMembers: ExternalMember[]`. `DELETE /cells/:id/members/:uid` disambiguates automatically â€” if `:uid` matches an `externalMembers[].id`, it calls `removeExternalMember()`; otherwise `removeMember()`. `memberCount` always equals `members.length + externalMembers.length`. `GET /cells/:id` returns a discriminated union in its `members[]` response: `{ type: 'registered', uid, firstName, lastName, ... }` or `{ type: 'external', id, name, phone? }`.
 - `analytics-service` (:3011, V2) â€” reads `analytics_snapshots` written by scheduled-jobs. Exposes 6 read-only endpoints (weekly cells, attendance, meeting types, growth, participation, CSV export). No writes. Background workers (scheduled-jobs) are the sole writers to `analytics_snapshots`. **Filter params** — all 6 endpoints accept `?cellType=care|children|outreach|g12`, `?leaderUid=<uid>`, and `?g12Uid=<uid>` query params. Scope is resolved in `src/application/helpers/scope.ts` via `resolveScope(uid, roles, filters?)`: admin+`g12Uid` → `g12:<uid>` scope; admin/g12+`leaderUid` → `leader:<uid>` scope; `cellType` appends `|<type>` suffix (e.g. `org|care`, `g12:<uid>|children`). Unfiltered scope falls back to the caller's role as before. Invalid `cellType` values return `400 VALIDATION_ERROR`. `cellType`-scoped snapshots are written by the weekly `snapshotJob` — they return empty data until the next snapshot run. **Combined filter priority** — when multiple filters are passed together, `leaderUid` takes highest priority (overrides `g12Uid`), then `g12Uid`, then `cellType` is always appended as a scope suffix regardless of the base scope: `leaderUid`+`g12Uid` → `leader:<uid>`; `g12Uid`+`cellType` → `g12:<uid>|<type>`; `leaderUid`+`cellType` → `leader:<uid>|<type>`; `leaderUid`+`g12Uid`+`cellType` → `leader:<uid>|<type>`; `cellType` only → `org|<type>`.
 - `scheduled-jobs` (no HTTP port, V2) â€” background worker running 3 `setInterval` loops: `batchSweepJob` (opens/closes batches by schedule), `semesterSweepJob` (disables semesters past `endDate`, runs once per day), `snapshotJob` (aggregates cell reports into `analytics_snapshots`, runs weekly; writes base scopes `org`, `leader:<uid>`, `g12:<uid>` **and** cellType-dimension scopes `org|care`, `org|children`, `org|outreach`, `org|g12`, plus the equivalent `leader:<uid>|<type>` and `g12:<uid>|<type>` variants — 5× more scope keys per week than before). All jobs are wrapped in `safeRun()` â€” failures log and continue. Direct Firestore reads (exempt from the cross-service HTTP rule, same as outbox-worker). **Job deduplication (in-memory, resets on restart):** `semesterSweepJob` uses a `YYYY-MM-DD` UTC date key so it runs at most once per UTC day regardless of restart; `snapshotJob` uses an ISO week key (`YYYY-WNN`, Monday-start) so restarting mid-week does not re-run the snapshot. `batchSweepJob` has no deduplication â€” it is safe to run repeatedly.
 
@@ -520,7 +526,7 @@ helmet() â†’ cors() â†’ requestId â†’ httpLogger â†’ general
 
 **Exception â€” the gateway does not register `errorHandler`.** It is a pure reverse proxy (`http-proxy-middleware`) with no business logic; all responses pass through from upstream services unchanged.
 
-**Gateway CORS details:** Methods allowed: `GET, POST, PATCH, DELETE, OPTIONS`. Headers allowed: `Authorization, Content-Type, Accept-Language, X-Request-Id, X-Idempotency-Key`. Preflight OPTIONS requests return 204 and are handled entirely by `cors()` (`preflightContinue: false`). Any new request header used by a service must be added to this allowlist or browser preflight will fail silently.
+**Gateway CORS details:** Methods allowed: `GET, POST, PUT, PATCH, DELETE, OPTIONS`. Headers allowed: `Authorization, Content-Type, Accept-Language, X-Request-Id, X-Idempotency-Key`. Preflight OPTIONS requests return 204 and are handled entirely by `cors()` (`preflightContinue: false`). Any new request header used by a service must be added to this allowlist or browser preflight will fail silently.
 
 ### Error Handling
 
@@ -615,7 +621,9 @@ No service reads another service's Firestore collections directly. Cross-service
 | `courses` | course-service | auto UUID |
 | `courses/{id}/semesters` | course-service | auto UUID |
 | `courses/{id}/semesters/{id}/subjects` | course-service | auto UUID |
-| `courses/{id}/batches` | course-service | auto UUID â€” V2; state machine: `draft â†’ open â†’ closed`; fields: `name`, `scheduledOpenAt`, `scheduledCloseAt`, `status` |
+| `courses/{id}/batches` | course-service | auto UUID â€” V2; state machine: `draft â†’ open â†’ closed`; fields: `name`, `scheduledOpenAt`, `intakeStart`, `intakeEnd`, `capacity` (nullable int), `state` |
+| `video_progress` | progress-service | `${studentUid}_${lessonId}` â€” V2; fields: `studentUid`, `lessonId`, `courseId`, `watchedSeconds` (int), `updatedAt`; upserted on every `POST /progress/lessons/:id/video-position` call |
+| `batch_semesters` | course-service | flat collection (not sub-collection); composite key `batchId + semesterId`; fields: `batchId`, `courseId`, `semesterId`, `openDate` (YYYY-MM-DD or null), `endDate` (YYYY-MM-DD or null); written by `SetBatchSemesterDatesUseCase` / `PatchBatchSemesterDateUseCase`; read by `GetStudentCourseUseCase` to derive per-semester state |
 | `lessons` | course-service | auto UUID â€” flat collection; fields: `title`, `description`, `youtubeVideoId` (nullable), `attachmentIds[]`, `subjectId`, `semesterId`, `courseId` foreign keys, `order` |
 | `registrations` | enrollment-service | Firebase Auth UID (studentUid) â€” V1 legacy; new users bypass this via V2 registration |
 | `role_requests` | enrollment-service | auto UUID â€” V2; tracks role grants for non-member roles; state machine: `pending â†’ approved / rejected` |
@@ -731,7 +739,11 @@ Batches are sub-documents under a course (`courses/{id}/batches`) that group enr
 DRAFT â†’ open() â†’ OPEN â†’ close() â†’ CLOSED
 ```
 
-`CreateBatchUseCase` auto-transitions to `OPEN` if `scheduledOpenAt` is in the past at creation time. Date fields (`scheduledOpenAt`, `scheduledCloseAt`) cannot be changed once a batch leaves `DRAFT`. Endpoints: `GET /courses/:id/batches`, `POST /courses/:id/batches`, `GET /batches/:id`, `PATCH /batches/:id`, `POST /batches/:id/open`, `POST /batches/:id/close`.
+`CreateBatchUseCase` auto-transitions to `OPEN` if `scheduledOpenAt` is in the past at creation time. `scheduledOpenAt` cannot be changed once a batch leaves `DRAFT`. Batch fields: `name`, `scheduledOpenAt` (nullable), `intakeStart`, `intakeEnd` (ISO strings defining the enrollment window), `capacity` (nullable int). `isEnrollable()` returns `true` only when the batch is `open` AND `now` is between `intakeStart` and `intakeEnd`. Endpoints: `GET /courses/:id/batches`, `POST /courses/:id/batches`, `GET /batches/:id`, `PATCH /batches/:id`, `POST /batches/:id/open`, `POST /batches/:id/close`.
+
+**Video position tracking (V2):** `POST /progress/lessons/:lessonId/video-position` saves `{ watchedSeconds }` to the `video_progress` collection and bumps the subject's `lastAccessedAt`. `GET /progress/lessons/:lessonId/video-position` returns the stored position so the player can resume. Both require `student`, `leader`, or `g12` role. The upsert is idempotent — subsequent POSTs overwrite `watchedSeconds` without creating new documents.
+
+**Batch semester scheduling (V2):** Each batch can define its own open/end dates per semester via the `batch_semesters` flat collection. `PUT /courses/:courseId/batches/:batchId/semester-dates` sets all semester dates at once; `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` updates one. Both are `admin` only. `GET /me/courses/:courseId` (proxied to course-service via `/api/v1/me/courses`) returns the authenticated student's course view with each semester's computed `state` — `unscheduled | upcoming | open | closed` — derived from the `batch_semesters` record for their enrolled batch. Semesters with no `batch_semesters` record return `state: "unscheduled"`.
 
 **YouTube field validation:** The `youtubeVideoId` field on lessons accepts full YouTube URLs (not raw IDs) and extracts the 11-char ID at validation time. Supported formats: `youtube.com/watch?v=ID`, `youtu.be/ID`, `youtube.com/embed/ID`. The extracted ID is what's stored in Firestore. Passing a raw ID directly will fail validation.
 
@@ -794,13 +806,13 @@ await fetch(url, { method: 'POST', body: JSON.stringify({ requestType: 'PASSWORD
   .catch(() => undefined);
 ```
 
-### Soft Deletes
+### Deletes
 
-Courses, semesters, and subjects are soft-deleted by setting a `deletedAt` timestamp (recoverable within 30 days). Queries filter `where('deletedAt', '==', null)`.
+All content entities (courses, semesters, subjects, lessons) are now **permanently hard-deleted** — documents are removed immediately with no recovery window. The `deletedAt` field still exists in Firestore documents and queries still filter `where('deletedAt', '==', null)` for backward compatibility with any legacy soft-deleted data. `DeleteCourseUseCase` cascades: it calls `courseRepo.hardDelete(id)` which removes the course document plus all flat-collection documents for that course (semesters, subjects, lessons, batch_semesters) in a single Firestore operation.
 
-**User deletion is split across two endpoints with different semantics:**
-- `DELETE /users/:uid` (admin) — **permanently hard-deletes** a regular user from Firestore and Firebase Auth (irreversible).
-- `DELETE /super-admin/admins/:uid` (super_admin) — **soft-deletes** an admin account by setting `deletedAt` and disabling their Firebase Auth account.
+**User deletion — all deletion endpoints are now hard deletes:**
+- `DELETE /users/:uid` (admin) — **permanently hard-deletes** a regular user from Firestore and Firebase Auth (irreversible). Blocks self-delete and targeting admin/super_admin.
+- `DELETE /super-admin/admins/:uid` (super_admin) — **permanently hard-deletes** an admin account from Firestore and Firebase Auth (irreversible).
 
 ### Internal Service Communication
 
@@ -930,7 +942,7 @@ Two Jest configs exist in the repo. A third (`jest.e2e.config.ts`) is referenced
 
 **Firebase emulator ports** (from `firebase.json`): Auth `9099`, Firestore `8080`, Storage `9199`, UI `4000` (`http://localhost:4000`).
 
-**Postman:** Import `postman/CMP_Backend.postman_collection.json` (220 requests across 17 folders) with one of the two environment files:
+**Postman:** Import `postman/CMP_Backend.postman_collection.json` (230 requests across 17 folders) with one of the two environment files:
 
 | Environment file | `baseUrl` | `authBaseUrl` | `firebaseWebApiKey` |
 |-----------------|-----------|--------------|-------------------|

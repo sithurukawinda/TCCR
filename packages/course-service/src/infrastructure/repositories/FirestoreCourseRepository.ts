@@ -41,9 +41,10 @@ export class FirestoreCourseRepository implements ICourseRepository {
   }
 
   async findByTitle(title: string): Promise<Course | null> {
-    // Check ALL courses including soft-deleted — title can never be reused
+    // Only check active (non-deleted) courses — soft-deleted courses do not reserve their title
     const snap = await this.col
-      .where('title', '==', title)
+      .where('title',     '==', title)
+      .where('deletedAt', '==', null)
       .limit(1)
       .get();
     if (snap.empty) return null;
@@ -124,5 +125,31 @@ export class FirestoreCourseRepository implements ICourseRepository {
 
   async softDelete(id: string): Promise<void> {
     await this.col.doc(id).update({ deletedAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
+
+  async hardDelete(id: string): Promise<void> {
+    const db = getFirestore();
+    // Delete all flat-collection documents that belong to this course in parallel,
+    // then delete the course document itself.
+    const deleteCollection = async (colName: string) => {
+      let snap = await db.collection(colName).where('courseId', '==', id).limit(100).get();
+      while (!snap.empty) {
+        const batch = db.batch();
+        snap.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+        if (snap.docs.length < 100) break;
+        snap = await db.collection(colName).where('courseId', '==', id).limit(100).get();
+      }
+    };
+
+    await Promise.all([
+      deleteCollection('semesters'),
+      deleteCollection('subjects'),
+      deleteCollection('lessons'),
+      deleteCollection('batches'),
+      deleteCollection('batch_semesters'),
+    ]);
+
+    await this.col.doc(id).delete();
   }
 }

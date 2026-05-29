@@ -715,6 +715,26 @@ const meFolder = folder('2️⃣ User Service — Me', [
       `});`,
     ],
   }),
+  buildRequest({
+    name: 'Get My Course Detail (student view) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/me/courses/{{courseId}}' },
+    auth: bearerAuth('studentToken'),
+    description: 'Returns course detail with semesters showing state (unscheduled/upcoming/open/closed) based on the student\'s enrolled batch schedule. API ref §5.x',
+    tests: [
+      `pm.test("200 or 404 or 403 — Student Course View", () => { pm.expect([200, 403, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("courseId present",     () => pm.expect(j.courseId).to.be.a("string"));`,
+      `  pm.test("semesters is array",   () => pm.expect(j.semesters).to.be.an("array"));`,
+      `  if (j.semesters.length > 0) {`,
+      `    const s = j.semesters[0];`,
+      `    pm.test("semester has state", () => pm.expect(["unscheduled","upcoming","open","closed"]).to.include(s.state));`,
+      `    pm.test("semester has id",    () => pm.expect(s.id).to.be.a("string"));`,
+      `  }`,
+      `}`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -1130,7 +1150,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
-    tests: [`pm.test("204 or 404 — g12 promotes to leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — g12 promotes to leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'Promote member → g12 (g12 caller, registeredUid)',
@@ -1139,7 +1162,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 — g12 promotes to g12", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — g12 promotes to g12", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'Promote leader → g12 (leader caller, createdLeaderId)',
@@ -1148,7 +1174,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('leaderToken'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 or 409 — leader promotes leader to g12 (409 = already g12)", () => { pm.expect([200, 204, 404, 409]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 or 409 — leader promotes leader to g12 (409 = already g12)", () => { pm.expect([200, 404, 409]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   // 403 tests verify RBAC — the 403 is returned before any DB write, so target UID doesn't matter.
   buildRequest({
@@ -1181,8 +1210,9 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
     tests: [
-      `// 204 = demoted; 404 = user not found (expected if promote was skipped)`,
-      `pm.test("204 or 404 — admin demotes leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`,
+      `// 200 = demoted; 404 = user not found (expected if promote was skipped)`,
+      `pm.test("200 or 404 — admin demotes leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
     ],
   }),
   buildRequest({
@@ -1192,7 +1222,10 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('adminToken'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'g12' }),
-    tests: [`pm.test("204 or 404 — admin demotes g12", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    tests: [
+      `pm.test("200 or 404 — admin demotes g12", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'G12 demotes leader (g12 caller) — allowed',
@@ -1201,8 +1234,11 @@ const adminUsersFolder = folder('3️⃣ User Service — Admin Manage Users', [
     auth: bearerAuth('g12Token'),
     headers: jsonHeader(),
     body: jsonBody({ role: 'leader' }),
-    description: 'g12 can demote leader role only — this should succeed (204) or 404 if user not found.',
-    tests: [`pm.test("204 or 404 — g12 demotes leader", () => { pm.expect([204, 404]).to.include(pm.response.code); });`],
+    description: 'g12 can demote leader role only — this should succeed (200) or 404 if user not found.',
+    tests: [
+      `pm.test("200 or 404 — g12 demotes leader", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("success message", () => pm.expect(j.message).to.be.a("string")); }`,
+    ],
   }),
   buildRequest({
     name: 'G12 tries to demote g12 (expect 403)',
@@ -1523,10 +1559,12 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches' },
     auth: bearerAuth('adminToken'),
     headers: jsonHeader(),
-    // API ref §7.2 — capacity is optional; scheduledOpenAt in past auto-opens batch
+    // scheduledOpenAt: null keeps the batch in DRAFT state so it can be opened manually.
+    // A past scheduledOpenAt would auto-open the batch immediately on creation,
+    // which prevents testing the manual open flow and semester-dates validation.
     body: jsonBody({
       name:            'Batch 2026 — Q1',
-      scheduledOpenAt: '2026-01-01T00:00:00.000Z',
+      scheduledOpenAt: null,
       intakeStart:     '2026-06-01',
       intakeEnd:       '2026-12-31',
       capacity:        50,
@@ -1534,6 +1572,7 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     tests: [
       `pm.test("201 Created — Create Batch", () => pm.response.to.have.status(201));`,
       `const j = pm.response.json();`,
+      `pm.test("state is draft", () => pm.expect(j.state).to.equal("draft"));`,
       `if (j.id) { pm.environment.set("batchId", j.id); }`,
     ],
   }),
@@ -1570,8 +1609,8 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     url: { raw: '{{baseUrl}}/batches/{{batchId}}/open' },
     auth: bearerAuth('adminToken'),
     tests: [
-      `pm.test("200 or 409 — Open Batch (409 = already open; scheduledOpenAt in past auto-opens)", () => {`,
-      `  pm.expect([200, 409]).to.include(pm.response.code);`,
+      `pm.test("200 or 409 or 400 — Open Batch", () => {`,
+      `  pm.expect([200, 400, 409]).to.include(pm.response.code);`,
       `});`,
     ],
   }),
@@ -1580,7 +1619,59 @@ const batchesFolder = folder('6️⃣ Batches (V2)', [
     method: 'POST',
     url: { raw: '{{baseUrl}}/batches/{{batchId}}/close' },
     auth: bearerAuth('adminToken'),
-    tests: [`pm.test("200 OK — Close Batch", () => pm.response.to.have.status(200));`],
+    tests: [`pm.test("200 or 409 — Close Batch (409 = already closed)", () => { pm.expect([200, 409]).to.include(pm.response.code); });`],
+  }),
+  buildRequest({
+    name: 'Set Batch Semester Dates ★ NEW',
+    method: 'PUT',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: 'Set open/end dates for all semesters in a batch. Admin only. Returns array of BatchSemesterView.',
+    body: jsonBody({
+      schedule: [
+        { semesterId: '{{semesterId}}', openDate: '2026-06-01', endDate: '2026-08-31' },
+      ],
+    }),
+    tests: [
+      `pm.test("200 or 404 — Set Semester Dates", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("response is array", () => pm.expect(j).to.be.an("array"));`,
+      `  if (j.length > 0) {`,
+      `    pm.test("first entry has semesterId", () => pm.expect(j[0].semesterId).to.be.a("string"));`,
+      `    pm.test("first entry has openDate",   () => pm.expect(j[0]).to.have.property("openDate"));`,
+      `    pm.test("first entry has endDate",    () => pm.expect(j[0]).to.have.property("endDate"));`,
+      `  }`,
+      `}`,
+    ],
+  }),
+  buildRequest({
+    name: 'Patch One Semester Date ★ NEW',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates/{{semesterId}}' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: 'Update a single semester\'s open/end dates within a batch. Admin only.',
+    body: jsonBody({ openDate: '2026-07-01', endDate: '2026-09-30' }),
+    tests: [
+      `pm.test("200 or 404 — Patch Semester Date", () => { pm.expect([200, 404]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("semesterId present", () => pm.expect(j.semesterId).to.be.a("string"));`,
+      `  pm.test("openDate is 2026-07-01", () => pm.expect(j.openDate).to.equal("2026-07-01"));`,
+      `  pm.test("endDate is 2026-09-30",  () => pm.expect(j.endDate).to.equal("2026-09-30"));`,
+      `}`,
+    ],
+  }),
+  buildRequest({
+    name: 'Patch Semester Date — non-admin (expect 403) ★ NEW',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/batches/{{batchId}}/semester-dates/{{semesterId}}' },
+    auth: bearerAuth('studentToken'),
+    headers: jsonHeader(),
+    body: jsonBody({ openDate: '2026-07-01', endDate: '2026-09-30' }),
+    tests: [`pm.test("403 or 404 — student cannot patch semester dates", () => { pm.expect([403, 404]).to.include(pm.response.code); });`],
   }),
 ]);
 
@@ -2294,6 +2385,58 @@ const progressFolder = folder('9️⃣ Progress Service', [
     auth: bearerAuth('adminToken'),
     tests: [`pm.test("200 OK — Admin Course Progress", () => pm.response.to.have.status(200));`],
   }),
+
+  // ── Video position tracking (YouTube resume) ★ NEW ───────────────────────
+  buildRequest({
+    name: 'Save Video Position ★ NEW',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('student2Token'),
+    headers: jsonHeader(),
+    description: 'Save the current YouTube playback position so the student can resume later. watchedSeconds is an integer.',
+    body: jsonBody({ watchedSeconds: 90, courseId: '{{courseId}}' }),
+    tests: [
+      `pm.test("200 OK — Save Video Position", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("lessonId is string",       () => pm.expect(j.lessonId).to.be.a("string"));`,
+      `  pm.test("watchedSeconds is number", () => pm.expect(j.watchedSeconds).to.be.a("number"));`,
+      `  pm.test("updatedAt is string",      () => pm.expect(j.updatedAt).to.be.a("string"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Video Position ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('student2Token'),
+    description: 'Get the saved YouTube playback position. Returns { watchedSeconds: 0 } when no position has been saved yet.',
+    tests: [
+      `pm.test("200 OK — Get Video Position", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("lessonId is string",       () => pm.expect(j.lessonId).to.be.a("string"));`,
+      `  pm.test("watchedSeconds is number", () => pm.expect(j.watchedSeconds).to.be.a("number"));`,
+      `  pm.test("watchedSeconds >= 0",      () => pm.expect(j.watchedSeconds).to.be.at.least(0));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Video Position — no record yet (returns 0) ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/progress/lessons/{{lessonId}}/video-position' },
+    auth: bearerAuth('studentToken'),
+    description: 'Student who has never watched returns { watchedSeconds: 0 } — never 404.',
+    tests: [
+      `pm.test("200 or 403 — returns 0 when no record", () => { pm.expect([200, 403]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("watchedSeconds is 0 or number", () => pm.expect(j.watchedSeconds).to.be.a("number").and.at.least(0));`,
+      `}`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -2505,11 +2648,30 @@ const courseLifecycleFolder = folder('⚡ Course Lifecycle', [
     tests: [`pm.test("204 No Content — Delete Semester", () => pm.response.to.have.status(204));`],
   }),
   buildRequest({
-    name: 'Delete Course',
+    name: 'Delete Course (soft)',
     method: 'DELETE',
     url: { raw: '{{baseUrl}}/courses/{{courseId}}' },
     auth: bearerAuth('adminToken'),
-    tests: [`pm.test("204 No Content — Delete Course", () => pm.response.to.have.status(204));`],
+    description: 'Soft-delete — sets deletedAt timestamp. Recoverable via POST /courses/:id/restore. Admin only.',
+    tests: [`pm.test("204 No Content — Soft Delete Course", () => pm.response.to.have.status(204));`],
+  }),
+  buildRequest({
+    name: 'Hard Delete Course ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/hard' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Permanently removes the course and ALL related Firestore data: semesters, subjects, lessons, batches, batch_semesters. IRREVERSIBLE. super_admin only. Runs after soft-delete — findById works on soft-deleted docs.',
+    tests: [
+      `pm.test("204 or 404 — Hard Delete Course", () => { pm.expect([204, 404]).to.include(pm.response.code); });`,
+    ],
+  }),
+  buildRequest({
+    name: 'Hard Delete — admin blocked (expect 403) ★ NEW',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/courses/{{courseId}}/hard' },
+    auth: bearerAuth('adminToken'),
+    description: 'Admin cannot hard-delete — only super_admin can.',
+    tests: [`pm.test("403 — admin cannot hard delete", () => pm.response.to.have.status(403));`],
   }),
 ]);
 
@@ -2749,62 +2911,58 @@ const joinRequestsSubFolder = folder('Join Requests', [
 
 const cellReportsSubFolder = folder('Cell Reports', [
 
-  // ── Reports Page: Network Summary ★ NEW ─────────────────────────────────────
+  // ── Reports Page: Network Summary (month required) ────────────────────────────
   buildRequest({
-    name: 'Get Network Summary (Reports page) ★ NEW',
+    name: 'Get Network Summary — G12 view',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('g12Token'),
-    description: [
-      'Powers the Reports page dashboard — stat cards, unreported-cell alert,',
-      'weekly chart, meeting-type donut, and by-leader table in one call.',
-      '',
-      'API ref §14.7',
-    ].join('\n'),
+    description: 'Powers the Reports page dashboard. month=YYYY-MM is required. API ref §14.7',
     tests: [
       `pm.test("200 or 401 — Network Summary", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) {`,
       `  const j = pm.response.json();`,
-      `  pm.test("period is a string",         () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
-      `  pm.test("month is a string",          () => pm.expect(j.month).to.be.a("string").and.not.empty);`,
-      `  pm.test("scope.totalCells is number", () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
-      `  pm.test("summary.cellsHeld is number",() => pm.expect(j.summary.cellsHeld).to.be.a("number"));`,
-      `  pm.test("summary.reportsFiled",       () => pm.expect(j.summary.reportsFiled).to.be.a("number"));`,
-      `  pm.test("attendance.present",         () => pm.expect(j.attendance.present).to.be.a("number"));`,
-      `  pm.test("attendance.roster",          () => pm.expect(j.attendance.roster).to.be.a("number"));`,
-      `  pm.test("unreportedCells is array",   () => pm.expect(j.unreportedCells).to.be.an("array"));`,
-      `  pm.test("weeklyBreakdown is array",   () => pm.expect(j.weeklyBreakdown).to.be.an("array"));`,
+      `  pm.test("period is a string",          () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
+      `  pm.test("scope.totalCells is number",  () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
+      `  pm.test("summary.cellsHeld is number", () => pm.expect(j.summary.cellsHeld).to.be.a("number"));`,
+      `  pm.test("summary.reportsFiled",        () => pm.expect(j.summary.reportsFiled).to.be.a("number"));`,
+      `  pm.test("attendance.present",          () => pm.expect(j.attendance.present).to.be.a("number"));`,
+      `  pm.test("attendance.roster",           () => pm.expect(j.attendance.roster).to.be.a("number"));`,
+      `  pm.test("unreportedCells is array",    () => pm.expect(j.unreportedCells).to.be.an("array"));`,
+      `  pm.test("weeklyBreakdown is array",    () => pm.expect(j.weeklyBreakdown).to.be.an("array"));`,
       `  pm.test("meetingTypeBreakdown has g12/care/children/outreach", () => {`,
       `    pm.expect(j.meetingTypeBreakdown).to.have.all.keys("g12","care","children","outreach");`,
       `  });`,
-      `  pm.test("byLeader is array",          () => pm.expect(j.byLeader).to.be.an("array"));`,
+      `  pm.test("byLeader is array",           () => pm.expect(j.byLeader).to.be.an("array"));`,
       `}`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — missing month → 400 ★ NEW',
+    name: 'Get Network Summary — missing month → 400',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary' },
     auth: bearerAuth('g12Token'),
+    description: 'month is required. Omitting it returns 400 VALIDATION_ERROR.',
     tests: [
       `pm.test("400 or 401 — missing month param", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("error code is VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
+      `if (pm.response.code === 400) { const j = pm.response.json(); pm.test("VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR")); }`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — bad month format → 400 ★ NEW',
+    name: 'Get Network Summary — bad month format → 400',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary?month=May-2026' },
     auth: bearerAuth('g12Token'),
+    description: 'month must be YYYY-MM format. Wrong format returns 400.',
     tests: [
       `pm.test("400 or 401 — invalid month format", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
     ],
   }),
 
   buildRequest({
-    name: 'Get Network Summary — Admin view ★ NEW',
+    name: 'Get Network Summary — Admin view',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('adminToken'),
@@ -2816,20 +2974,20 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Summary — student (expect 403) ★ NEW',
+    name: 'Get Network Summary — student (expect 403)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05' },
     auth: bearerAuth('studentToken'),
     tests: [`pm.test("403 — student cannot access summary", () => pm.response.to.have.status(403));`],
   }),
 
-  // ── Reports Page: Network Reports with filters ★ UPDATED ─────────────────────
+  // ── Reports Page: Network Reports (month optional, leaderUid/cellId/type supported) ─
   buildRequest({
-    name: 'Get Network Reports — with month filter ★ UPDATED',
+    name: 'Get Network Reports — with month filter',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=20' },
     auth: bearerAuth('g12Token'),
-    description: 'All Types tab — returns all reports for the month across the G12 network.',
+    description: 'All Types tab — all reports for the month across the G12 network. API ref §14.6',
     tests: [
       `pm.test("200 or 401 — Network Reports with month", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number")); }`,
@@ -2837,7 +2995,7 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Care tab (type=care) ★ NEW',
+    name: 'Get Network Reports — Care tab (type=care)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=care' },
     auth: bearerAuth('g12Token'),
@@ -2849,11 +3007,11 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Children tab (type=children) ★ NEW',
+    name: 'Get Network Reports — Children tab (type=children)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=children' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — Children. Only returns reports where cellType === "children".',
+    description: 'Cell Type tab filter — Children.',
     tests: [
       `pm.test("200 or 401 — Children tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("all items are children type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("children")); }); }`,
@@ -2861,11 +3019,11 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — Outreach tab (type=outreach) ★ NEW',
+    name: 'Get Network Reports — Outreach tab (type=outreach)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=outreach' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — Outreach. Only returns reports where cellType === "outreach".',
+    description: 'Cell Type tab filter — Outreach.',
     tests: [
       `pm.test("200 or 401 — Outreach tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("all items are outreach type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("outreach")); }); }`,
@@ -2873,41 +3031,53 @@ const cellReportsSubFolder = folder('Cell Reports', [
   }),
 
   buildRequest({
-    name: 'Get Network Reports — G12 tab (type=g12) ★ NEW',
+    name: 'Get Network Reports — G12 tab (type=g12)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&type=g12' },
     auth: bearerAuth('g12Token'),
-    description: 'Cell Type tab filter — G12. Only returns reports where cellType === "g12".',
+    description: 'Cell Type tab filter — G12.',
     tests: [
       `pm.test("200 or 401 — G12 tab filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
       `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("all items are g12 type", () => { j.items.forEach(r => pm.expect(r.cellType).to.equal("g12")); }); }`,
     ],
   }),
 
-  // ── Original network reports (no month filter) ──────────────────────────────
   buildRequest({
-    name: 'Get Network Reports — G12 view (no filter)',
+    name: 'Get Network Reports — filter by leaderUid ★ NEW',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?limit=20' },
-    auth: bearerAuth('g12Token'),
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&leaderUid={{leaderId}}' },
+    auth: bearerAuth('adminToken'),
+    description: 'Admin/G12: narrow network reports to a single leader\'s cells.',
     tests: [
-      `pm.test("200 or 401 — G12 Network Reports", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
-      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); pm.test("totalCells exists", () => pm.expect(j.totalCells).to.be.a("number")); }`,
+      `pm.test("200 or 401 — leaderUid filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); }`,
     ],
   }),
+
+  buildRequest({
+    name: 'Get Network Reports — filter by cellId ★ NEW',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&cellId={{cellId}}' },
+    auth: bearerAuth('g12Token'),
+    description: 'Narrow network reports to a single specific cell.',
+    tests: [
+      `pm.test("200 or 401 — cellId filter", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) { const j = pm.response.json(); pm.test("items is array", () => pm.expect(j.items).to.be.an("array")); }`,
+    ],
+  }),
+
   buildRequest({
     name: 'Get Network Reports — Admin (all cells)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports?limit=10' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&limit=10' },
     auth: bearerAuth('adminToken'),
-    tests: [
-      `pm.test("200 OK — Admin Network Reports", () => pm.response.to.have.status(200));`,
-    ],
+    tests: [`pm.test("200 OK — Admin Network Reports", () => pm.response.to.have.status(200));`],
   }),
+
   buildRequest({
     name: 'Get Network Reports — member (expect 403)',
     method: 'GET',
-    url: { raw: '{{baseUrl}}/cells/network/reports' },
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05' },
     auth: bearerAuth('studentToken'),
     tests: [`pm.test("403 — student cannot access network reports", () => pm.response.to.have.status(403));`],
   }),

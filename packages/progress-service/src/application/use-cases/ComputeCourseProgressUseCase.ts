@@ -10,6 +10,7 @@ export interface CourseProgressResult {
   totalSubjects:           number;
   completionPercent:       number;
   lastAccessedSubjectId:   string | null;
+  lastAccessedLessonId:    string | null;
   lastAccessedAt:          string | null;
   // Lesson-level fields (V2)
   completedLessonIds:      string[];
@@ -54,8 +55,9 @@ export class ComputeCourseProgressUseCase {
       pendingCount,
       totalSubjects,
       completionPercent,
-      lastAccessedSubjectId:   lastAccessed?.subjectId  ?? null,
-      lastAccessedAt:          lastAccessed?.lastAccessedAt ?? null,
+      lastAccessedSubjectId:   lastAccessed?.subjectId           ?? null,
+      lastAccessedLessonId:    lastAccessed?.lastAccessedLessonId ?? null,
+      lastAccessedAt:          lastAccessed?.lastAccessedAt       ?? null,
       completedLessonIds,
       totalLessons,
       lessonCompletionPercent,
