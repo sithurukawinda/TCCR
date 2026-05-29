@@ -1,12 +1,14 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.30.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.32.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.30.0
-**Date:** 28 May 2026
+**Version:** 2.32.0
+**Date:** 29 May 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.29.0 (28 May 2026)
+**Supersedes:** Version 2.31.0 (29 May 2026)
+**Change in 2.32.0:** §12 Progress Endpoints — two new endpoints: §12.8 `POST /progress/lessons/:lessonId/video-position` (save YouTube playback position in seconds) and §12.9 `GET /progress/lessons/:lessonId/video-position` (retrieve saved position; returns `{ watchedSeconds: 0 }` when never watched). New `video_progress` Firestore collection. Enables frontend video resume feature across devices.
+**Change in 2.31.0:** §12.6 and §12.7 lesson-level progress endpoints documented. §7.7, §7.8, §7.9 batch semester scheduling endpoints added.
 **Change in 2.30.0:** Added §3.11 `GET /me/courses/:courseId` (student batch-aware course view with semester states); added §7.7 `PUT /courses/:courseId/batches/:batchId/semester-dates` and §7.8 `PATCH /courses/:courseId/batches/:batchId/semester-dates/:semesterId` (batch semester scheduling); updated §14.7 `GET /cells/network/summary` from `?month=` to `?from=`/`?to=` date-range signature with adaptive period labels; updated §14.6 `GET /cells/network/reports` and §14.1 `GET /cells/:id/reports` with `leaderUid`, `cellId`, and corrected `voided` param type.
 **Change in 2.29.0:** §4.4 and §17.2 `GET /users/:uid/audit-log` — marked as **implemented** (was incorrectly flagged NOT YET IMPLEMENTED). Endpoint is live in audit-service; filters audit entries by `actorUid`.
 **Change in 2.28.0:** Added §14.7 `GET /cells/network/summary` (Reports page stat cards, charts, by-leader table); updated §14.6 `GET /cells/network/reports` with `month` and `type` filter params (Cell Type tab filtering for All Reports table).
@@ -65,6 +67,7 @@
     - 12.1 [Mark Subject Complete](#121-post-progresssubjectsidcomplete) · 12.2 [Subject Access](#122-post-progresssubjectsidaccess) · 12.3 [My Course Progress](#123-get-meprogress-coursescourseid)
     - 12.4 [My Subject Progress](#124-get-meprogresssubjectssubjectid) · 12.5 [Admin Course Progress](#125-get-adminprogresscoursescourseid)
     - **12.6 [Mark Lesson Complete ★ NEW](#126-post-progresslessonslessionidcomplete--new) · 12.7 [Unmark Lesson ★ NEW](#127-delete-progresslessonslessonidcomplete--new)**
+    - **12.8 [Save Video Position ★ NEW](#128-post-progresslessonslessonidvideo-position--new) · 12.9 [Get Video Position ★ NEW](#129-get-progresslessonslessonidvideo-position--new)**
 13. [Cell Group Endpoints — NEW V2](#13-cell-group-endpoints--new-v2)
     - 13.1 [List Cells](#131-get-cells)
     - 13.2 [My Cells](#132-get-cellsmine)
@@ -2827,6 +2830,94 @@ Unmark a lesson as complete — removes the completion record. Intended for mist
 **`404 Not Found`** → `LESSON_PROGRESS_NOT_FOUND` — No completion record exists for this lesson and caller.
 ```json
 { "error": { "code": "LESSON_PROGRESS_NOT_FOUND", "message": "No completion record found for this lesson." }, "requestId": "..." }
+```
+
+---
+
+### 12.8 `POST /progress/lessons/:lessonId/video-position` ★ NEW
+
+Save the student's current YouTube video playback position (in seconds). Called every few seconds while the video plays, and on pause/close. Allows the frontend to resume from the exact position on return.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`
+
+#### Request Body
+
+```json
+{
+  "watchedSeconds": 150,
+  "courseId":       "course-uuid"
+}
+```
+
+| Field | Type | Required | Validation |
+|-------|------|:--------:|-----------|
+| `watchedSeconds` | integer | ✅ | `>= 0` — current playback position in seconds |
+| `courseId` | UUID | ✅ | Parent course of the lesson |
+
+#### Response `200 OK`
+
+```json
+{
+  "lessonId":       "lesson-uuid",
+  "watchedSeconds": 150,
+  "updatedAt":      "2026-05-29T10:30:00.000Z"
+}
+```
+
+**`400 Bad Request`** → `VALIDATION_ERROR` — `watchedSeconds` missing or negative
+```json
+{ "error": { "code": "VALIDATION_ERROR", "message": "watchedSeconds must be 0 or greater." }, "requestId": "..." }
+```
+
+---
+
+### 12.9 `GET /progress/lessons/:lessonId/video-position` ★ NEW
+
+Get the saved video playback position for the authenticated student. Returns `{ watchedSeconds: 0 }` when the student has never watched — never returns `404`.
+
+**Authentication:** Bearer required | **Roles:** `student`, `leader`, `g12`
+
+#### Response `200 OK` — position saved
+
+```json
+{
+  "lessonId":       "lesson-uuid",
+  "watchedSeconds": 150
+}
+```
+
+#### Response `200 OK` — never watched (no record exists)
+
+```json
+{
+  "lessonId":       "lesson-uuid",
+  "watchedSeconds": 0
+}
+```
+
+> Always returns `200`. There is no `404` for this endpoint — a missing record is treated as position `0` (start of video).
+
+#### Frontend Usage
+
+```javascript
+// On lesson page load — seek YouTube player to saved position
+const res = await fetch(`/api/v1/progress/lessons/${lessonId}/video-position`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+const { watchedSeconds } = await res.json();
+if (watchedSeconds > 10) {
+  player.seekTo(watchedSeconds, true);  // resume from saved position
+}
+
+// Every 5 seconds while playing — save current position
+setInterval(() => {
+  const currentTime = player.getCurrentTime();
+  fetch(`/api/v1/progress/lessons/${lessonId}/video-position`, {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ watchedSeconds: Math.floor(currentTime), courseId })
+  });
+}, 5000);
 ```
 
 ---

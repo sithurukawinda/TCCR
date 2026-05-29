@@ -8,11 +8,14 @@ import { ComputeCourseProgressUseCase }           from '../../application/use-ca
 import { GetSubjectProgressUseCase }              from '../../application/use-cases/GetSubjectProgressUseCase';
 import { MarkLessonCompleteUseCase }              from '../../application/use-cases/MarkLessonCompleteUseCase';
 import { UnmarkLessonCompleteUseCase }            from '../../application/use-cases/UnmarkLessonCompleteUseCase';
+import { SaveVideoPositionUseCase }               from '../../application/use-cases/SaveVideoPositionUseCase';
+import { GetVideoPositionUseCase }                from '../../application/use-cases/GetVideoPositionUseCase';
 import { IProgressRepository }                   from '../../domain/repositories/IProgressRepository';
 import {
   subjectCompleteSchema,
   subjectAccessSchema,
   lessonCompleteSchema,
+  saveVideoPositionSchema,
 } from '../validators/progressValidator';
 
 export class ProgressController {
@@ -24,6 +27,8 @@ export class ProgressController {
     private readonly markLessonCompleteUC: MarkLessonCompleteUseCase,
     private readonly unmarkLessonUC:       UnmarkLessonCompleteUseCase,
     private readonly progressRepo:         IProgressRepository,
+    private readonly saveVideoPositionUC:  SaveVideoPositionUseCase,
+    private readonly getVideoPositionUC:   GetVideoPositionUseCase,
   ) {}
 
   complete = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -99,6 +104,29 @@ export class ProgressController {
       const { uid } = (req as AuthenticatedRequest).principal;
       await this.unmarkLessonUC.execute({ studentUid: uid, lessonId: req.params.lessonId });
       res.status(204).end();
+    } catch (err) { next(err); }
+  };
+
+  saveVideoPosition = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = saveVideoPositionSchema.safeParse(req.body);
+      if (!parsed.success) return next(fromZodError(parsed.error));
+      const { uid } = (req as AuthenticatedRequest).principal;
+      const result  = await this.saveVideoPositionUC.execute(
+        uid,
+        req.params.lessonId,
+        parsed.data.courseId,
+        parsed.data.watchedSeconds,
+      );
+      sendSuccess(res, result);
+    } catch (err) { next(err); }
+  };
+
+  getVideoPosition = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid } = (req as AuthenticatedRequest).principal;
+      const result  = await this.getVideoPositionUC.execute(uid, req.params.lessonId);
+      sendSuccess(res, result);
     } catch (err) { next(err); }
   };
 }

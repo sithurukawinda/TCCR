@@ -9,8 +9,12 @@ progressRouter.post('/progress/subjects/:id/complete',  authenticate(), authoriz
 progressRouter.post('/progress/subjects/:id/access',    authenticate(), authorize('student', 'leader', 'g12'), container.progressController.access);
 
 // Lesson-level progress (V2)
-progressRouter.post(  '/progress/lessons/:lessonId/complete', authenticate(), authorize('student', 'leader', 'g12'), container.progressController.completeLesson);
-progressRouter.delete('/progress/lessons/:lessonId/complete', authenticate(), authorize('student', 'leader', 'g12'), container.progressController.uncompleteLesson);
+progressRouter.post(  '/progress/lessons/:lessonId/complete',       authenticate(), authorize('student', 'leader', 'g12'), container.progressController.completeLesson);
+progressRouter.delete('/progress/lessons/:lessonId/complete',       authenticate(), authorize('student', 'leader', 'g12'), container.progressController.uncompleteLesson);
+
+// Video position tracking — save/resume YouTube playback position (V2)
+progressRouter.post('/progress/lessons/:lessonId/video-position',   authenticate(), authorize('student', 'leader', 'g12'), container.progressController.saveVideoPosition);
+progressRouter.get( '/progress/lessons/:lessonId/video-position',   authenticate(), authorize('student', 'leader', 'g12'), container.progressController.getVideoPosition);
 
 // Query progress
 progressRouter.get('/me/progress/courses/:courseId',    authenticate(), authorize('student', 'leader', 'g12'), container.progressController.myCourseProgress);
