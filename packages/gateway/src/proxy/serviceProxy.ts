@@ -1,5 +1,6 @@
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Request, Response }     from 'express';
+import { ServerResponse }        from 'http';
 import { config }                from '../config';
 
 // Express strips the mount prefix from req.url before the proxy sees it,
@@ -14,9 +15,14 @@ const makeProxy = (target: string) =>
     pathRewrite: rewrite,
     on: {
       error: (_err, _req, res) => {
-        (res as Response).status(502).json({
-          error: { code: 'SERVICE_UNAVAILABLE', message: 'Upstream service unavailable.' },
-        });
+        // Guard: headers may already be sent if the proxy started streaming a response.
+        // Calling res.status().json() on an already-committed response throws
+        // ERR_HTTP_HEADERS_SENT and crashes the gateway process.
+        if (res instanceof ServerResponse && !res.headersSent) {
+          (res as Response).status(502).json({
+            error: { code: 'SERVICE_UNAVAILABLE', message: 'Upstream service unavailable.' },
+          });
+        }
       },
     },
   });
