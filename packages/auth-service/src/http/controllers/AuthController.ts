@@ -82,7 +82,7 @@ export class AuthController {
       const parsed = passwordResetSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
       await this.requestResetUseCase.execute(parsed.data.email);
-      res.status(204).send();
+      sendSuccess(res, { message: 'If this email is registered, a password reset link has been sent.' });
     } catch (err) { next(err); }
   };
 
