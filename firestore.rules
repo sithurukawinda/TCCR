@@ -17,14 +17,15 @@ service cloud.firestore {
       );
     }
 
+    // super_admin is TOP level; master is below super_admin (g12-level access)
     function isMaster()     { return hasRole('master') || hasRoleV2('master'); }
-    function isSuperAdmin() { return hasRole('super_admin') || isMaster(); }
-    function isAdmin()      { return hasRole('admin') || hasRole('super_admin') || isMaster(); }
+    function isSuperAdmin() { return hasRole('super_admin'); }
+    function isAdmin()      { return hasRole('admin') || hasRole('super_admin'); }
     function isOwner(uid)   { return isAuthenticated() && request.auth.uid == uid; }
 
-    // leader, g12, admin, super_admin, master — used for analytics access
+    // leader, g12, master — used for analytics/cell access
     function isLeaderOrAbove() {
-      return hasRoleV2('leader') || hasRoleV2('g12') || isAdmin();
+      return hasRoleV2('leader') || hasRoleV2('g12') || isMaster() || isAdmin();
     }
 
     // ── Audit ─────────────────────────────────────────────────────────────────

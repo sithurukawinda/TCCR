@@ -18,21 +18,33 @@
 
 ## Overview
 
-The `master` role is the highest privilege level in the TCCR system. It inherits all permissions from every other role via middleware injection. The `super_admin` assigns and removes master; the `master` themselves manages the role hierarchy below them and can transfer their position.
+The `master` role sits **below `super_admin`** in the authority chain. `super_admin` is the absolute top level — it manages admins and manages masters. `master` has **g12-level access** (analytics, cell networks, cell reports) plus exclusive master management endpoints. Master does NOT have admin or super_admin access.
 
-**Role hierarchy:**
+**Role hierarchy (authority):**
 ```
-super_admin  ←  can add / remove master (admin-style control)
-  │
-  master     ←  full system access; can transfer position to another user
-  │              via POST /master/promote/:uid
-  │
-  g12        ←  master has all g12 access via inheritance
-  │
-  leader     ←  master has all leader access via inheritance
-  │
-  student / member
+super_admin  ←  TOP LEVEL — manages admins + manages masters
+     │
+   master    ←  g12-level access + /master/* endpoints
+     │           can transfer position via POST /master/promote/:uid
+     │
+    g12      ←  cell networks, analytics, leader oversight
+     │
+   leader    ←  cell groups, cell reports
+     │
+ student / member
 ```
+
+**Access comparison:**
+
+| Capability | `super_admin` | `master` | `g12` |
+|-----------|--------------|---------|-------|
+| Manage admins (`/super-admin/*`) | ✅ | ❌ | ❌ |
+| Hard-delete courses | ✅ | ❌ | ❌ |
+| Manage master role (`/master/*`) | ✅ grant/revoke | ✅ grant/revoke/promote | ❌ |
+| Analytics dashboards | ✅ | ✅ | ✅ |
+| Cell networks and reports | ✅ | ✅ | ✅ |
+| File cell reports | ✅ | ✅ | ✅ |
+| All leader actions | ✅ | ✅ | ✅ |
 
 **Who manages what:**
 
@@ -40,8 +52,8 @@ super_admin  ←  can add / remove master (admin-style control)
 |--------|--------------|---------|
 | Assign master to a user | ✅ `/master/grant/:uid` | ✅ `/master/grant/:uid` |
 | Remove master from a user | ✅ `/master/revoke/:uid` | ✅ `/master/revoke/:uid` |
-| Transfer master position (self-demote + grant) | ❌ | ✅ `/master/promote/:uid` |
-| All g12 / leader / admin operations | ❌ (not those roles) | ✅ via inheritance |
+| Transfer master position (self-demote) | ❌ | ✅ `/master/promote/:uid` |
+| Manage admins (`/super-admin/*`) | ✅ | ❌ |
 
 ---
 

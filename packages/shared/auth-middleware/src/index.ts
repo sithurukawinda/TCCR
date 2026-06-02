@@ -96,11 +96,12 @@ export function authorize(...roles: Role[]) {
       return next(createHttpError(401, 'UNAUTHENTICATED', 'Authentication required.'));
     }
 
-    // master inherits every role; super_admin inherits admin
-    const effectiveRoles: Role[] = principal.roles.includes('master')
-      ? (['master', 'super_admin', 'admin', 'g12', 'leader', 'student', 'member'] as Role[])
-      : principal.roles.includes('super_admin')
-        ? ([...new Set([...principal.roles, 'admin'])] as Role[])
+    // super_admin is TOP level — inherits admin
+    // master is below super_admin — inherits g12 level (NOT admin or super_admin)
+    const effectiveRoles: Role[] = principal.roles.includes('super_admin')
+      ? ([...new Set([...principal.roles, 'admin'])] as Role[])
+      : principal.roles.includes('master')
+        ? (['master', 'g12', 'leader', 'student', 'member'] as Role[])
         : principal.roles;
 
     const allowed = roles.some(r => effectiveRoles.includes(r));
@@ -129,7 +130,7 @@ export function mustBeOwnerOrAdmin(getResourceUid: (req: Request) => string | un
     if (!resourceUid) return next();
 
     const isOwner = principal.uid === resourceUid;
-    const isAdmin = principal.roles.includes('admin') || principal.roles.includes('super_admin') || principal.roles.includes('master');
+    const isAdmin = principal.roles.includes('admin') || principal.roles.includes('super_admin');
 
     if (!isOwner && !isAdmin) {
       return next(
