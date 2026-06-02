@@ -15,6 +15,7 @@ export interface RoleRequestListResult {
 export interface IRoleRequestRepository {
   findById(id: string): Promise<RoleRequest | null>;
   findPendingByRequester(requesterUid: string): Promise<RoleRequest | null>;
+  findApprovedByRequester(requesterUid: string): Promise<RoleRequest | null>;
   findByRequester(requesterUid: string): Promise<RoleRequest[]>;
   findAll(opts: RoleRequestListOptions): Promise<RoleRequestListResult>;
   create(req: RoleRequest): Promise<void>;

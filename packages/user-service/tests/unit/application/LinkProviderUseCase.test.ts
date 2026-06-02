@@ -1,11 +1,11 @@
-﻿import { LinkProviderUseCase }    from '../../../src/application/use-cases/LinkProviderUseCase';
+import { LinkProviderUseCase }    from '../../../src/application/use-cases/LinkProviderUseCase';
 import { IUserRepository }        from '../../../src/domain/repositories/IUserRepository';
 import { AuthServiceClient }      from '../../../src/infrastructure/clients/AuthServiceClient';
 import { User }                   from '../../../src/domain/entities/User';
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 });
 
 const makeAuthSvcClient = (): jest.Mocked<AuthServiceClient> =>

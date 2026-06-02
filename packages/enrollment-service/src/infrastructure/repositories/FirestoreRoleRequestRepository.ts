@@ -28,6 +28,17 @@ export class FirestoreRoleRequestRepository implements IRoleRequestRepository {
     return toEntity(doc.id, doc.data() as RoleRequestDoc);
   }
 
+  async findApprovedByRequester(requesterUid: string): Promise<RoleRequest | null> {
+    const snap = await this.col
+      .where('requesterUid', '==', requesterUid)
+      .where('status',       '==', 'approved')
+      .limit(1)
+      .get();
+    if (snap.empty) return null;
+    const doc = snap.docs[0];
+    return toEntity(doc.id, doc.data() as RoleRequestDoc);
+  }
+
   async findByRequester(requesterUid: string): Promise<RoleRequest[]> {
     const snap = await this.col
       .where('requesterUid', '==', requesterUid)

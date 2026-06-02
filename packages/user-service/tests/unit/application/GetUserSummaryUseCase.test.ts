@@ -8,7 +8,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   create:     jest.fn(),
   update:     jest.fn(),
   softDelete: jest.fn(),
-  hardDelete: jest.fn(),
+  hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 } as unknown as jest.Mocked<IUserRepository>);
 
 const makeUser = (uid: string, roles: string[], overrides: Partial<{

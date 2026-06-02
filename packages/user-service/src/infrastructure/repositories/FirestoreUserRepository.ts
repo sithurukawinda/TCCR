@@ -1,4 +1,4 @@
-import { getFirestore }                                                      from 'firebase-admin/firestore';
+import { getFirestore, FieldValue }                                          from 'firebase-admin/firestore';
 import { User, UserRole, UserProps, NotificationPreferences, Qualification, Gender } from '../../domain/entities/User';
 import { IUserRepository, FindAllOptions, FindAllResult }                   from '../../domain/repositories/IUserRepository';
 
@@ -110,6 +110,20 @@ export class FirestoreUserRepository implements IUserRepository {
   async update(user: User): Promise<void> {
     const { uid, ...doc } = { ...user } as UserProps;
     await this.col.doc(uid).update(doc as Record<string, unknown>);
+  }
+
+  async atomicAddRole(uid: string, role: UserRole): Promise<void> {
+    await this.col.doc(uid).update({
+      roles: FieldValue.arrayUnion(role),
+      updatedAt: new Date().toISOString(),
+    });
+  }
+
+  async atomicRemoveRole(uid: string, role: UserRole): Promise<void> {
+    await this.col.doc(uid).update({
+      roles: FieldValue.arrayRemove(role),
+      updatedAt: new Date().toISOString(),
+    });
   }
 
   async softDelete(uid: string): Promise<void> {

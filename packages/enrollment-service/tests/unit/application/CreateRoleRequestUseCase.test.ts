@@ -7,12 +7,13 @@ import { OutboxEventPublisher }                            from '@shared/events'
 // ─── helpers ────────────────────────────────────────────────────────────────
 
 const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
-  findById:               jest.fn(),
-  findPendingByRequester: jest.fn(),
-  findByRequester:        jest.fn(),
-  findAll:                jest.fn(),
-  create:                 jest.fn(),
-  update:                 jest.fn(),
+  findById:                jest.fn(),
+  findPendingByRequester:  jest.fn(),
+  findApprovedByRequester: jest.fn(),
+  findByRequester:         jest.fn(),
+  findAll:                 jest.fn(),
+  create:                  jest.fn(),
+  update:                  jest.fn(),
 });
 
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>
@@ -76,6 +77,7 @@ describe('CreateRoleRequestUseCase', () => {
   it('creates a pending role request with profile snapshot from user-service', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
     repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(null);
     repo.create.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
@@ -100,6 +102,7 @@ describe('CreateRoleRequestUseCase', () => {
   it('sets generated UUID as id', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
     repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(null);
     repo.create.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
@@ -113,6 +116,7 @@ describe('CreateRoleRequestUseCase', () => {
   it('persists to repo and publishes role.requested event', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
     repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(null);
     repo.create.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
@@ -146,6 +150,7 @@ describe('CreateRoleRequestUseCase', () => {
 
   it('throws 404 USER_NOT_FOUND when user-service returns null', async () => {
     repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(null);
     userClient.getUser.mockResolvedValue(null);
 
     await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
@@ -162,11 +167,28 @@ describe('CreateRoleRequestUseCase', () => {
   it('checks for existing pending request using the requester UID', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
     repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(null);
     repo.create.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
     await useCase.execute({ ...validInput, requesterUid: 'uid-42' }, 'req-x');
 
     expect(repo.findPendingByRequester).toHaveBeenCalledWith('uid-42');
+  });
+
+  // ── guard: already approved ──────────────────────────────────────────────────
+
+  it('throws 409 ROLE_ALREADY_GRANTED when an approved request already exists', async () => {
+    repo.findPendingByRequester.mockResolvedValue(null);
+    repo.findApprovedByRequester.mockResolvedValue(makePendingRequest()); // reuse fixture — status doesn't matter for the mock
+
+    await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
+      status:    409,
+      errorCode: 'ROLE_ALREADY_GRANTED',
+    });
+
+    expect(userClient.getUser).not.toHaveBeenCalled();
+    expect(repo.create).not.toHaveBeenCalled();
+    expect(outbox.publishWithBatch).not.toHaveBeenCalled();
   });
 });

@@ -1,10 +1,10 @@
-﻿import { DeregisterFcmTokenUseCase } from '../../../src/application/use-cases/DeregisterFcmTokenUseCase';
+import { DeregisterFcmTokenUseCase } from '../../../src/application/use-cases/DeregisterFcmTokenUseCase';
 import { IUserRepository }           from '../../../src/domain/repositories/IUserRepository';
 import { User }                      from '../../../src/domain/entities/User';
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 });
 
 const makeUser = (fcmTokens: string[] = ['token-abc', 'token-xyz']): User =>

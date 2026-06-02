@@ -21,8 +21,7 @@ export class AddRoleUseCase {
 
     if (user.roles.includes(role as UserRole)) return; // already has role — idempotent
 
-    user.addRole(role as UserRole);
-    await this.userRepo.update(user);
+    await this.userRepo.atomicAddRole(uid, role as UserRole);
     await this.authClient.addRoleToUser(uid, role);
   }
 }

@@ -24,6 +24,12 @@ export class CreateRoleRequestUseCase {
       throw createHttpError(409, 'ROLE_REQUEST_PENDING', 'You already have a pending role request.');
     }
 
+    // Guard: role already granted via a previous approved request
+    const approved = await this.roleRequestRepo.findApprovedByRequester(input.requesterUid);
+    if (approved) {
+      throw createHttpError(409, 'ROLE_ALREADY_GRANTED', 'Your role request has already been approved.');
+    }
+
     // Read profile from user-service and snapshot into the role request
     const profile = await this.userClient.getUser(input.requesterUid);
     if (!profile) {

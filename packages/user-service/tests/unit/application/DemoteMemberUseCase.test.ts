@@ -1,4 +1,4 @@
-﻿import { DemoteMemberUseCase }  from '../../../src/application/use-cases/DemoteMemberUseCase';
+import { DemoteMemberUseCase }  from '../../../src/application/use-cases/DemoteMemberUseCase';
 import { IUserRepository }      from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }   from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { OutboxEventPublisher } from '@shared/events';
@@ -19,7 +19,7 @@ const makeUser = (roles: UserRole[] = ['member', 'leader']) =>
 
 const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findById: jest.fn(), findByEmail: jest.fn(), findAll: jest.fn(),
-  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(),
+  create: jest.fn(), update: jest.fn(), softDelete: jest.fn(), hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
