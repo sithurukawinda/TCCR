@@ -19,5 +19,7 @@ export interface IRoleRequestRepository {
   findByRequester(requesterUid: string): Promise<RoleRequest[]>;
   findAll(opts: RoleRequestListOptions): Promise<RoleRequestListResult>;
   create(req: RoleRequest): Promise<void>;
+  createUnique(req: RoleRequest): Promise<void>;
   update(req: RoleRequest): Promise<void>;
+  releaseSlot(requesterUid: string): Promise<void>;
 }

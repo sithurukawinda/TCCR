@@ -1,7 +1,6 @@
 import { CreateRoleRequestUseCase, CreateRoleRequestInput } from '../../../src/application/use-cases/CreateRoleRequestUseCase';
 import { IRoleRequestRepository }                          from '../../../src/domain/repositories/IRoleRequestRepository';
 import { UserServiceClient }                               from '../../../src/infrastructure/clients/UserServiceClient';
-import { RoleRequest }                                     from '../../../src/domain/entities/RoleRequest';
 import { OutboxEventPublisher }                            from '@shared/events';
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -13,7 +12,9 @@ const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findByRequester:         jest.fn(),
   findAll:                 jest.fn(),
   create:                  jest.fn(),
+  createUnique:            jest.fn(),
   update:                  jest.fn(),
+  releaseSlot:             jest.fn(),
 });
 
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>
@@ -36,26 +37,6 @@ const mockProfile = {
 
 const validInput: CreateRoleRequestInput = { requesterUid: 'uid-1', requestedRole: 'student' };
 
-const makePendingRequest = (): RoleRequest =>
-  new RoleRequest({
-    id: 'req-existing', requesterUid: 'uid-1', requestedRole: 'student',
-    status: 'pending', decidedByUid: null, decisionNote: null,
-    createdAt: '2026-01-01T00:00:00.000Z', decidedAt: null,
-    applicantProfile: {
-      firstName:          'John',
-      lastName:           'Doe',
-      phoneNumber:        '+94771234567',
-      email:              'john@example.com',
-      dateOfBirth:        '2000-06-15',
-      gender:             'male',
-      address:            '123 Main St',
-      qualificationTitle: 'BSc',
-      qualificationUrl:   null,
-    },
-    qualificationTitle:       'BSc',
-    qualificationStoragePath: null,
-  });
-
 // ─── tests ───────────────────────────────────────────────────────────────────
 
 describe('CreateRoleRequestUseCase', () => {
@@ -76,9 +57,7 @@ describe('CreateRoleRequestUseCase', () => {
 
   it('creates a pending role request with profile snapshot from user-service', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(null);
-    repo.create.mockResolvedValue(undefined);
+    repo.createUnique.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
     const result = await useCase.execute(validInput, 'req-id-1');
@@ -101,9 +80,7 @@ describe('CreateRoleRequestUseCase', () => {
 
   it('sets generated UUID as id', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(null);
-    repo.create.mockResolvedValue(undefined);
+    repo.createUnique.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
     const r1 = await useCase.execute(validInput, 'x');
@@ -113,16 +90,15 @@ describe('CreateRoleRequestUseCase', () => {
     expect(r1.id).not.toBe(r2.id);
   });
 
-  it('persists to repo and publishes role.requested event', async () => {
+  it('persists via createUnique and publishes role.requested event', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(null);
-    repo.create.mockResolvedValue(undefined);
+    repo.createUnique.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
     const result = await useCase.execute(validInput, 'req-id-1');
 
-    expect(repo.create).toHaveBeenCalledWith(result);
+    expect(repo.createUnique).toHaveBeenCalledWith(result);
+    expect(repo.create).not.toHaveBeenCalled();
     expect(outbox.publishWithBatch).toHaveBeenCalledWith(
       expect.objectContaining({
         type:    'role.requested',
@@ -131,26 +107,41 @@ describe('CreateRoleRequestUseCase', () => {
     );
   });
 
-  // ── guard: pending duplicate ─────────────────────────────────────────────────
+  // ── guard: pending duplicate (now enforced inside createUnique / repository) ─
 
-  it('throws 409 ROLE_REQUEST_PENDING when pending request exists', async () => {
-    repo.findPendingByRequester.mockResolvedValue(makePendingRequest());
+  it('throws 409 ROLE_REQUEST_PENDING when createUnique detects a pending request', async () => {
+    userClient.getUser.mockResolvedValue(mockProfile);
+    repo.createUnique.mockRejectedValue(
+      Object.assign(new Error('pending'), { status: 409, errorCode: 'ROLE_REQUEST_PENDING' }),
+    );
 
     await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
       status:    409,
       errorCode: 'ROLE_REQUEST_PENDING',
     });
 
-    expect(userClient.getUser).not.toHaveBeenCalled();
-    expect(repo.create).not.toHaveBeenCalled();
+    expect(outbox.publishWithBatch).not.toHaveBeenCalled();
+  });
+
+  // ── guard: already approved ──────────────────────────────────────────────────
+
+  it('throws 409 ROLE_ALREADY_GRANTED when createUnique detects an approved request', async () => {
+    userClient.getUser.mockResolvedValue(mockProfile);
+    repo.createUnique.mockRejectedValue(
+      Object.assign(new Error('granted'), { status: 409, errorCode: 'ROLE_ALREADY_GRANTED' }),
+    );
+
+    await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
+      status:    409,
+      errorCode: 'ROLE_ALREADY_GRANTED',
+    });
+
     expect(outbox.publishWithBatch).not.toHaveBeenCalled();
   });
 
   // ── guard: user not found ────────────────────────────────────────────────────
 
   it('throws 404 USER_NOT_FOUND when user-service returns null', async () => {
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(null);
     userClient.getUser.mockResolvedValue(null);
 
     await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
@@ -158,37 +149,21 @@ describe('CreateRoleRequestUseCase', () => {
       errorCode: 'USER_NOT_FOUND',
     });
 
-    expect(repo.create).not.toHaveBeenCalled();
+    expect(repo.createUnique).not.toHaveBeenCalled();
     expect(outbox.publishWithBatch).not.toHaveBeenCalled();
   });
 
   // ── repository call verification ─────────────────────────────────────────────
 
-  it('checks for existing pending request using the requester UID', async () => {
+  it('calls createUnique with the correct requesterUid', async () => {
     userClient.getUser.mockResolvedValue(mockProfile);
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(null);
-    repo.create.mockResolvedValue(undefined);
+    repo.createUnique.mockResolvedValue(undefined);
     outbox.publishWithBatch.mockResolvedValue(undefined);
 
     await useCase.execute({ ...validInput, requesterUid: 'uid-42' }, 'req-x');
 
-    expect(repo.findPendingByRequester).toHaveBeenCalledWith('uid-42');
-  });
-
-  // ── guard: already approved ──────────────────────────────────────────────────
-
-  it('throws 409 ROLE_ALREADY_GRANTED when an approved request already exists', async () => {
-    repo.findPendingByRequester.mockResolvedValue(null);
-    repo.findApprovedByRequester.mockResolvedValue(makePendingRequest()); // reuse fixture — status doesn't matter for the mock
-
-    await expect(useCase.execute(validInput, 'req-id-1')).rejects.toMatchObject({
-      status:    409,
-      errorCode: 'ROLE_ALREADY_GRANTED',
-    });
-
-    expect(userClient.getUser).not.toHaveBeenCalled();
-    expect(repo.create).not.toHaveBeenCalled();
-    expect(outbox.publishWithBatch).not.toHaveBeenCalled();
+    expect(repo.createUnique).toHaveBeenCalledWith(
+      expect.objectContaining({ requesterUid: 'uid-42' }),
+    );
   });
 });

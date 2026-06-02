@@ -4,6 +4,15 @@
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "roles",       "arrayConfig": "CONTAINS" },
+        { "fieldPath": "deletedAt",   "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "users",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "deletedAt",   "order": "ASCENDING" },
         { "fieldPath": "createdAt",   "order": "DESCENDING" }
       ]
@@ -303,6 +312,15 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "requesterUid", "order": "ASCENDING" },
+        { "fieldPath": "createdAt",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "role_requests",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "requesterUid", "order": "ASCENDING" },
+        { "fieldPath": "status",       "order": "ASCENDING" },
         { "fieldPath": "createdAt",    "order": "DESCENDING" }
       ]
     },

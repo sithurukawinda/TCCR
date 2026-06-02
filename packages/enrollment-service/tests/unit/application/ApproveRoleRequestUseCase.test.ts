@@ -11,7 +11,9 @@ const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findByRequester:        jest.fn(),
   findAll:                jest.fn(),
   create:                 jest.fn(),
+  createUnique:           jest.fn(),
   update:                 jest.fn(),
+  releaseSlot:            jest.fn(),
 });
 
 const makeUserClient = (): jest.Mocked<UserServiceClient> =>
@@ -47,6 +49,8 @@ describe('ApproveRoleRequestUseCase', () => {
     userClient = makeUserClient();
     outbox     = makeOutbox();
     useCase    = new ApproveRoleRequestUseCase(repo, userClient, outbox);
+
+    repo.releaseSlot.mockResolvedValue(undefined);
 
     // Default: user-service returns student profile
     userClient.getUser.mockResolvedValue({
@@ -186,5 +190,28 @@ describe('ApproveRoleRequestUseCase', () => {
     await expect(useCase.execute('req-1', 'admin-uid', undefined, 'req-1')).rejects.toThrow('user-service down');
     expect(repo.update).not.toHaveBeenCalled();
     expect(outbox.publishWithBatch).not.toHaveBeenCalled();
+  });
+
+  it('calls releaseSlot with requesterUid after update succeeds', async () => {
+    repo.findById.mockResolvedValue(makeRequest('pending'));
+    userClient.addRole.mockResolvedValue(undefined);
+    repo.update.mockResolvedValue(undefined);
+    repo.releaseSlot.mockResolvedValue(undefined);
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    await useCase.execute('req-1', 'admin-uid', undefined, 'http-req-1');
+
+    expect(repo.releaseSlot).toHaveBeenCalledWith('uid-1');
+  });
+
+  it('completes successfully when releaseSlot throws (fire-and-forget)', async () => {
+    repo.findById.mockResolvedValue(makeRequest('pending'));
+    userClient.addRole.mockResolvedValue(undefined);
+    repo.update.mockResolvedValue(undefined);
+    repo.releaseSlot.mockRejectedValue(new Error('firestore down'));
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    await expect(useCase.execute('req-1', 'admin-uid', undefined, 'http-req-1'))
+      .resolves.not.toThrow();
   });
 });

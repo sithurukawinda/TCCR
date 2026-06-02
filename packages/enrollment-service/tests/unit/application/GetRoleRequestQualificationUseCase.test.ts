@@ -10,7 +10,9 @@ const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findByRequester:        jest.fn(),
   findAll:                jest.fn(),
   create:                 jest.fn(),
+  createUnique:           jest.fn(),
   update:                 jest.fn(),
+  releaseSlot:            jest.fn(),
 });
 
 const makeStorage = (): jest.Mocked<QualificationStorageRepository> => ({

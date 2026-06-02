@@ -17,6 +17,10 @@ export class RejectRoleRequestUseCase {
 
     await this.roleRequestRepo.update(req);
 
+    // Release slot so the user can re-apply after rejection.
+    // Fire-and-forget — slot cleanup failure must not fail the rejection.
+    this.roleRequestRepo.releaseSlot(req.requesterUid).catch(() => { /* non-critical */ });
+
     await this.outbox.publishWithBatch({
       type:      'role.rejected',
       payload:   { requesterUid: req.requesterUid, role: req.requestedRole, decidedByUid },
