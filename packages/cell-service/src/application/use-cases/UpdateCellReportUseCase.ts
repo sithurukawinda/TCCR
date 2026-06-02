@@ -34,7 +34,7 @@ export class UpdateCellReportUseCase {
     if (!report) throw createHttpError(404, 'REPORT_NOT_FOUND', 'Cell report not found.');
 
     // ── Guard: only the original filer or super_admin can edit ───────────────
-    const isSuperAdmin = callerRoles.includes('super_admin');
+    const isSuperAdmin = (callerRoles.includes('super_admin') || callerRoles.includes('master'));
     if (!isSuperAdmin && report.filledByUid !== callerUid) {
       throw createHttpError(
         403,

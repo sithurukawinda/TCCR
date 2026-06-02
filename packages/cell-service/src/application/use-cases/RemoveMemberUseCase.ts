@@ -14,7 +14,7 @@ export class RemoveMemberUseCase {
     const cell = await this.cellRepo.findById(cellId);
     if (!cell) throw createHttpError(404, 'CELL_NOT_FOUND', 'Cell group not found.');
 
-    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isAdmin = callerRoles.includes('admin') || (callerRoles.includes('super_admin') || callerRoles.includes('master'));
     if (!isAdmin && !cell.isOwnedBy(callerUid)) {
       throw createHttpError(403, 'FORBIDDEN', 'Only the cell owner or an admin can remove members.');
     }

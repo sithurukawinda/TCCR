@@ -1,5 +1,6 @@
 import { createProxyMiddleware } from 'http-proxy-middleware';
 import { Request, Response }     from 'express';
+import { ServerResponse }        from 'http';
 import { config }                from '../config';
 
 // Express strips the mount prefix from req.url before the proxy sees it,
@@ -14,9 +15,11 @@ const makeProxy = (target: string) =>
     pathRewrite: rewrite,
     on: {
       error: (_err, _req, res) => {
-        (res as Response).status(502).json({
-          error: { code: 'SERVICE_UNAVAILABLE', message: 'Upstream service unavailable.' },
-        });
+        if (res instanceof ServerResponse && !res.headersSent) {
+          (res as Response).status(502).json({
+            error: { code: 'SERVICE_UNAVAILABLE', message: 'Upstream service unavailable.' },
+          });
+        }
       },
     },
   });

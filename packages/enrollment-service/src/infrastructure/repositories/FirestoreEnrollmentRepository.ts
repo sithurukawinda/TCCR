@@ -21,12 +21,13 @@ export class FirestoreEnrollmentRepository implements IEnrollmentRepository {
     let q: FirebaseFirestore.Query = this.col.where('studentUid', '==', studentUid);
     if (opts.state) q = q.where('state', '==', opts.state);
 
-    const total = (await q.count().get()).data().count;
+    const [countSnap, cursorSnap] = await Promise.all([
+      q.count().get(),
+      opts.cursor ? this.col.doc(opts.cursor).get() : Promise.resolve(null),
+    ]);
+    const total = countSnap.data().count;
     q = q.orderBy('createdAt', 'desc').limit(opts.limit);
-    if (opts.cursor) {
-      const cs = await this.col.doc(opts.cursor).get();
-      if (cs.exists) q = q.startAfter(cs);
-    }
+    if (cursorSnap?.exists) q = q.startAfter(cursorSnap);
     const snap  = await q.get();
     const items = snap.docs.map(d => new Enrollment({ ...(d.data() as EnrolDoc), id: d.id }));
     const last  = snap.docs[snap.docs.length - 1];
@@ -38,12 +39,13 @@ export class FirestoreEnrollmentRepository implements IEnrollmentRepository {
     if (opts.state)    q = q.where('state',    '==', opts.state);
     if (opts.courseId) q = q.where('courseId', '==', opts.courseId);
 
-    const total = (await q.count().get()).data().count;
+    const [countSnap, cursorSnap] = await Promise.all([
+      q.count().get(),
+      opts.cursor ? this.col.doc(opts.cursor).get() : Promise.resolve(null),
+    ]);
+    const total = countSnap.data().count;
     q = q.orderBy('createdAt', 'asc').limit(opts.limit);
-    if (opts.cursor) {
-      const cs = await this.col.doc(opts.cursor).get();
-      if (cs.exists) q = q.startAfter(cs);
-    }
+    if (cursorSnap?.exists) q = q.startAfter(cursorSnap);
     const snap  = await q.get();
     const items = snap.docs.map(d => new Enrollment({ ...(d.data() as EnrolDoc), id: d.id }));
     const last  = snap.docs[snap.docs.length - 1];

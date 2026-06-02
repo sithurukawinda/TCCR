@@ -14,6 +14,8 @@ import {
   decideRoleRequestSchema,
   listRoleRequestsSchema,
 } from '../validators/roleRequestValidator';
+import { TtlCache }              from '../../infrastructure/cache/TtlCache';
+import { RoleRequestListResult } from '../../domain/repositories/IRoleRequestRepository';
 
 export class RoleRequestController {
   constructor(
@@ -25,6 +27,8 @@ export class RoleRequestController {
     private readonly qualificationUseCase: GetRoleRequestQualificationUseCase,
     private readonly getByIdUseCase:       GetRoleRequestByIdUseCase,
   ) {}
+
+  private static readonly listCache = new TtlCache<RoleRequestListResult>(30_000);
 
   // Member: POST /role-requests  — body: { requestedRole: "student" }
   // Profile data is read automatically from the member's existing profile
@@ -41,6 +45,7 @@ export class RoleRequestController {
         requestId,
       );
 
+      RoleRequestController.listCache.clear();
       sendSuccess(res, result, 201);
     } catch (err) { next(err); }
   };
@@ -60,7 +65,12 @@ export class RoleRequestController {
       const parsed = listRoleRequestsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
+      const cacheKey = JSON.stringify({ ...parsed.data });
+      const cached   = RoleRequestController.listCache.get(cacheKey);
+      if (cached) return sendPaginated(res, cached.items, cached.nextCursor, cached.total);
+
       const result = await this.listUseCase.execute(parsed.data);
+      RoleRequestController.listCache.set(cacheKey, result);
       sendPaginated(res, result.items, result.nextCursor, result.total);
     } catch (err) { next(err); }
   };
@@ -71,7 +81,7 @@ export class RoleRequestController {
   getOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const isAdmin = roles.includes('admin') || roles.includes('super_admin');
+      const isAdmin = roles.includes('admin') || (roles.includes('super_admin') || roles.includes('master'));
 
       const detail = await this.getByIdUseCase.execute({
         id:           req.params.id,
@@ -100,6 +110,7 @@ export class RoleRequestController {
       const { uid } = (req as AuthenticatedRequest).principal;
       const requestId = (req.headers['x-request-id'] as string) ?? '';
       const result = await this.approveUseCase.execute(req.params.id, uid, parsed.data.note, requestId);
+      RoleRequestController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -113,6 +124,7 @@ export class RoleRequestController {
       const { uid } = (req as AuthenticatedRequest).principal;
       const requestId = (req.headers['x-request-id'] as string) ?? '';
       const result = await this.rejectUseCase.execute(req.params.id, uid, parsed.data.note, requestId);
+      RoleRequestController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

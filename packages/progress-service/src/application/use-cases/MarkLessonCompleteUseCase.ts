@@ -33,14 +33,14 @@ export class MarkLessonCompleteUseCase {
   ) {}
 
   async execute(input: MarkLessonCompleteInput, requestId: string): Promise<MarkLessonCompleteResult> {
-    // 1. Verify approved enrollment
-    const enrolled = await this.enrollmentClient.isEnrolled(input.studentUid, input.courseId);
+    // 1 & 2. Verify enrollment and validate lesson in parallel — independent calls
+    const [enrolled, lesson] = await Promise.all([
+      this.enrollmentClient.isEnrolled(input.studentUid, input.courseId),
+      this.courseClient.getLesson(input.lessonId),
+    ]);
     if (!enrolled) {
       throw createHttpError(403, 'NOT_ENROLLED', 'An approved enrollment is required to mark lessons complete.');
     }
-
-    // 2. Validate lesson exists and belongs to the stated subject/course
-    const lesson = await this.courseClient.getLesson(input.lessonId);
     if (!lesson) {
       throw createHttpError(404, 'LESSON_NOT_FOUND', 'Lesson not found.');
     }

@@ -3,7 +3,7 @@ import { IUserRepository }    from '../../domain/repositories/IUserRepository';
 import { FirebaseAuthClient } from '../../infrastructure/clients/FirebaseAuthClient';
 import { UserRole }           from '../../domain/entities/User';
 
-const VALID_ROLES: UserRole[] = ['member', 'student', 'leader', 'g12', 'admin', 'super_admin'];
+const VALID_ROLES: UserRole[] = ['member', 'student', 'leader', 'g12', 'admin', 'super_admin', 'master'];
 
 export class AddRoleUseCase {
   constructor(

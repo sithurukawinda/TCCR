@@ -1,7 +1,7 @@
 import { createHttpError }                                     from '@shared/errors';
 import { Role }                                                from '@shared/auth-middleware';
 import { ICellGroupRepository }                                from '../../domain/repositories/ICellGroupRepository';
-import { UserServiceClient }                                   from '../../infrastructure/clients/UserServiceClient';
+import { UserServiceClient, MemberProfile }                   from '../../infrastructure/clients/UserServiceClient';
 import { CellMember, RegisteredMember, ExternalMemberResponse } from './GetCellByIdUseCase';
 
 export interface NetworkCellMembers {
@@ -37,7 +37,7 @@ export class GetNetworkMembersUseCase {
   ) {}
 
   async execute(callerUid: string, callerRoles: Role[]): Promise<NetworkMembersResult> {
-    const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isAdmin  = callerRoles.includes('admin') || (callerRoles.includes('super_admin') || callerRoles.includes('master'));
     const isG12    = callerRoles.includes('g12');
     const isLeader = callerRoles.includes('leader');
 
@@ -60,29 +60,33 @@ export class GetNetworkMembersUseCase {
       return { items: [], totalCells: 0, totalMembers: 0 };
     }
 
-    const items = await Promise.all(
-      cellResult.items.map(async cell => {
-        const profiles = await this.userClient.getMemberProfiles(cell.members);
-        const registered: RegisteredMember[] = profiles.map(p => ({ ...p, type: 'registered' as const }));
-        const external: ExternalMemberResponse[] = cell.externalMembers.map(e => ({
-          type:        'external' as const,
-          id:          e.id,
-          name:        e.name,
-          phone:       e.phone,
-          displayName: e.name,
-          uid:         null,
-        }));
-        return {
-          cellId:      cell.id,
-          cellName:    cell.name,
-          cellType:    cell.type,
-          area:        cell.area,
-          leaderUid:   cell.leaderUid,
-          memberCount: cell.memberCount,
-          members:     [...registered, ...external],
-        } satisfies NetworkCellMembers;
-      }),
-    );
+    const allUids    = [...new Set(cellResult.items.flatMap(c => c.members))];
+    const profiles   = await this.userClient.getMemberProfiles(allUids);
+    const profileMap = new Map<string, MemberProfile>(profiles.map(p => [p.uid, p]));
+
+    const items = cellResult.items.map(cell => {
+      const registered: RegisteredMember[] = cell.members
+        .map(uid => profileMap.get(uid))
+        .filter((p): p is MemberProfile => p !== undefined)
+        .map(p => ({ ...p, type: 'registered' as const }));
+      const external: ExternalMemberResponse[] = cell.externalMembers.map(e => ({
+        type:        'external' as const,
+        id:          e.id,
+        name:        e.name,
+        phone:       e.phone,
+        displayName: e.name,
+        uid:         null,
+      }));
+      return {
+        cellId:      cell.id,
+        cellName:    cell.name,
+        cellType:    cell.type,
+        area:        cell.area,
+        leaderUid:   cell.leaderUid,
+        memberCount: cell.memberCount,
+        members:     [...registered, ...external],
+      } satisfies NetworkCellMembers;
+    });
 
     const totalMembers = items.reduce((sum, c) => sum + c.members.length, 0);
 
