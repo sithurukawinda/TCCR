@@ -10,7 +10,9 @@ const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findByRequester:       jest.fn(),
   findAll:               jest.fn(),
   create:                jest.fn(),
+  createUnique:          jest.fn(),
   update:                jest.fn(),
+  releaseSlot:           jest.fn(),
 });
 
 const makeOutbox = (): jest.Mocked<OutboxEventPublisher> =>
@@ -41,6 +43,8 @@ describe('RejectRoleRequestUseCase', () => {
     repo    = makeRepo();
     outbox  = makeOutbox();
     useCase = new RejectRoleRequestUseCase(repo, outbox);
+
+    repo.releaseSlot.mockResolvedValue(undefined);
   });
 
   it('rejects request, persists, and publishes role.rejected event', async () => {
@@ -103,5 +107,26 @@ describe('RejectRoleRequestUseCase', () => {
       errorCode: 'INVALID_STATE',
     });
     expect(repo.update).not.toHaveBeenCalled();
+  });
+
+  it('calls releaseSlot with requesterUid after update succeeds', async () => {
+    repo.findById.mockResolvedValue(makeRequest('pending'));
+    repo.update.mockResolvedValue(undefined);
+    repo.releaseSlot.mockResolvedValue(undefined);
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    await useCase.execute('req-1', 'admin-uid', undefined, 'http-req-1');
+
+    expect(repo.releaseSlot).toHaveBeenCalledWith('uid-1');
+  });
+
+  it('completes successfully when releaseSlot throws (fire-and-forget)', async () => {
+    repo.findById.mockResolvedValue(makeRequest('pending'));
+    repo.update.mockResolvedValue(undefined);
+    repo.releaseSlot.mockRejectedValue(new Error('firestore down'));
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    await expect(useCase.execute('req-1', 'admin-uid', undefined, 'http-req-1'))
+      .resolves.not.toThrow();
   });
 });

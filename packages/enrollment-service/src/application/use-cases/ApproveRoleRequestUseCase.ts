@@ -23,6 +23,11 @@ export class ApproveRoleRequestUseCase {
 
     await this.roleRequestRepo.update(req);
 
+    // Release the pending slot so the user can re-apply if needed.
+    // Fire-and-forget — slot cleanup failure must not fail the approval.
+    // Legacy requests (pre-fix) have no slot; delete() is a no-op in that case.
+    this.roleRequestRepo.releaseSlot(req.requesterUid).catch(() => { /* non-critical */ });
+
     // Enrich outbox payload with student details for the approval email.
     // Fire-and-forget — never blocks the role grant if user-service is unavailable.
     const student = await this.userClient.getUser(req.requesterUid).catch(() => null);
