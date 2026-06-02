@@ -1,6 +1,6 @@
 # Master Role — API Reference
 
-**Version:** 1.0.0  
+**Version:** 1.1.0  
 **Service:** user-service (proxied via gateway at `https://cms.api.bethelnet.au/api/v1`)  
 **Role:** `master`  
 **Access Level:** Full system access — inherits every role in the system
@@ -18,15 +18,30 @@
 
 ## Overview
 
-The `master` role is the highest privilege level in the TCCR system. It inherits all permissions from every other role (`super_admin`, `admin`, `g12`, `leader`, `student`, `member`) via middleware injection. Two roles can manage master: `master` itself and `super_admin`.
+The `master` role is the highest privilege level in the TCCR system. It inherits all permissions from every other role via middleware injection. The `super_admin` assigns and removes master; the `master` themselves manages the role hierarchy below them and can transfer their position.
 
 **Role hierarchy:**
 ```
-master  ←  inherits everything below
-  super_admin  ←  inherits admin
-    admin
-      g12 / leader / student / member
+super_admin  ←  can add / remove master (admin-style control)
+  │
+  master     ←  full system access; can transfer position to another user
+  │              via POST /master/promote/:uid
+  │
+  g12        ←  master has all g12 access via inheritance
+  │
+  leader     ←  master has all leader access via inheritance
+  │
+  student / member
 ```
+
+**Who manages what:**
+
+| Action | `super_admin` | `master` |
+|--------|--------------|---------|
+| Assign master to a user | ✅ `/master/grant/:uid` | ✅ `/master/grant/:uid` |
+| Remove master from a user | ✅ `/master/revoke/:uid` | ✅ `/master/revoke/:uid` |
+| Transfer master position (self-demote + grant) | ❌ | ✅ `/master/promote/:uid` |
+| All g12 / leader / admin operations | ❌ (not those roles) | ✅ via inheritance |
 
 ---
 
@@ -171,6 +186,53 @@ Authorization: Bearer {{masterToken}}
 | `404` | `USER_NOT_FOUND` | Target user does not exist |
 
 > **Note:** Self-revoke is blocked — a master cannot remove master from their own account.
+
+---
+
+### 1.4 Promote — Transfer Master Position `🆕 NEW`
+
+```
+POST /api/v1/master/promote/:uid
+```
+
+Transfers the master position to the specified user. The **caller loses their master role** (self-demotion) and the target user **gains master**. This is the "pass the crown" endpoint — only a current `master` can call it; `super_admin` cannot.
+
+**Difference from grant:**
+
+| | `POST /master/grant/:uid` | `POST /master/promote/:uid` |
+|-|--------------------------|------------------------------|
+| Caller keeps master | ✅ Yes | ❌ No — caller is demoted |
+| Target gets master | ✅ Yes | ✅ Yes |
+| Who can call | `master` + `super_admin` | `master` only |
+
+**Path Parameters**
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `uid` | string | UID of the user receiving the master position |
+
+**Request**
+```http
+POST /api/v1/master/promote/WIoGKOQ52XNGLmjs7nskjUxJVG63
+Authorization: Bearer {{masterToken}}
+```
+
+**Response `200 OK`**
+```json
+{
+  "message": "Master position transferred successfully."
+}
+```
+
+**Error Responses**
+
+| Status | Code | Description |
+|--------|------|-------------|
+| `401` | `UNAUTHENTICATED` | Missing or invalid token |
+| `403` | `FORBIDDEN` | Caller does not hold `master`; or caller is promoting themselves; or `super_admin` attempts this endpoint |
+| `404` | `USER_NOT_FOUND` | Target user does not exist |
+
+> **Note:** After a successful promote the caller's token still shows `master` in claims until they re-sign-in. Advise the user to sign out and sign back in to get a refreshed token.
 
 ---
 

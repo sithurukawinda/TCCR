@@ -4,12 +4,14 @@ import { AuthenticatedRequest }            from '@shared/auth-middleware';
 import { GrantMasterUseCase }              from '../../application/use-cases/GrantMasterUseCase';
 import { RevokeMasterUseCase }             from '../../application/use-cases/RevokeMasterUseCase';
 import { ListMasterUsersUseCase }          from '../../application/use-cases/ListMasterUsersUseCase';
+import { TransferMasterUseCase }           from '../../application/use-cases/TransferMasterUseCase';
 
 export class MasterController {
   constructor(
     private readonly grantMasterUC:     GrantMasterUseCase,
     private readonly revokeMasterUC:    RevokeMasterUseCase,
     private readonly listMasterUsersUC: ListMasterUsersUseCase,
+    private readonly transferMasterUC:  TransferMasterUseCase,
   ) {}
 
   listMasters = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -34,6 +36,15 @@ export class MasterController {
       const { uid: callerUid } = (req as AuthenticatedRequest).principal;
       await this.revokeMasterUC.execute(req.params.uid, callerUid);
       sendSuccess(res, { message: 'Master role revoked successfully.' });
+    } catch (err) { next(err); }
+  };
+
+  transferMaster = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId = (req.headers['x-request-id'] as string) ?? '';
+      await this.transferMasterUC.execute(req.params.uid, callerUid, requestId);
+      sendSuccess(res, { message: 'Master position transferred successfully.' });
     } catch (err) { next(err); }
   };
 }
