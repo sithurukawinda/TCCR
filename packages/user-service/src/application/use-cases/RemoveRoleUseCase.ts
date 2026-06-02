@@ -24,8 +24,7 @@ export class RemoveRoleUseCase {
 
     if (!user.roles.includes(role as UserRole)) return; // already absent — idempotent
 
-    user.removeRole(role as UserRole);
-    await this.userRepo.update(user);
+    await this.userRepo.atomicRemoveRole(uid, role as UserRole);
     await this.authClient.removeRoleFromUser(uid, role);
   }
 }

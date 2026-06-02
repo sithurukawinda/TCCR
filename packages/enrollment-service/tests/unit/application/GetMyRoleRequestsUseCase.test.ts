@@ -4,18 +4,27 @@ import { RoleRequest }             from '../../../src/domain/entities/RoleReques
 
 const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findById:              jest.fn(),
-  findPendingByRequester: jest.fn(),
+  findPendingByRequester:  jest.fn(),
+  findApprovedByRequester: jest.fn(),
   findByRequester:       jest.fn(),
   findAll:               jest.fn(),
   create:                jest.fn(),
   update:                jest.fn(),
 });
 
-const makeRequest = (status: 'pending' | 'approved' | 'rejected' = 'pending'): RoleRequest =>
+const makeRequest = (opts: {
+  id?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+  createdAt?: string;
+} = {}): RoleRequest =>
   new RoleRequest({
-    id: 'req-1', requesterUid: 'uid-1', requestedRole: 'student',
-    status, decidedByUid: null, decisionNote: null,
-    createdAt: '2026-01-01T00:00:00.000Z', decidedAt: null,
+    id: opts.id ?? 'req-1',
+    requesterUid: 'uid-1',
+    requestedRole: 'student',
+    status: opts.status ?? 'pending',
+    decidedByUid: null, decisionNote: null,
+    createdAt: opts.createdAt ?? '2026-01-01T00:00:00.000Z',
+    decidedAt: null,
     applicantProfile: {
       firstName: 'John', lastName: 'Doe', phoneNumber: '+94771234567',
       email: 'john@example.com', dateOfBirth: '2000-06-15',
@@ -36,14 +45,26 @@ describe('GetMyRoleRequestsUseCase', () => {
     useCase = new GetMyRoleRequestsUseCase(repo);
   });
 
-  it('returns all role requests for the given user', async () => {
-    repo.findByRequester.mockResolvedValue([makeRequest('pending'), makeRequest('approved')]);
+  it('returns the single request when no duplicates exist', async () => {
+    repo.findByRequester.mockResolvedValue([makeRequest({ status: 'approved' })]);
 
     const result = await useCase.execute('uid-1');
 
-    expect(result).toHaveLength(2);
-    expect(result[0].requesterUid).toBe('uid-1');
+    expect(result).toHaveLength(1);
+    expect(result[0].status).toBe('approved');
     expect(repo.findByRequester).toHaveBeenCalledWith('uid-1');
+  });
+
+  it('deduplicates same-role requests, returning only the newest', async () => {
+    // Repo returns newest-first (createdAt DESC)
+    const newer = makeRequest({ id: 'req-newer', status: 'approved', createdAt: '2026-06-01T10:00:00.000Z' });
+    const older = makeRequest({ id: 'req-older', status: 'pending',  createdAt: '2026-01-01T00:00:00.000Z' });
+    repo.findByRequester.mockResolvedValue([newer, older]);
+
+    const result = await useCase.execute('uid-1');
+
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('req-newer');
   });
 
   it('returns empty array when user has no requests', async () => {
@@ -61,18 +82,5 @@ describe('GetMyRoleRequestsUseCase', () => {
     await useCase.execute('uid-specific-99');
 
     expect(repo.findByRequester).toHaveBeenCalledWith('uid-specific-99');
-  });
-
-  it('returns requests across all statuses', async () => {
-    const requests = [
-      makeRequest('pending'),
-      makeRequest('approved'),
-      makeRequest('rejected'),
-    ];
-    repo.findByRequester.mockResolvedValue(requests);
-
-    const result = await useCase.execute('uid-1');
-
-    expect(result.map(r => r.status)).toEqual(['pending', 'approved', 'rejected']);
   });
 });

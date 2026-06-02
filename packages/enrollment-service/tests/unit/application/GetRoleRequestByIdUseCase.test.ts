@@ -7,7 +7,8 @@ import { UserServiceClient }        from '../../../src/infrastructure/clients/Us
 
 const makeRepo = (): jest.Mocked<IRoleRequestRepository> => ({
   findById:               jest.fn(),
-  findPendingByRequester: jest.fn(),
+  findPendingByRequester:  jest.fn(),
+  findApprovedByRequester: jest.fn(),
   findByRequester:        jest.fn(),
   findAll:                jest.fn(),
   create:                 jest.fn(),

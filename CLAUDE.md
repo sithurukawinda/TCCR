@@ -604,7 +604,7 @@ The outbox-worker's `EventDispatcher` routes each event type to one or more hand
 | `cell.join_rejected` | notify (`CellJoinRejectedHandler` â€" in-app notification to the requesting member that their join request was rejected), audit |
 | `cell_report.filed` | notify (`CellReportFiledHandler` â€" in-app notification to the G12 leader that a cell report was filed), audit |
 | `cell_report.voided` | audit |
-| `cell.ownership_transferred` | notify (`CellOwnershipTransferredHandler` — in-app + email to new leader/G12; auto-demotes previous owner via `POST /internal/users/remove-role` when self-initiated), audit |
+| `cell.ownership_transferred` | notify (`CellOwnershipTransferredHandler` — in-app + email to new leader/G12; no auto-demotion — previous owner retains role unless separately demoted), audit |
 
 **Unrouted events (published to outbox but not wired in EventDispatcher):** `role.requested` â€” silently skipped by the outbox-worker. Adding notify/audit coverage for role requests is a known gap. (`role.granted` is now fully wired â€” see row above.)
 
@@ -617,7 +617,7 @@ No service reads another service's Firestore collections directly. Cross-service
 | `users` | user-service | Firebase Auth UID |
 | `loginAttempts` | auth-service | **email address** â€” unique among all collections; every other collection uses UID |
 | `emailVerificationOtps` | auth-service | **email address** — stores `uid`, 6-digit `otp`, `expiresAt` (15 min TTL), `attempts` counter; consumed by POST /auth/verify-email |
-| `passwordResetOtps` | auth-service | **email address** â€” stores 6-digit OTP, `expiresAt` (ISO string), `attempts` counter |
+| `passwordResetOtps` | auth-service | **email address** — **legacy, no longer written.** `RequestPasswordResetUseCase` now sends a direct Firebase reset link; `VerifyOtpAndResetUseCase` still reads from it but always returns `INVALID_OTP`. Kept for backward compatibility. |
 | `courses` | course-service | auto UUID |
 | `courses/{id}/semesters` | course-service | auto UUID |
 | `courses/{id}/semesters/{id}/subjects` | course-service | auto UUID |
@@ -648,7 +648,7 @@ The `User` domain entity (`packages/user-service/src/domain/entities/User.ts`) g
 - `fcmTokens: string[]` â€” device FCM tokens for push notifications; updated via `POST /me/fcm-token`.
 - `notificationPreferences: { email: boolean; push: boolean }` â€” per-user notification opt-in flags; defaults `true` for both.
 
-**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `POST /users/:uid/demote` (remove a non-member role â€” `authorize('leader', 'g12', 'admin', 'super_admin')`; caller-role matrix enforced inside use case, see **Demote caller-role matrix** below), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which soft-deletes instead), `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`), and `GET /users/summary` (all users grouped by highest role â€” `authorize('leader', 'g12', 'admin')`; non-admin callers are scoped to exclude admin/super_admin profiles; no pagination; response shape: `{ superAdmins[], admins[], g12[], leaders[], students[], members[], totals: { superAdmins, admins, g12, leaders, students, members, total } }` â€” each user includes `uid`, `firstName`, `lastName`, `displayName`, `email`, `roles[]`, `phoneNumber`, `profilePhotoUrl`, `createdAt`).
+**Implemented V2 user-service endpoints:** `PATCH /me` (update profile â€” stores `firstName`, `lastName`, `profilePhotoUrl`, `phoneNumber`, `preferredLanguage` to Firestore), `POST /me/fcm-token` (register device FCM token â€” idempotent), `DELETE /me/fcm-token` (deregister), `PATCH /me/notifications/preferences` (opt-out per channel), `POST /me/providers/link` (link an OAuth provider), `DELETE /me/providers/:provider` (unlink an OAuth provider), `PATCH /users/:uid/roles` (admin/g12 direct role assignment, bypasses the role-request flow â€” `authorize('admin', 'g12')`), `POST /users/:uid/promote` (elevate a member/leader to `leader` or `g12` â€” `authorize('leader', 'g12', 'admin', 'super_admin')`), `POST /users/:uid/demote` (remove a non-member role â€” `authorize('leader', 'g12', 'admin', 'super_admin')`; caller-role matrix enforced inside use case, see **Demote caller-role matrix** below), `GET /users/:uid` (get user by ID â€” `authorize('leader', 'g12', 'admin')`; leader/g12 receive 403 if the target is an admin or super_admin), `DELETE /users/:uid` (**permanently hard-deletes** Firestore doc + Firebase Auth account â€” `authorize('admin')`; blocks self-delete and targeting admin/super_admin; admin accounts must use `DELETE /super-admin/admins/:uid` which requires `super_admin`), `POST /users` (create a leader/g12 user directly â€” g12/admin-initiated; always assigns `['member', <role>]` as the roles array â€” `authorize('g12', 'admin', 'super_admin')`), and `GET /users/summary` (all users grouped by highest role â€” `authorize('leader', 'g12', 'admin')`; non-admin callers are scoped to exclude admin/super_admin profiles; no pagination; response shape: `{ superAdmins[], admins[], g12[], leaders[], students[], members[], totals: { superAdmins, admins, g12, leaders, students, members, total } }` â€” each user includes `uid`, `firstName`, `lastName`, `displayName`, `email`, `roles[]`, `phoneNumber`, `profilePhotoUrl`, `createdAt`).
 
 **`GET /users` query filters:** `?limit`, `?cursor`, `?role=<UserRole>`, `?status=<UserStatus>`, `?name=<prefix>` (case-sensitive prefix search on `firstName` only â€” not lastName). Accessible to `leader`, `g12`, and `admin` (super_admin inherits). **Scoped access:** when the caller holds only `leader` or `g12` (no admin/super_admin), `GetUsersUseCase` filters results to approved non-admin users only. The list cache key includes the caller's roles to prevent cross-role data leakage.
 
@@ -790,25 +790,19 @@ Some Firebase Auth operations (password verification, password reset email) are 
 
 The emulator branch is selected via `FIREBASE_AUTH_EMULATOR_HOST` (set automatically by `docker-compose.local.yml`). `FIREBASE_WEB_API_KEY` (client key, not service account) is required â€” set it in `.env`.
 
-### Password Reset: Two-Step OTP Flow
+### Password Reset
 
-Password reset is a two-step process to prevent email enumeration and unauthorised resets:
+`POST /auth/password-reset { email }` — single-step flow. `RequestPasswordResetUseCase` calls Firebase Admin `generatePasswordResetLink(email)`, then emails the link via `emailClient.sendPasswordResetEmail(email, resetLink)`. Always returns 204 regardless of whether the email exists (email enumeration prevention). If the Firebase call fails (user not found, etc.) the error is silently swallowed and no email is sent.
 
-**Step 1 â€” `POST /auth/password-reset { email }`**  
-Generates a 6-digit OTP, stores it in `passwordResetOtps` (15 min TTL, `attempts: 0`), and sends the OTP via SMTP email (`EmailClient`) whenever `SMTP_HOST` is configured â€” not only in `NODE_ENV=production`. In dev without SMTP configured, the OTP is stored in Firestore but not emailed. Always returns 204 regardless of whether the email exists.
-
-**Step 2 â€” `POST /auth/password-reset/verify { email, otp }`**  
-Validates the OTP (max 5 attempts; expired or over-limit records are deleted). On success: deletes the OTP record and triggers a Firebase password reset email via `accounts:sendOobCode`. On failure: returns 400 with remaining attempts count. The Firebase call is fire-and-forget (errors silently swallowed).
-
-```typescript
-const url = `${base}/accounts:sendOobCode?key=${config.firebaseWebApiKey}`;
-await fetch(url, { method: 'POST', body: JSON.stringify({ requestType: 'PASSWORD_RESET', email }) })
-  .catch(() => undefined);
-```
+`POST /auth/password-reset/verify` — **deprecated, always returns `400 INVALID_OTP`**. The route is still registered for backward compatibility but `VerifyOtpAndResetUseCase` reads from `passwordResetOtps` which is never written to anymore. Safe to call — harmless no-op.
 
 ### Deletes
 
 All content entities (courses, semesters, subjects, lessons) are now **permanently hard-deleted** — documents are removed immediately with no recovery window. The `deletedAt` field still exists in Firestore documents and queries still filter `where('deletedAt', '==', null)` for backward compatibility with any legacy soft-deleted data. `DeleteCourseUseCase` cascades: it calls `courseRepo.hardDelete(id)` which removes the course document plus all flat-collection documents for that course (semesters, subjects, lessons, batch_semesters) in a single Firestore operation.
+
+**Course deletion has two endpoints:**
+- `DELETE /courses/:id` (admin) — hard-deletes the course with cascade via `DeleteCourseUseCase`.
+- `DELETE /courses/:id/hard` (super_admin) — same cascade hard-delete via `HardDeleteCourseUseCase`; requires `super_admin`. Both use `courseRepo.hardDelete()` internally.
 
 **User deletion — all deletion endpoints are now hard deletes:**
 - `DELETE /users/:uid` (admin) — **permanently hard-deletes** a regular user from Firestore and Firebase Auth (irreversible). Blocks self-delete and targeting admin/super_admin.
@@ -834,7 +828,6 @@ Synchronous calls use `createInternalClient(serviceUrl, INTERNAL_SERVICE_KEY)`, 
 | enrollment-service | user-service | Grant role on `role_requests/:id/approve` via `POST /internal/users/add-role` (V2) |
 | enrollment-service | user-service | Fetch student profile (email, firstName, lastName) to enrich `enrollment.approved` / `enrollment.rejected` outbox payload via `GET /internal/users/:uid` (fire-and-forget; failure never blocks approval) |
 | user-service | auth-service | Verify federated token on `POST /me/providers/link` via `POST /internal/auth/verify-token` (V2) |
-| outbox-worker | user-service | Remove previous owner's role when `cell.ownership_transferred` event has `initiatedByOwner: true` via `POST /internal/users/remove-role` (V2) |
 | analytics-service | cell-service (Firestore direct) | Reads `cell_groups` and `cell_reports` â€” analytics-service is exempt from the cross-service HTTP rule (same as scheduled-jobs and outbox-worker background workers) |
 
 ### Repository Pagination Pattern
@@ -885,7 +878,7 @@ SENDGRID_API_KEY, EMAIL_FROM
 
 # Email (auth-service â€” OTP delivery)
 SMTP_HOST, SMTP_PORT                    # defaults: smtp.gmail.com / 587
-SMTP_USER, SMTP_PASS                    # SMTP credentials for OTP emails
+SMTP_USER, SMTP_PASS                    # SMTP credentials for password-reset and OTP emails
 
 # Federated OAuth (auth-service â€” V2)
 GOOGLE_CLIENT_ID                        # Google OAuth client ID for POST /auth/federated/google
@@ -1043,7 +1036,6 @@ These items are intentionally incomplete. Do not assume they are implemented.
 | `jest.e2e.config.ts` | repo root | **Missing.** `npm run test:e2e` will fail until this config is created. E2E tests under `tests/e2e/` cannot run. |
 | `role.requested` outbox event | `outbox-worker/src/EventDispatcher` | Published to `outbox` by enrollment-service but **not wired** in the dispatcher â€” silently skipped. No notify/audit coverage for role requests. (`role.granted` is now fully wired.) |
 | `course.published` notification handler | `notification-service/src/application/handlers/` | Event fires and is delivered to notification-service but **no handler exists** â€” silently dropped. Students are not notified when a course is published. |
-| **`npm run type-check` fails on `develop`** | multiple test files | Post-merge type errors in 3 categories — fix before any CI work: **(1) cell-service tests** — every `CellGroupProps` fixture is missing the required `externalMembers: ExternalMember[]` field (15+ files); add `externalMembers: []` to each. `GetCellByIdUseCase.test.ts` lines 63–64 access `.firstName` on a `CellMember` discriminated union — narrow with `(m as RegisteredMemberResponse).firstName`. **(2) auth-service** — `RequestPasswordResetUseCase.test.ts` uses old 2-arg constructor and `sendOtp` method; the use case now takes only `emailClient` and calls `emailClient.sendPasswordResetEmail(email, resetLink)` with Firebase Admin generating the link internally. **(3) course-service tests** — mock factories missing `hardDelete: jest.fn()` on `ICourseRepository` / `ISemesterRepository`; `hardDelete: jest.fn(), deleteBySemesterId: jest.fn()` on `ISubjectRepository`; `hardDelete: jest.fn(), deleteBySubjectId: jest.fn()` on `ILessonRepository`. `DeleteSemesterUseCase` now takes 5 args (added `subjectRepo, lessonRepo`); `DeleteSubjectUseCase` now takes 3 args (added `lessonRepo`). |
 
 ---
 
@@ -1053,8 +1045,7 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/blueprint/Backend_Blueprint.md`** â€” V1 architecture specification, implementation patterns, all use case code samples, security requirements traceability.
 - **`.claude/blueprint/Version_02__Backend_Blueprint.md`** â€” V2 companion blueprint covering cell-service, analytics-service, scheduled-jobs, and extended service patterns.
 - **`.claude/APIdocument/API_Document.md`** â€” Complete V1 REST API reference (all endpoints, request/response schemas, error codes). Audited and corrected to match the actual implementation.
-- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.25.0.
-- **`.claude/APIdocument/authapi.md`** — Standalone auth-service reference: all 13 `/auth/*` endpoints, error codes, lockout rules, password policy, env vars, and quick-start flow guides.
+- **`.claude/APIdocument/Version_02__API_Reference.md`** â€” V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.44.0.
 - **`.claude/tracker/tracker.md`** â€” Phase-by-phase implementation checklist (Phases 0â€”21). Update `[ ]` â†’ `[x]` as work completes. Check this before starting any phase to understand what’s done and what’s blocked.
 - **`.claude/plan/implementation-plan.md`** â€” Detailed implementation plan with phase dependencies and sequencing.
 - **`.claude/sprints/`** â€” Per-sprint breakdown (`sprint-1-*.md` through `sprint-7-*.md`) with user stories and acceptance criteria.
@@ -1063,15 +1054,17 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`_sprints/`** â€” Per-sprint markdown files broken down from a `_plan/` file. Each subdirectory contains individual phase files and a `next-sprint.sh` automation helper. Created by `/create-sprints`, executed by `/run-sprint`.
 
 
+---
+
 ## API Documentation Updates
 
-When creating a new API endpoint or modifying an existing one, update **only the affected endpoint's section** in `.claude/API_Document/Version_02_API_Reference.md`.
+When creating a new API endpoint or modifying an existing one, update **only the affected endpoint's section** in `.claude/APIdocument/Version_02__API_Reference.md`.
 
 - For a **new endpoint**: add a new section for it in the appropriate place. Do not modify unrelated sections.
 - For an **updated endpoint**: edit only that endpoint's existing section (path, method, parameters, request/response schema, examples, status codes, error responses).
 - Do **not** rewrite, reformat, or "clean up" other endpoints' documentation, even if they look inconsistent or outdated.
 - Do **not** restructure the document's overall layout, table of contents, or section ordering.
-- Do **not** touch other files in `.claude/API_Document/` (e.g. older version files like `Version_01_*`). Only `Version_02_API_Reference.md` is the active reference.
+- Do **not** touch other files in `.claude/APIdocument/` (e.g. older version files like `Version_01_*`). Only `Version_02__API_Reference.md` is the active reference.
 - If a change affects a shared schema or type used by multiple endpoints, update the shared definition once and reference it from the affected endpoint's section — but still do not rewrite the other endpoints that also use it.
 
 Preserve the existing tone, heading style, and formatting conventions of the surrounding document.

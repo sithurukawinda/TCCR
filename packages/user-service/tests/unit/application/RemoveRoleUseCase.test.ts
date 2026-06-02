@@ -1,4 +1,4 @@
-﻿import { RemoveRoleUseCase }     from '../../../src/application/use-cases/RemoveRoleUseCase';
+import { RemoveRoleUseCase }     from '../../../src/application/use-cases/RemoveRoleUseCase';
 import { IUserRepository }       from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }    from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { User }                  from '../../../src/domain/entities/User';
@@ -9,7 +9,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findAll:   jest.fn(),
   create:    jest.fn(),
   update:    jest.fn(),
-  softDelete: jest.fn(), hardDelete: jest.fn(),
+  softDelete: jest.fn(), hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
@@ -35,16 +35,15 @@ describe('RemoveRoleUseCase', () => {
     useCase = new RemoveRoleUseCase(repo, auth);
   });
 
-  it('removes role from user, persists, and updates Firebase claims', async () => {
+  it('removes role from user atomically and updates Firebase claims', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'student']));
-    repo.update.mockResolvedValue(undefined);
+    repo.atomicRemoveRole.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1', 'student');
 
-    expect(repo.update).toHaveBeenCalledWith(expect.objectContaining({
-      roles: expect.not.arrayContaining(['student']),
-    }));
+    expect(repo.atomicRemoveRole).toHaveBeenCalledWith('uid-1', 'student');
+    expect(repo.update).not.toHaveBeenCalled();
     expect(auth.removeRoleFromUser).toHaveBeenCalledWith('uid-1', 'student');
   });
 
@@ -53,7 +52,7 @@ describe('RemoveRoleUseCase', () => {
 
     await useCase.execute('uid-1', 'leader');
 
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.atomicRemoveRole).not.toHaveBeenCalled();
     expect(auth.removeRoleFromUser).not.toHaveBeenCalled();
   });
 
@@ -77,19 +76,18 @@ describe('RemoveRoleUseCase', () => {
     await expect(useCase.execute('uid-ghost', 'student')).rejects.toMatchObject({
       status: 404, errorCode: 'USER_NOT_FOUND',
     });
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.atomicRemoveRole).not.toHaveBeenCalled();
   });
 
   it('can remove leader and g12 roles from a user with multiple roles', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'student', 'leader', 'g12']));
-    repo.update.mockResolvedValue(undefined);
+    repo.atomicRemoveRole.mockResolvedValue(undefined);
     auth.removeRoleFromUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1', 'g12');
 
-    expect(repo.update).toHaveBeenCalledWith(expect.objectContaining({
-      roles: expect.not.arrayContaining(['g12']),
-    }));
+    expect(repo.atomicRemoveRole).toHaveBeenCalledWith('uid-1', 'g12');
+    expect(repo.update).not.toHaveBeenCalled();
   });
 });
 

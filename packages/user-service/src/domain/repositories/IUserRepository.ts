@@ -21,6 +21,8 @@ export interface IUserRepository {
   findAll(opts: FindAllOptions): Promise<FindAllResult>;
   create(user: User): Promise<void>;
   update(user: User): Promise<void>;
+  atomicAddRole(uid: string, role: UserRole): Promise<void>;
+  atomicRemoveRole(uid: string, role: UserRole): Promise<void>;
   softDelete(uid: string): Promise<void>;
   hardDelete(uid: string): Promise<void>;
 }

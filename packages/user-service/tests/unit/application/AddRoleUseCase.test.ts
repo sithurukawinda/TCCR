@@ -1,4 +1,4 @@
-﻿import { AddRoleUseCase }       from '../../../src/application/use-cases/AddRoleUseCase';
+import { AddRoleUseCase }       from '../../../src/application/use-cases/AddRoleUseCase';
 import { IUserRepository }      from '../../../src/domain/repositories/IUserRepository';
 import { FirebaseAuthClient }   from '../../../src/infrastructure/clients/FirebaseAuthClient';
 import { User }                 from '../../../src/domain/entities/User';
@@ -9,7 +9,7 @@ const makeRepo = (): jest.Mocked<IUserRepository> => ({
   findAll:   jest.fn(),
   create:    jest.fn(),
   update:    jest.fn(),
-  softDelete: jest.fn(), hardDelete: jest.fn(),
+  softDelete: jest.fn(), hardDelete: jest.fn(), atomicAddRole: jest.fn(), atomicRemoveRole: jest.fn(),
 });
 
 const makeAuth = (): jest.Mocked<FirebaseAuthClient> =>
@@ -35,25 +35,24 @@ describe('AddRoleUseCase', () => {
     useCase = new AddRoleUseCase(repo, auth);
   });
 
-  it('adds role to user, persists, and updates Firebase claims', async () => {
+  it('adds role to user atomically and updates Firebase claims', async () => {
     repo.findById.mockResolvedValue(makeUser(['member']));
-    repo.update.mockResolvedValue(undefined);
+    repo.atomicAddRole.mockResolvedValue(undefined);
     auth.addRoleToUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1', 'student');
 
-    expect(repo.update).toHaveBeenCalledWith(expect.objectContaining({
-      roles: expect.arrayContaining(['member', 'student']),
-    }));
+    expect(repo.atomicAddRole).toHaveBeenCalledWith('uid-1', 'student');
+    expect(repo.update).not.toHaveBeenCalled();
     expect(auth.addRoleToUser).toHaveBeenCalledWith('uid-1', 'student');
   });
 
-  it('is idempotent â€” no write when user already has the role', async () => {
+  it('is idempotent — no write when user already has the role', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'student']));
 
     await useCase.execute('uid-1', 'student');
 
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.atomicAddRole).not.toHaveBeenCalled();
     expect(auth.addRoleToUser).not.toHaveBeenCalled();
   });
 
@@ -63,7 +62,7 @@ describe('AddRoleUseCase', () => {
     await expect(useCase.execute('uid-ghost', 'student')).rejects.toMatchObject({
       status: 404, errorCode: 'USER_NOT_FOUND',
     });
-    expect(repo.update).not.toHaveBeenCalled();
+    expect(repo.atomicAddRole).not.toHaveBeenCalled();
   });
 
   it('throws 400 INVALID_ROLE for an unrecognised role string', async () => {
@@ -75,7 +74,7 @@ describe('AddRoleUseCase', () => {
 
   it('can add leader role to a member', async () => {
     repo.findById.mockResolvedValue(makeUser(['member']));
-    repo.update.mockResolvedValue(undefined);
+    repo.atomicAddRole.mockResolvedValue(undefined);
     auth.addRoleToUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1', 'leader');
@@ -85,7 +84,7 @@ describe('AddRoleUseCase', () => {
 
   it('can add g12 role to a leader', async () => {
     repo.findById.mockResolvedValue(makeUser(['member', 'leader']));
-    repo.update.mockResolvedValue(undefined);
+    repo.atomicAddRole.mockResolvedValue(undefined);
     auth.addRoleToUser.mockResolvedValue(undefined);
 
     await useCase.execute('uid-1', 'g12');
