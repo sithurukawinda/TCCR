@@ -1,6 +1,6 @@
 import { createHttpError } from '@shared/errors';
 
-export type UserRole   = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin';
+export type UserRole   = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin' | 'master';
 export type UserStatus = 'pending_approval' | 'approved' | 'rejected' | 'suspended';
 
 export interface NotificationPreferences {

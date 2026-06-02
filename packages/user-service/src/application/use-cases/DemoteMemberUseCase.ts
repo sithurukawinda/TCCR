@@ -34,7 +34,7 @@ export class DemoteMemberUseCase {
     //   admin        → can demote student / leader / g12
     //   g12          → can demote leader / g12
     //   leader       → can only demote g12
-    const isSuperAdmin = callerRoles.includes('super_admin');
+    const isSuperAdmin = callerRoles.includes('super_admin') || callerRoles.includes('master');
     const isAdmin      = callerRoles.includes('admin');
     const isG12        = callerRoles.includes('g12');
     const isLeader     = callerRoles.includes('leader');
@@ -60,12 +60,12 @@ export class DemoteMemberUseCase {
     const target = await this.userRepo.findById(targetUid);
     if (!target) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
 
-    // ── Guard: cannot demote an admin or super_admin ──────────────────────────
-    if (target.roles.includes('admin') || target.roles.includes('super_admin')) {
+    // ── Guard: cannot demote an admin, super_admin, or master ────────────────
+    if (target.roles.includes('admin') || target.roles.includes('super_admin') || target.roles.includes('master')) {
       throw createHttpError(
         403,
         'FORBIDDEN',
-        'Admin and super_admin accounts cannot be demoted through this endpoint.',
+        'Admin, super_admin, and master accounts cannot be demoted through this endpoint.',
       );
     }
 

@@ -373,16 +373,10 @@
               }
             }
           ]
-        }
-      ]
-    },
-    {
-      "id": "3d538578-7136-4139-bfc7-19e6e1f3eca1",
-      "name": "1️⃣ Auth Service",
-      "item": [
+        },
         {
-          "id": "2a09cb56-a1c3-4d7e-a9a6-2f0918be268d",
-          "name": "Register New Member",
+          "id": "a1b2c3d4-0001-4000-8000-mastersignin0",
+          "name": "Master Sign In",
           "request": {
             "method": "POST",
             "header": [
@@ -393,7 +387,75 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Member\",\n  \"email\": \"newmember{{runId}}@gmail.com\",\n  \"password\": \"Member@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
+              "raw": "{\n  \"email\": \"superadmin@cmp.com\",\n  \"password\": \"SuperAdmin@123\",\n  \"returnSecureToken\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{authBaseUrl}}/accounts:signInWithPassword?key={{firebaseWebApiKey}}",
+              "host": [
+                "{{authBaseUrl}}"
+              ],
+              "path": [
+                "accounts:signInWithPassword"
+              ],
+              "query": [
+                {
+                  "key": "key",
+                  "value": "{{firebaseWebApiKey}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0001-test-mastersi01",
+                "type": "text/javascript",
+                "exec": [
+                  "// Run AFTER \"Assign Master Role\" so the token carries master claims.",
+                  "pm.test(\"200 OK - Master Sign In\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"TOKEN received\", () => {",
+                  "  pm.expect(j.idToken).to.be.a(\"string\").and.not.empty;",
+                  "  if (j.idToken) {",
+                  "    pm.environment.set(\"masterToken\", j.idToken);",
+                  "    pm.environment.set(\"masterId\", j.localId);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "3d538578-7136-4139-bfc7-19e6e1f3eca1",
+      "name": "1️⃣ Auth Service",
+      "item": [
+        {
+          "id": "2a09cb56-a1c3-4d7e-a9a6-2f0918be268d",
+          "name": "kavinda",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"pradeep\",\n  \"lastName\": \"wathsala\",\n  \"email\": \"newmember{{runId}}@gmail.com\",\n  \"password\": \"Member@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
@@ -791,7 +853,7 @@
                 "id": "3bda9989-ee7f-40d3-ab17-3b6d2f0f2ac7",
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"204 No Content — Password Reset\", () => pm.response.to.have.status(204));"
+                  "pm.test(\"200 OK — Password Reset\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
@@ -11473,6 +11535,644 @@
       ]
     },
     {
+      "id": "a1b2c3d4-0002-4000-8000-masterfolder",
+      "name": "🎖️ Master Role (V2)",
+      "item": [
+        {
+          "id": "a1b2c3d4-0003-4000-8000-assignmaster",
+          "name": "Assign Master Role to Super Admin (super_admin caller)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"master\",\n  \"action\": \"add\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{superAdminId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{superAdminId}}",
+                "roles"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0003-test-assign000",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - master role assigned\", () => pm.response.to.have.status(200));",
+                  "// After this, re-run Master Sign In to get a fresh token with master claims."
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0004-4000-8000-masterlistad",
+          "name": "Master - List Admins (super_admin-only endpoint)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0004-test-listadmin",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - master accesses super_admin-only endpoint\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0005-4000-8000-mastercreate",
+          "name": "Master - Create Admin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Master\",\n  \"lastName\": \"Created\",\n  \"email\": \"masteradmin{{runId}}@tccr.lk\",\n  \"initialPassword\": \"Admin@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0005-test-crtadmin0",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"201 Created - master can create admin\", () => pm.response.to.have.status(201));",
+                  "const j = pm.response.json();",
+                  "if (j.uid) pm.environment.set(\"masterCreatedAdminId\", j.uid);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0006-4000-8000-masterhardel",
+          "name": "Master - Hard Delete Course (super_admin-only endpoint)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/hard",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "courses",
+                "{{courseId}}",
+                "hard"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0006-test-harddel00",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content - master can hard-delete course\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0007-4000-8000-mastermkadmn",
+          "name": "Master - Make User Admin",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/users/{{registeredUid}}/make-admin",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "users",
+                "{{registeredUid}}",
+                "make-admin"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0007-test-makeadmin",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - master can make-admin\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0008-4000-8000-masterdelcad",
+          "name": "Master - Delete Created Admin",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins/{{masterCreatedAdminId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins",
+                "{{masterCreatedAdminId}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0008-test-delcadmin",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"204 No Content - master can delete admin\", () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0009-4000-8000-removemaster",
+          "name": "Remove Master Role from Super Admin (super_admin caller)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"master\",\n  \"action\": \"remove\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{superAdminId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{superAdminId}}",
+                "roles"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0009-test-rmvmaster",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - super_admin can remove master role\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "a1b2c3d4-0010-4000-8000-nonmaster403",
+          "name": "Non-master tries List Admins (expect 403)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/super-admin/admins",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "super-admin",
+                "admins"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{studentToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "a1b2c3d4-0010-test-403block0",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 Forbidden - non-master blocked from super_admin endpoint\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0001-4000-8000-masterlistus",
+          "name": "Master - List All Master Users",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "users"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0001-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - list master users\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"has items array\", () => pm.expect(j.items).to.be.an(\"array\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0002-4000-8000-mastergrantu",
+          "name": "Master - Grant Master Role to User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/grant/{{registeredUid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "grant",
+                "{{registeredUid}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0002-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - master role granted\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0003-4000-8000-masterrevoke",
+          "name": "Master - Revoke Master Role from User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/revoke/{{registeredUid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "revoke",
+                "{{registeredUid}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{masterToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0003-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - master role revoked\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0004-4000-8000-supagrantmst",
+          "name": "Super Admin - Grant Master Role to User",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/grant/{{registeredUid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "grant",
+                "{{registeredUid}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0004-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - super_admin can grant master\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0005-4000-8000-suparevkmst0",
+          "name": "Super Admin - Revoke Master Role from User",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/revoke/{{registeredUid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "revoke",
+                "{{registeredUid}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0005-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK - super_admin can revoke master\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "b2c3d4e5-0006-4000-8000-admin403mast",
+          "name": "Admin tries Grant Master (expect 403)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/master/grant/{{registeredUid}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "master",
+                "grant",
+                "{{registeredUid}}"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "id": "b2c3d4e5-0006-test",
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 Forbidden - admin cannot grant master\", () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
       "id": "c22ab1b1-dcd5-4b2b-991e-b2f07c94d013",
       "name": "🏥 Health Checks",
       "item": [
@@ -11483,15 +12183,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3000/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3000"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11518,15 +12220,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3000/readyz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/readyz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "readyz"
-              ],
-              "port": "3000"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11553,15 +12257,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3001/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3001"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11588,15 +12294,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3002/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3002"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11623,15 +12331,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3003/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3003"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11658,15 +12368,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3009/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3009"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11693,15 +12405,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3004/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3004"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11728,15 +12442,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3005/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3005"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11763,15 +12479,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3006/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3006"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11798,15 +12516,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3007/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3007"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11833,15 +12553,17 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "http://localhost:3008/healthz",
-              "protocol": "http",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "localhost"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
                 "healthz"
-              ],
-              "port": "3008"
+              ]
             },
             "auth": {
               "type": "noauth"
@@ -11868,32 +12590,20 @@
             "method": "GET",
             "header": [],
             "url": {
-              "raw": "{{baseUrl}}/analytics/cells/weekly?weeks=1",
+              "raw": "https://cms.api.bethelnet.au/healthz",
+              "protocol": "https",
               "host": [
-                "{{baseUrl}}"
+                "cms",
+                "api",
+                "bethelnet",
+                "au"
               ],
               "path": [
-                "analytics",
-                "cells",
-                "weekly"
-              ],
-              "query": [
-                {
-                  "key": "weeks",
-                  "value": "1",
-                  "disabled": false
-                }
+                "healthz"
               ]
             },
             "auth": {
-              "type": "bearer",
-              "bearer": [
-                {
-                  "key": "token",
-                  "value": "{{g12Token}}",
-                  "type": "string"
-                }
-              ]
+              "type": "noauth"
             }
           },
           "response": [],
@@ -11904,9 +12614,7 @@
                 "id": "05759bd4-2949-4e7e-817d-862ca3cefe64",
                 "type": "text/javascript",
                 "exec": [
-                  "pm.test(\"200 or 404 or 401 — Analytics Liveness (via gateway)\", () => {",
-                  "  pm.expect([200, 404, 401]).to.include(pm.response.code);",
-                  "});"
+                  "pm.test(\"200 OK — Analytics Liveness (via gateway)\", () => pm.response.to.have.status(200));"
                 ]
               }
             }

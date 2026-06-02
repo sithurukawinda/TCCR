@@ -17,11 +17,12 @@ service cloud.firestore {
       );
     }
 
-    function isAdmin()      { return hasRole('admin') || hasRole('super_admin'); }
-    function isSuperAdmin() { return hasRole('super_admin'); }
+    function isMaster()     { return hasRole('master') || hasRoleV2('master'); }
+    function isSuperAdmin() { return hasRole('super_admin') || isMaster(); }
+    function isAdmin()      { return hasRole('admin') || hasRole('super_admin') || isMaster(); }
     function isOwner(uid)   { return isAuthenticated() && request.auth.uid == uid; }
 
-    // leader, g12, admin, super_admin — used for analytics access
+    // leader, g12, admin, super_admin, master — used for analytics access
     function isLeaderOrAbove() {
       return hasRoleV2('leader') || hasRoleV2('g12') || isAdmin();
     }

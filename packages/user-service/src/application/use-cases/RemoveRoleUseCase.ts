@@ -3,7 +3,7 @@ import { IUserRepository }    from '../../domain/repositories/IUserRepository';
 import { FirebaseAuthClient } from '../../infrastructure/clients/FirebaseAuthClient';
 import { UserRole }           from '../../domain/entities/User';
 
-const VALID_ROLES: UserRole[] = ['member', 'student', 'leader', 'g12', 'admin', 'super_admin'];
+const VALID_ROLES: UserRole[] = ['member', 'student', 'leader', 'g12', 'admin', 'super_admin', 'master'];
 
 export class RemoveRoleUseCase {
   constructor(
@@ -11,12 +11,15 @@ export class RemoveRoleUseCase {
     private readonly authClient: FirebaseAuthClient,
   ) {}
 
-  async execute(uid: string, role: string): Promise<void> {
+  async execute(uid: string, role: string, callerRoles?: string[]): Promise<void> {
     if (!VALID_ROLES.includes(role as UserRole)) {
       throw createHttpError(400, 'INVALID_ROLE', `"${role}" is not a valid role.`);
     }
     if (role === 'member') {
       throw createHttpError(400, 'INVALID_ROLE', 'The member role cannot be removed.');
+    }
+    if (role === 'master' && !callerRoles?.includes('master') && !callerRoles?.includes('super_admin')) {
+      throw createHttpError(403, 'FORBIDDEN', 'Only a master or super_admin can remove the master role.');
     }
 
     const user = await this.userRepo.findById(uid);

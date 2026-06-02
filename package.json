@@ -8,6 +8,7 @@
   ],
   "scripts": {
     "dev:all": "bash scripts/start.sh",
+    "postman:sync": "node sync-postman.js",
     "build": "npm run build --workspaces --if-present",
     "dev": "npm run dev --workspaces --if-present",
     "type-check": "tsc --noEmit --project tsconfig.base.json && npm run type-check --workspaces --if-present",
@@ -39,5 +40,8 @@
     "ts-jest": "^29.0.0",
     "typescript": "^5.0.0",
     "wait-on": "^9.0.5"
+  },
+  "dependencies": {
+    "chokidar": "^5.0.0"
   }
 }

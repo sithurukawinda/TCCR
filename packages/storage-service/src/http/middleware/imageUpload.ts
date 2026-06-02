@@ -11,7 +11,7 @@ const upload = multer({
 });
 
 export function handleImageUpload(req: Request, res: Response, next: NextFunction): void {
-  upload.single('file')(req, res, (err) => {
+  upload.single('image')(req, res, (err) => {
     if (err instanceof multer.MulterError && err.code === 'LIMIT_FILE_SIZE') {
       return next(createHttpError(413, 'FILE_TOO_LARGE', 'Image must be under 10 MB.'));
     }

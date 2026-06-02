@@ -33,13 +33,13 @@ export class FirestoreCellGroupRepository implements ICellGroupRepository {
     if (opts.leaderUid)    q = q.where('leaderUid',    '==', opts.leaderUid);
     if (opts.g12LeaderUid) q = q.where('g12LeaderUid', '==', opts.g12LeaderUid);
 
-    const total = (await q.count().get()).data().count;
+    const [countSnap, cursorSnap] = await Promise.all([
+      q.count().get(),
+      opts.cursor ? this.col.doc(opts.cursor).get() : Promise.resolve(null),
+    ]);
+    const total = countSnap.data().count;
     q = q.orderBy('createdAt', 'desc').limit(opts.limit);
-
-    if (opts.cursor) {
-      const cs = await this.col.doc(opts.cursor).get();
-      if (cs.exists) q = q.startAfter(cs);
-    }
+    if (cursorSnap?.exists) q = q.startAfter(cursorSnap);
 
     const snap  = await q.get();
     const items = snap.docs.map(d => toEntity(d.id, d.data() as Omit<CellGroupProps, 'id'>));

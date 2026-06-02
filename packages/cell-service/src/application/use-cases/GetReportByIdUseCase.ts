@@ -14,7 +14,7 @@ export class GetReportByIdUseCase {
     const cell = await this.cellRepo.findById(cellId);
     if (!cell) throw createHttpError(404, 'CELL_NOT_FOUND', 'Cell group not found.');
 
-    const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isAdmin  = callerRoles.includes('admin') || (callerRoles.includes('super_admin') || callerRoles.includes('master'));
     const isOwner  = cell.isOwnedBy(callerUid);
     const isMember = cell.hasMember(callerUid);
 

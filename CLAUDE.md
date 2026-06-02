@@ -760,15 +760,19 @@ Both `Semester` and `Subject` have an `order` field assigned as `existing.length
 
 ### List Response Caching
 
-course-service, user-service, and audit-service each hold an in-process `TtlCache<T>` instance (at `src/infrastructure/cache/TtlCache.ts`) that caches list responses by serialised query key:
+course-service, user-service, audit-service, cell-service, and enrollment-service each hold an in-process `TtlCache<T>` instance (at `src/infrastructure/cache/TtlCache.ts`) that caches list responses by serialised query key:
 
-| Service | TTL | Invalidation |
-|---------|-----|-------------|
+| Service / list | TTL | Invalidation |
+|----------------|-----|-------------|
 | course list | 30 s | cleared on every create / update / delete / state change |
 | user list | 30 s | TTL expiry only |
 | audit list | 60 s | TTL expiry only (append-only collection) |
+| cell list (`GET /cells`) | 30 s | cleared on create / update / delete / archive / transfer-ownership; cache key includes `uid + roles + queryParams` to prevent cross-role leakage |
+| enrollment — student own (`GET /me/enrollments`) | 15 s | cleared on enroll / approve / reject / withdraw |
+| enrollment — admin list (`GET /enrollments`) | 30 s | cleared on enroll / approve / reject / withdraw |
+| role-request list (`GET /role-requests`) | 30 s | cleared on create / approve / reject |
 
-No external cache (Redis) is required. The cache lives on the static property `listCache` of each controller class â€” it is shared across all requests but scoped to the process.
+No external cache (Redis) is required. The cache lives on the static property `listCache` (or `myCache`/`adminCache` for enrollment-service) of each controller class â€” it is shared across all requests but scoped to the process.
 
 ### Progress Idempotency
 

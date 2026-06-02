@@ -11,10 +11,10 @@ export class GetUserByIdUseCase {
     if (!user) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
 
     // Leaders and G12 get a scoped view — they cannot look up admin or super_admin profiles
-    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin') || callerRoles.includes('master');
     if (!isAdmin) {
       const targetIsAdmin =
-        (user.roles ?? []).includes('admin') || (user.roles ?? []).includes('super_admin');
+        (user.roles ?? []).includes('admin') || (user.roles ?? []).includes('super_admin') || (user.roles ?? []).includes('master');
       if (targetIsAdmin) throw createHttpError(403, 'FORBIDDEN', 'Insufficient permissions.');
     }
 

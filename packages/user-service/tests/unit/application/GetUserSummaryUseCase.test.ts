@@ -189,7 +189,7 @@ describe('GetUserSummaryUseCase', () => {
     await useCase.execute(['leader'] as any);
 
     expect(repo.findAll).toHaveBeenCalledWith(
-      expect.objectContaining({ excludeRoles: ['admin', 'super_admin'] }),
+      expect.objectContaining({ excludeRoles: ['admin', 'super_admin', 'master'] }),
     );
   });
 

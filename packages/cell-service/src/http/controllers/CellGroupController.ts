@@ -22,6 +22,8 @@ import {
   createJoinRequestSchema, decideJoinRequestSchema,
   listCellsSchema, listJoinRequestsSchema, transferOwnershipSchema,
 } from '../validators/cellValidator';
+import { TtlCache }                      from '../../infrastructure/cache/TtlCache';
+import { CellGroupListResultEnriched }   from '../../application/use-cases/GetCellsUseCase';
 
 export class CellGroupController {
   constructor(
@@ -42,12 +44,20 @@ export class CellGroupController {
     private readonly networkMembersUC:   GetNetworkMembersUseCase,
   ) {}
 
+  private static readonly listCache = new TtlCache<CellGroupListResultEnriched>(30_000);
+
   list = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const parsed = listCellsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
+
+      const cacheKey = JSON.stringify({ uid, roles, ...parsed.data });
+      const cached   = CellGroupController.listCache.get(cacheKey);
+      if (cached) return sendPaginated(res, cached.items, cached.nextCursor, cached.total);
+
       const result = await this.getCellsUC.execute(parsed.data, uid, roles);
+      CellGroupController.listCache.set(cacheKey, result);
       sendPaginated(res, result.items, result.nextCursor, result.total);
     } catch (err) { next(err); }
   };
@@ -67,6 +77,7 @@ export class CellGroupController {
       const { uid } = (req as AuthenticatedRequest).principal;
       const requestId = (req.headers['x-request-id'] as string) ?? '';
       const cell = await this.createUC.execute({ ...parsed.data, leaderUid: uid }, requestId);
+      CellGroupController.listCache.clear();
       sendSuccess(res, cell, 201);
     } catch (err) { next(err); }
   };
@@ -85,6 +96,7 @@ export class CellGroupController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const cell = await this.updateUC.execute(req.params.id, parsed.data, uid, roles);
+      CellGroupController.listCache.clear();
       sendSuccess(res, cell);
     } catch (err) { next(err); }
   };
@@ -93,6 +105,7 @@ export class CellGroupController {
     try {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const cell = await this.archiveUC.execute(req.params.id, uid, roles);
+      CellGroupController.listCache.clear();
       sendSuccess(res, cell);
     } catch (err) { next(err); }
   };
@@ -101,6 +114,7 @@ export class CellGroupController {
     try {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       await this.deleteUC.execute(req.params.id, uid, roles);
+      CellGroupController.listCache.clear();
       res.status(204).send();
     } catch (err) { next(err); }
   };
@@ -112,6 +126,7 @@ export class CellGroupController {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const requestId      = (req.headers['x-request-id'] as string) ?? '';
       const cell = await this.transferUC.execute(req.params.id, parsed.data, uid, roles, requestId);
+      CellGroupController.listCache.clear();
       sendSuccess(res, cell);
     } catch (err) { next(err); }
   };
@@ -122,6 +137,7 @@ export class CellGroupController {
       if (!parsed.success) return next(fromZodError(parsed.error));
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const result = await this.addMembersUC.execute(req.params.id, parsed.data.userUids, uid, roles, parsed.data.externalMembers);
+      CellGroupController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -130,6 +146,7 @@ export class CellGroupController {
     try {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
       const result = await this.removeMemberUC.execute(req.params.id, req.params.uid, uid, roles);
+      CellGroupController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -162,6 +179,7 @@ export class CellGroupController {
       const { uid } = (req as AuthenticatedRequest).principal;
       const requestId = (req.headers['x-request-id'] as string) ?? '';
       const result = await this.approveJoinUC.execute(req.params.id, req.params.rid, uid, parsed.data.note, requestId);
+      CellGroupController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
