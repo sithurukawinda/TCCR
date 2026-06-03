@@ -41,7 +41,7 @@ export class RoleRequestController {
       const requestId      = (req.headers['x-request-id'] as string) ?? '';
 
       const result = await this.createUseCase.execute(
-        { requesterUid: uid, requestedRole: 'student', callerRoles: roles },
+        { requesterUid: uid, requestedRole: parsed.data.requestedRole, callerRoles: roles },
         requestId,
       );
 

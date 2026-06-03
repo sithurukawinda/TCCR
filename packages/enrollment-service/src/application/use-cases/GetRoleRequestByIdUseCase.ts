@@ -37,7 +37,7 @@ export interface MemberProfile {
 export interface RoleRequestDetail {
   id:                       string;
   requesterUid:             string;
-  requestedRole:            'student';
+  requestedRole:            'student' | 'leader' | 'g12';
   status:                   string;
   decidedByUid:             string | null;
   decisionNote:             string | null;

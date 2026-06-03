@@ -18,7 +18,7 @@ export interface ApplicantProfile {
 export interface RoleRequestProps {
   id:                       string;
   requesterUid:             string;
-  requestedRole:            'student';
+  requestedRole:            'student' | 'leader' | 'g12';
   status:                   RoleRequestStatus;
   decidedByUid:             string | null;
   decisionNote:             string | null;
@@ -32,7 +32,7 @@ export interface RoleRequestProps {
 export class RoleRequest {
   id:                       string;
   requesterUid:             string;
-  requestedRole:            'student';
+  requestedRole:            'student' | 'leader' | 'g12';
   status:                   RoleRequestStatus;
   decidedByUid:             string | null;
   decisionNote:             string | null;

@@ -7,7 +7,7 @@ import { UserServiceClient }                              from '../../infrastruc
 
 export interface CreateRoleRequestInput {
   requesterUid:  string;
-  requestedRole: 'student';
+  requestedRole: 'student' | 'leader' | 'g12';
   callerRoles:   string[];
 }
 
@@ -34,7 +34,7 @@ export class CreateRoleRequestUseCase {
     const roleRequest = new RoleRequest({
       id,
       requesterUid:             input.requesterUid,
-      requestedRole:            'student',
+      requestedRole:            input.requestedRole,
       status:                   'pending',
       decidedByUid:             null,
       decisionNote:             null,
@@ -60,7 +60,7 @@ export class CreateRoleRequestUseCase {
 
     await this.outbox.publishWithBatch({
       type:    'role.requested',
-      payload: { requesterUid: input.requesterUid, requestedRole: 'student' },
+      payload: { requesterUid: input.requesterUid, requestedRole: input.requestedRole },
       requestId,
     });
 

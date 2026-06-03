@@ -36,6 +36,8 @@ const mockProfile = {
 };
 
 const validInput: CreateRoleRequestInput = { requesterUid: 'uid-1', requestedRole: 'student', callerRoles: ['member'] as string[] };
+const validInputLeader: CreateRoleRequestInput = { requesterUid: 'uid-2', requestedRole: 'leader', callerRoles: ['member', 'student'] as string[] };
+const validInputG12: CreateRoleRequestInput    = { requesterUid: 'uid-3', requestedRole: 'g12',    callerRoles: ['member', 'student', 'leader'] as string[] };
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
@@ -184,5 +186,40 @@ describe('CreateRoleRequestUseCase', () => {
     expect(repo.createUnique).toHaveBeenCalledWith(
       expect.objectContaining({ requesterUid: 'uid-42' }),
     );
+  });
+
+  // ── multi-role support ────────────────────────────────────────────────────────
+
+  it('creates a leader role request for a student who does not yet hold leader', async () => {
+    userClient.getUser.mockResolvedValue(mockProfile);
+    repo.createUnique.mockResolvedValue(undefined);
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    const result = await useCase.execute(validInputLeader, 'req-leader');
+
+    expect(result.requestedRole).toBe('leader');
+    expect(repo.createUnique).toHaveBeenCalledWith(expect.objectContaining({ requestedRole: 'leader' }));
+    expect(outbox.publishWithBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ payload: expect.objectContaining({ requestedRole: 'leader' }) }),
+    );
+  });
+
+  it('creates a g12 role request for a leader who does not yet hold g12', async () => {
+    userClient.getUser.mockResolvedValue(mockProfile);
+    repo.createUnique.mockResolvedValue(undefined);
+    outbox.publishWithBatch.mockResolvedValue(undefined);
+
+    const result = await useCase.execute(validInputG12, 'req-g12');
+
+    expect(result.requestedRole).toBe('g12');
+  });
+
+  it('throws ROLE_ALREADY_HELD when a student requests student again', async () => {
+    const input: CreateRoleRequestInput = { requesterUid: 'uid-1', requestedRole: 'student', callerRoles: ['member', 'student'] as string[] };
+
+    await expect(useCase.execute(input, 'req-dup')).rejects.toMatchObject({
+      status: 409, errorCode: 'ROLE_ALREADY_HELD',
+    });
+    expect(userClient.getUser).not.toHaveBeenCalled();
   });
 });

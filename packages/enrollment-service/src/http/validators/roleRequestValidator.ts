@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Profile data is read from the user's existing profile — no personal fields needed here
 export const createRoleRequestSchema = z.object({
-  requestedRole: z.literal('student'),
+  requestedRole: z.enum(['student', 'leader', 'g12']),
 });
 
 export const decideRoleRequestSchema = z.object({
