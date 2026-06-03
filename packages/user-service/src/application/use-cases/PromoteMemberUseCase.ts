@@ -32,7 +32,8 @@ export class PromoteMemberUseCase {
     const isElevatedCaller =
       callerRoles.includes('g12') ||
       callerRoles.includes('admin') ||
-      callerRoles.includes('super_admin');
+      callerRoles.includes('super_admin') ||
+      callerRoles.includes('master');
 
     const allowedRoles = isElevatedCaller ? PROMOTABLE_ROLES : LEADER_PROMOTABLE_ROLES;
 

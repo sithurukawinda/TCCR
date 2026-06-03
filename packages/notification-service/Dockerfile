@@ -1,10 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN npm install -g typescript
 COPY package*.json tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/notification-service/package.json ./packages/notification-service/package.json
 COPY packages/notification-service/tsconfig.json ./packages/notification-service/tsconfig.json
-RUN npm install --workspace=packages/shared/firebase --workspace=packages/shared/logger \
+RUN npm install --include=dev --workspace=packages/shared/firebase --workspace=packages/shared/logger \
     --workspace=packages/shared/errors --workspace=packages/shared/auth-middleware \
     --workspace=packages/shared/internal-http-client --workspace=packages/shared/response \
     --workspace=packages/shared/health --workspace=packages/notification-service

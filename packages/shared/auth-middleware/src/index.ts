@@ -2,13 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import { getAuth }                         from 'firebase-admin/auth';
 import { createHttpError }                 from '@shared/errors';
 
-export type Role = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin';
+export type Role = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin' | 'master';
 
 export interface Principal {
-  uid:   string;
-  email: string;
-  role:  Role;   // primary role (for backward compat — use roles[] for authorization)
-  roles: Role[]; // full additive roles array e.g. ["member","student","leader"]
+  uid:               string;
+  email:             string;
+  role:              Role;   // primary role (for backward compat — use roles[] for authorization)
+  roles:             Role[]; // full additive roles array e.g. ["member","student","leader"]
+  tempReportAccess:  boolean; // temporary org-wide report access granted by super_admin
+  reportsFullAccess: boolean; // org-wide report access granted to a G12 user by super_admin
+  tempMasterAccess:  boolean; // time-limited master-level access for G12 user (computed from expiresAt claim)
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -31,7 +34,7 @@ export function authenticate(options: AuthenticateOptions = {}) {
     const authHeader = req.headers.authorization;
 
     if (!authHeader?.startsWith('Bearer ')) {
-      return next(createHttpError(401, 'UNAUTHENTICATED', 'Authentication required.'));
+      return next(createHttpError(401, 'MISSING_TOKEN', 'Authorization header is missing or malformed.'));
     }
 
     const token = authHeader.slice(7);
@@ -63,11 +66,16 @@ export function authenticate(options: AuthenticateOptions = {}) {
         ));
       }
 
+      const tmaExpiry = decoded.tempMasterAccessExpiresAt as string | undefined;
+
       (req as AuthenticatedRequest).principal = {
-        uid:   decoded.uid,
-        email: decoded.email ?? '',
+        uid:               decoded.uid,
+        email:             decoded.email ?? '',
         role,
         roles,
+        tempReportAccess:  decoded.tempReportAccess  === true,
+        reportsFullAccess: decoded.reportsFullAccess === true,
+        tempMasterAccess:  !!tmaExpiry && new Date(tmaExpiry) > new Date(),
       };
 
       next();
@@ -97,9 +105,12 @@ export function authorize(...roles: Role[]) {
     }
 
     // super_admin — G12 level access + analytics + add/suspend only (no admin CRUD)
+    // master     — G12 level access + org-wide report visibility
     const effectiveRoles: Role[] = principal.roles.includes('super_admin')
       ? ([...new Set([...principal.roles, 'g12', 'leader', 'student', 'member'])] as Role[])
-      : principal.roles;
+      : principal.roles.includes('master')
+        ? (['master', 'g12', 'leader', 'student', 'member'] as Role[])
+        : principal.roles;
 
     const allowed = roles.some(r => effectiveRoles.includes(r));
 

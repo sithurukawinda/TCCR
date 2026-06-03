@@ -47,7 +47,7 @@ export class GetUserSummaryUseCase {
   constructor(private readonly userRepo: IUserRepository) {}
 
   async execute(callerRoles: Role[] = []): Promise<UserSummaryResult> {
-    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin') || callerRoles.includes('master');
 
     // Drain all approved users via internal cursor pagination.
     // Leaders and G12 receive the same scoped view as GET /users — no admin/super_admin profiles.

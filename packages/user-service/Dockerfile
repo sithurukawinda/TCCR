@@ -2,13 +2,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+RUN npm install -g typescript
+
 COPY package*.json ./
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/user-service/package.json ./packages/user-service/package.json
 COPY packages/user-service/tsconfig.json ./packages/user-service/tsconfig.json
 
-RUN npm install --workspace=packages/shared/firebase \
+RUN npm install --include=dev --workspace=packages/shared/firebase \
                 --workspace=packages/shared/logger \
                 --workspace=packages/shared/errors \
                 --workspace=packages/shared/auth-middleware \

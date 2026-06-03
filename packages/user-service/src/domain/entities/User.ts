@@ -1,6 +1,6 @@
 import { createHttpError } from '@shared/errors';
 
-export type UserRole   = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin';
+export type UserRole   = 'member' | 'student' | 'leader' | 'g12' | 'admin' | 'super_admin' | 'master';
 export type UserStatus = 'pending_approval' | 'approved' | 'rejected' | 'suspended';
 
 export interface NotificationPreferences {
@@ -25,6 +25,9 @@ export interface UserProps {
   role:                     UserRole;
   roles:                    UserRole[];
   status:                   UserStatus;
+  tempReportAccess?:        boolean;
+  reportsFullAccess?:       boolean;
+  temporaryMasterAccess?:   { grantedBy: string; grantedAt: string; expiresAt: string; extendedAt?: string } | null;
   profilePhotoUrl:          string | null;
   phoneNumber?:             string | null;
   preferredLanguage?:       string;
@@ -54,6 +57,9 @@ export class User {
   readonly role:               UserRole;
   roles:                       UserRole[];
   status:                      UserStatus;
+  tempReportAccess:            boolean;
+  reportsFullAccess:           boolean;
+  temporaryMasterAccess:       { grantedBy: string; grantedAt: string; expiresAt: string; extendedAt?: string } | null;
   profilePhotoUrl:             string | null;
   phoneNumber:                 string | null;
   preferredLanguage:           string;
@@ -79,6 +85,9 @@ export class User {
     this.role                     = props.role;
     this.roles                    = props.roles;
     this.status                   = props.status;
+    this.tempReportAccess         = props.tempReportAccess      ?? false;
+    this.reportsFullAccess        = props.reportsFullAccess     ?? false;
+    this.temporaryMasterAccess    = props.temporaryMasterAccess ?? null;
     this.profilePhotoUrl          = props.profilePhotoUrl;
     this.phoneNumber              = props.phoneNumber ?? null;
     this.preferredLanguage        = props.preferredLanguage ?? 'en';

@@ -171,8 +171,12 @@ export class CellReportController {
     try {
       const parsed = listReportsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const result = await this.networkReportsUC.execute(parsed.data, uid, roles);
+      const { uid, roles, tempReportAccess, reportsFullAccess, tempMasterAccess } = (req as AuthenticatedRequest).principal;
+      const result = await this.networkReportsUC.execute(
+        { ...parsed.data, tempReportAccess, reportsFullAccess, tempMasterAccess },
+        uid,
+        roles,
+      );
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -187,8 +191,16 @@ export class CellReportController {
     try {
       const parsed = networkSummarySchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const result = await this.networkSummaryUC.execute(uid, roles, parsed.data.month);
+      const { uid, roles, tempReportAccess, reportsFullAccess, tempMasterAccess } = (req as AuthenticatedRequest).principal;
+      const result = await this.networkSummaryUC.execute(uid, roles, {
+        month:             parsed.data.month,
+        from:              parsed.data.from,
+        to:                parsed.data.to,
+        role:              parsed.data.role,
+        tempReportAccess,
+        reportsFullAccess,
+        tempMasterAccess,
+      });
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };

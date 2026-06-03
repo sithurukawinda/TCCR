@@ -11,8 +11,8 @@ export interface MeetingTypesResponse {
 export class GetMeetingTypesUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters): Promise<MeetingTypesResponse> {
-    const scope    = resolveScope(uid, roles, filters);
+  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters, reportsFullAccess?: boolean): Promise<MeetingTypesResponse> {
+    const scope    = resolveScope(uid, roles, filters, reportsFullAccess);
     const snapshot = await this.repo.findLatestByScope(scope);
     const period   = snapshot?.periodKey ?? getISOWeekKey(new Date());
 

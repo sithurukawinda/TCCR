@@ -86,9 +86,17 @@ export const listReportsSchema = z.object({
   cellId:    z.string().optional(),
   /** YYYY-MM — when provided, overrides from/to with the full calendar month */
   month:     z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM').optional(),
+  /** Explicit role scope — g12: own network; master: org-wide (requires master role or active TMA) */
+  role:      z.enum(['g12', 'master']).optional(),
 });
 
 /** Query params for GET /cells/network/summary */
 export const networkSummarySchema = z.object({
-  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM format'),
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'month must be YYYY-MM format').optional(),
+  from:  z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'from must be YYYY-MM-DD').optional(),
+  to:    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'to must be YYYY-MM-DD').optional(),
+  /** Explicit role scope — g12: own network; master: org-wide (requires master role or active TMA) */
+  role:  z.enum(['g12', 'master']).optional(),
+}).refine(d => d.month || (d.from && d.to), {
+  message: 'Provide either month (YYYY-MM) or both from and to (YYYY-MM-DD)',
 });

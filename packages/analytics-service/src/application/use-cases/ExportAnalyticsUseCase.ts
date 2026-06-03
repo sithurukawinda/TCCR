@@ -9,13 +9,14 @@ export class ExportAnalyticsUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
   async execute(
-    chart:    ChartType,
-    uid:      string,
-    roles:    Role[],
-    params:   Record<string, string | undefined>,
-    filters?: AnalyticsFilters,
+    chart:              ChartType,
+    uid:                string,
+    roles:              Role[],
+    params:             Record<string, string | undefined>,
+    filters?:           AnalyticsFilters,
+    reportsFullAccess?: boolean,
   ): Promise<string> {
-    const scope = resolveScope(uid, roles, filters);
+    const scope = resolveScope(uid, roles, filters, reportsFullAccess);
 
     switch (chart) {
       case 'cells-weekly': {

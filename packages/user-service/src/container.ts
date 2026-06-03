@@ -31,7 +31,21 @@ import { UnlinkProviderUseCase }                from './application/use-cases/Un
 import { MeController }                         from './http/controllers/MeController';
 import { UsersController }         from './http/controllers/UsersController';
 import { SuperAdminController }    from './http/controllers/SuperAdminController';
+import { MasterController }        from './http/controllers/MasterController';
 import { InternalController }      from './http/controllers/InternalController';
+import { AssignMasterUseCase }          from './application/use-cases/AssignMasterUseCase';
+import { InviteMasterUseCase }          from './application/use-cases/InviteMasterUseCase';
+import { SuspendMasterUseCase }         from './application/use-cases/SuspendMasterUseCase';
+import { ReactivateMasterUseCase }      from './application/use-cases/ReactivateMasterUseCase';
+import { DeleteMasterUseCase }          from './application/use-cases/DeleteMasterUseCase';
+import { GetMasterUseCase }             from './application/use-cases/GetMasterUseCase';
+import { GrantTempReportAccessUseCase }    from './application/use-cases/GrantTempReportAccessUseCase';
+import { RevokeTempReportAccessUseCase }   from './application/use-cases/RevokeTempReportAccessUseCase';
+import { GrantReportsFullAccessUseCase }   from './application/use-cases/GrantReportsFullAccessUseCase';
+import { RevokeReportsFullAccessUseCase }  from './application/use-cases/RevokeReportsFullAccessUseCase';
+import { GrantTempMasterAccessUseCase }    from './application/use-cases/GrantTempMasterAccessUseCase';
+import { ExtendTempMasterAccessUseCase }   from './application/use-cases/ExtendTempMasterAccessUseCase';
+import { RevokeTempMasterAccessUseCase }   from './application/use-cases/RevokeTempMasterAccessUseCase';
 
 // Infrastructure
 const userRepo      = new FirestoreUserRepository();
@@ -61,6 +75,19 @@ const promoteMember        = new PromoteMemberUseCase(userRepo, authClient, outb
 const demoteMember         = new DemoteMemberUseCase(userRepo, authClient, outbox);
 const deleteUser           = new DeleteUserUseCase(userRepo, authClient);
 const getUserSummary       = new GetUserSummaryUseCase(userRepo);
+const assignMaster         = new AssignMasterUseCase(userRepo, authClient, outbox);
+const inviteMaster         = new InviteMasterUseCase(userRepo, authClient, outbox);
+const suspendMaster        = new SuspendMasterUseCase(userRepo, authClient);
+const reactivateMaster     = new ReactivateMasterUseCase(userRepo, authClient);
+const deleteMaster         = new DeleteMasterUseCase(userRepo, authClient);
+const getMaster            = new GetMasterUseCase(userRepo);
+const grantTempAccess          = new GrantTempReportAccessUseCase(userRepo, authClient);
+const revokeTempAccess         = new RevokeTempReportAccessUseCase(userRepo, authClient);
+const grantReportsFullAccess   = new GrantReportsFullAccessUseCase(userRepo, authClient, outbox);
+const revokeReportsFullAccess  = new RevokeReportsFullAccessUseCase(userRepo, authClient, outbox);
+const grantTempMasterAccess    = new GrantTempMasterAccessUseCase(userRepo, authClient, outbox);
+const extendTempMasterAccess   = new ExtendTempMasterAccessUseCase(userRepo, authClient, outbox);
+const revokeTempMasterAccess   = new RevokeTempMasterAccessUseCase(userRepo, authClient, outbox);
 const registerFcm      = new RegisterFcmTokenUseCase(userRepo);
 const deregisterFcm    = new DeregisterFcmTokenUseCase(userRepo);
 const updateNotifPrefs = new UpdateNotificationPreferencesUseCase(userRepo);
@@ -75,6 +102,7 @@ export const container = {
     linkProvider, unlinkProvider,
   ),
   usersController:      new UsersController(getUsers, getUserById, suspendUser, reactivate, addRole, removeRole, createUserDirectly, promoteMember, demoteMember, deleteUser, getUserSummary),
-  superAdminController: new SuperAdminController(createAdmin, deleteAdmin, getUsers, getUserById, suspendUser, reactivate, promoteToAdmin),
+  superAdminController: new SuperAdminController(createAdmin, deleteAdmin, getUsers, getUserById, suspendUser, reactivate, promoteToAdmin, grantReportsFullAccess, revokeReportsFullAccess, grantTempMasterAccess, extendTempMasterAccess, revokeTempMasterAccess),
+  masterController:     new MasterController(assignMaster, inviteMaster, suspendMaster, reactivateMaster, deleteMaster, getMaster, grantTempAccess, revokeTempAccess),
   internalController:   new InternalController(checkEmail, approveUser, getUsers, addRole, removeRole, getUserById),
 };

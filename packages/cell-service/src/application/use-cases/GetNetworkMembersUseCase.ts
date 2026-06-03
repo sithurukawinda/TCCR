@@ -38,19 +38,20 @@ export class GetNetworkMembersUseCase {
 
   async execute(callerUid: string, callerRoles: Role[]): Promise<NetworkMembersResult> {
     const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isMaster = callerRoles.includes('master');
     const isG12    = callerRoles.includes('g12');
     const isLeader = callerRoles.includes('leader');
 
-    if (!isAdmin && !isG12 && !isLeader) {
+    if (!isAdmin && !isMaster && !isG12 && !isLeader) {
       throw createHttpError(
         403,
         'FORBIDDEN',
-        'Only G12 leaders, cell leaders, admin, and super_admin can access network members.',
+        'Only G12 leaders, cell leaders, admin, super_admin, and master can access network members.',
       );
     }
 
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
-    if (!isAdmin && !isG12) {
+    if (!isAdmin && !isMaster && !isG12) {
       cellFilter = { leaderUid: callerUid };
     }
 

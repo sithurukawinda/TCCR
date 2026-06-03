@@ -93,28 +93,52 @@ export class GetNetworkSummaryUseCase {
   async execute(
     callerUid:   string,
     callerRoles: Role[],
-    month:       string,
+    opts: { month?: string; from?: string; to?: string; tempReportAccess?: boolean; reportsFullAccess?: boolean; role?: string; tempMasterAccess?: boolean },
   ): Promise<NetworkSummaryResult> {
-    const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
-    const isG12    = callerRoles.includes('g12');
-    const isLeader = callerRoles.includes('leader');
+    const month = opts.month;
+    const isAdmin              = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isMaster             = callerRoles.includes('master');
+    const isG12                = callerRoles.includes('g12');
+    const isLeader             = callerRoles.includes('leader');
+    const hasTempAccess        = opts.tempReportAccess  === true;
+    const hasReportsFullAccess = opts.reportsFullAccess === true;
+    const hasTempMaster        = opts.tempMasterAccess  === true;
+    const hasActiveMaster      = isMaster || hasTempMaster;
+    const requestedRole        = opts.role;
 
-    if (!isAdmin && !isG12 && !isLeader) {
-      throw createHttpError(403, 'FORBIDDEN', 'Only G12 leaders, cell leaders, and admins can view network summaries.');
+    if (!isAdmin && !isMaster && !isG12 && !isLeader && !hasTempAccess) {
+      throw createHttpError(403, 'FORBIDDEN', 'Only G12 leaders, cell leaders, admins, and users with temporary report access can view network summaries.');
     }
 
     // ── 1. Resolve scope ───────────────────────────────────────────────────────
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
-    if (!isAdmin && !isG12) {
-      // G12 — org-wide read access (same as admin); leader still scoped to own cell
-      cellFilter = { leaderUid: callerUid };
+
+    if (requestedRole === 'master') {
+      // Explicit master scope — requires master role or active Temporary Master Access
+      if (!hasActiveMaster) {
+        throw createHttpError(403, 'FORBIDDEN', '?role=master requires the Master role or active Temporary Master Access.');
+      }
+      cellFilter = {};
+    } else if (requestedRole === 'g12') {
+      // Explicit G12 scope — requires G12 role
+      if (!isG12) {
+        throw createHttpError(403, 'FORBIDDEN', '?role=g12 requires the G12 role.');
+      }
+      cellFilter = { g12LeaderUid: callerUid };
+    } else {
+      // No explicit ?role= — existing auto-detect behavior (unchanged)
+      const hasFullAccess = isAdmin || isMaster || hasTempAccess || hasReportsFullAccess;
+      if (!hasFullAccess && isG12)    cellFilter = { g12LeaderUid: callerUid };
+      if (!hasFullAccess && isLeader) cellFilter = { leaderUid: callerUid };
     }
 
     const cellResult = await this.cellRepo.findAll({ limit: 100, state: 'active', ...cellFilter });
     const cells      = cellResult.items;
 
-    // ── 2. Resolve date range from month ──────────────────────────────────────
-    const { from, to } = monthToDateRange(month);
+    // ── 2. Resolve date range — explicit from/to takes priority over month ────
+    const { from, to } = opts.from && opts.to
+      ? { from: opts.from, to: opts.to }
+      : monthToDateRange(month!);
 
     // ── 3. Fetch all non-voided reports for the period per cell ───────────────
     const reportPages = await Promise.all(
@@ -242,9 +266,11 @@ export class GetNetworkSummaryUseCase {
     }));
 
     // ── 11. Assemble result ───────────────────────────────────────────────────
+    const periodLabel = month ? monthLabel(month) : `${from} – ${to}`;
+    const periodKey   = month ?? `${from}/${to}`;
     return {
-      period: monthLabel(month),
-      month,
+      period: periodLabel,
+      month:  periodKey,
       scope: {
         totalCells:   cells.length,
         totalLeaders: new Set(cells.map(c => c.leaderUid)).size,

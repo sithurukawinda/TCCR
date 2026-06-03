@@ -22,6 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   leader: 'Cell Leader',
   g12:    'G12 Leader',
   admin:  'Admin',
+  master: 'Master',
 };
 
 export class AdminCreatedHandler {
@@ -45,10 +46,10 @@ export class AdminCreatedHandler {
     }
 
     const roleLabel = (payload.role && ROLE_LABELS[payload.role]) ?? 'Admin';
-    const isLeaderOrG12 = payload.role === 'leader' || payload.role === 'g12';
+    const isLeaderOrG12OrMaster = payload.role === 'leader' || payload.role === 'g12' || payload.role === 'master';
 
-    // New account creation — leader / g12: dedicated welcome email with credentials + verify + reset link
-    if (isLeaderOrG12) {
+    // New account creation — leader / g12 / master: dedicated welcome email with credentials + verify + reset link
+    if (isLeaderOrG12OrMaster) {
       const subject = `Your ${roleLabel} Account has been Created — TCCR`;
 
       const verifySection = payload.verificationLink

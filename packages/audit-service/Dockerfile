@@ -1,10 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN npm install -g typescript
 COPY package*.json tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/audit-service/package.json ./packages/audit-service/package.json
 COPY packages/audit-service/tsconfig.json ./packages/audit-service/tsconfig.json
-RUN npm install --workspace=packages/shared/firebase --workspace=packages/shared/logger \
+RUN npm install --include=dev --workspace=packages/shared/firebase --workspace=packages/shared/logger \
     --workspace=packages/shared/errors --workspace=packages/shared/auth-middleware \
     --workspace=packages/shared/response --workspace=packages/shared/health \
     --workspace=packages/audit-service

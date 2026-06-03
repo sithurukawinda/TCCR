@@ -41,29 +41,30 @@ describe('authenticate()', () => {
     await authenticate()(req, res, next);
 
     expect((req as AuthenticatedRequest).principal).toEqual({
-      uid:   'user-1',
-      email: 'test@example.com',
-      role:  'student',
-      roles: ['student'],
+      uid:              'user-1',
+      email:            'test@example.com',
+      role:             'student',
+      roles:            ['student'],
+      tempReportAccess: false,
     });
     expect(next).toHaveBeenCalledWith();
   });
 
-  it('calls next(401 UNAUTHENTICATED) when Authorization header is missing', async () => {
+  it('calls next(401 MISSING_TOKEN) when Authorization header is missing', async () => {
     const req = makeReq();
     await authenticate()(req, res, next);
 
     expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 401, errorCode: 'UNAUTHENTICATED' }),
+      expect.objectContaining({ status: 401, errorCode: 'MISSING_TOKEN' }),
     );
   });
 
-  it('calls next(401 UNAUTHENTICATED) when header does not start with Bearer', async () => {
+  it('calls next(401 MISSING_TOKEN) when header does not start with Bearer', async () => {
     const req = makeReq('Basic sometoken');
     await authenticate()(req, res, next);
 
     expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 401, errorCode: 'UNAUTHENTICATED' }),
+      expect.objectContaining({ status: 401, errorCode: 'MISSING_TOKEN' }),
     );
   });
 

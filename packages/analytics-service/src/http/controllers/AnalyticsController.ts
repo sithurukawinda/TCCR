@@ -32,10 +32,10 @@ export class AnalyticsController {
     try {
       const parsed = weeklyCellsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { weeks, g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
-      const result = await this.weeklyCellsUC.execute(uid, roles, weeks, filters);
+      const result = await this.weeklyCellsUC.execute(uid, roles, weeks, filters, reportsFullAccess);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -44,10 +44,10 @@ export class AnalyticsController {
     try {
       const parsed = attendanceSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { from, to, g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
-      const result = await this.attendanceUC.execute(uid, roles, from, to, filters);
+      const result = await this.attendanceUC.execute(uid, roles, from, to, filters, reportsFullAccess);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -56,10 +56,10 @@ export class AnalyticsController {
     try {
       const parsed = meetingTypesSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
-      const result = await this.meetingTypesUC.execute(uid, roles, filters);
+      const result = await this.meetingTypesUC.execute(uid, roles, filters, reportsFullAccess);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -68,10 +68,10 @@ export class AnalyticsController {
     try {
       const parsed = growthSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { from, to, g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
-      const result = await this.growthUC.execute(uid, roles, from, to, filters);
+      const result = await this.growthUC.execute(uid, roles, from, to, filters, reportsFullAccess);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -80,10 +80,10 @@ export class AnalyticsController {
     try {
       const parsed = participationSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
-      const result = await this.participationUC.execute(uid, roles, filters);
+      const result = await this.participationUC.execute(uid, roles, filters, reportsFullAccess);
       sendSuccess(res, result);
     } catch (err) { next(err); }
   };
@@ -93,12 +93,12 @@ export class AnalyticsController {
       const chart  = req.params.chart as ChartType;
       const parsed = exportSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const { uid, roles, reportsFullAccess } = (req as AuthenticatedRequest).principal;
       const { from, to, weeks, g12Uid, leaderUid, cellType } = parsed.data;
       const filters: AnalyticsFilters = { g12Uid, leaderUid, cellType };
       const csv = await this.exportUC.execute(chart, uid, roles, {
         from, to, weeks: String(weeks),
-      }, filters);
+      }, filters, reportsFullAccess);
       res.setHeader('Content-Type', 'text/csv');
       res.setHeader('Content-Disposition', `attachment; filename="analytics-${chart}-export.csv"`);
       res.status(200).send(csv);

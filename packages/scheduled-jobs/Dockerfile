@@ -1,10 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN npm install -g typescript
 COPY package*.json tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/scheduled-jobs/package.json ./packages/scheduled-jobs/package.json
 COPY packages/scheduled-jobs/tsconfig.json ./packages/scheduled-jobs/tsconfig.json
-RUN npm install --workspace=packages/shared/firebase --workspace=packages/shared/logger \
+RUN npm install --include=dev --workspace=packages/shared/firebase --workspace=packages/shared/logger \
     --workspace=packages/shared/events \
     --workspace=packages/scheduled-jobs
 RUN npm run build --workspace=packages/shared/logger \

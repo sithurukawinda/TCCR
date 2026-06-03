@@ -13,7 +13,10 @@ export function tryAuthenticate() {
       const role    = decoded.role as 'student' | 'admin' | 'super_admin' | undefined;
       if (role) {
         const roles = (decoded.roles as typeof role[] | undefined) ?? [role];
-        (req as AuthenticatedRequest).principal = { uid: decoded.uid, email: decoded.email ?? '', role, roles };
+        (req as AuthenticatedRequest).principal = {
+          uid: decoded.uid, email: decoded.email ?? '', role, roles,
+          tempReportAccess: decoded.tempReportAccess === true,
+        };
       }
     } catch { /* ignore bad tokens on public routes */ }
     next();

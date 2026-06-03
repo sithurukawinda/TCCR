@@ -32,7 +32,8 @@ export class GetCellsUseCase {
 
   async execute(opts: CellGroupListOptions, callerUid: string, callerRoles: Role[]): Promise<CellGroupListResultEnriched> {
     const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
-    const isG12    = callerRoles.includes('g12');
+    const isMaster = callerRoles.includes('master');
+    const isG12    = callerRoles.includes('g12') || isMaster;
     const isLeader = callerRoles.includes('leader');
 
     let result;
