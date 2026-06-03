@@ -1,7 +1,8 @@
-import express    from 'express';
-import helmet     from 'helmet';
-import cors       from 'cors';
-import { Router } from 'express';
+import express     from 'express';
+import helmet      from 'helmet';
+import cors        from 'cors';
+import compression from 'compression';
+import { Router }  from 'express';
 import { httpLogger }   from '@shared/logger';
 import { requestId }    from './middleware/requestId';
 import { generalLimiter, authLimiter } from './middleware/rateLimiter';
@@ -19,6 +20,7 @@ export const app = express();
 app.set('trust proxy', 1);
 
 app.use(helmet());
+app.use(compression());
 app.use(cors({
   origin: config.allowedOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -42,6 +42,14 @@ export class CourseController {
 
       const cacheKey = JSON.stringify({ isAdmin, ...parsed.data });
       const cached   = CourseController.listCache.get(cacheKey);
+
+      // Admin responses contain draft/archived courses — keep those private.
+      // Public responses are safe for CDN/browser caching; TTL matches the in-process cache.
+      const cacheControl = isAdmin
+        ? 'private, max-age=30'
+        : 'public, max-age=30, stale-while-revalidate=10';
+      res.set('Cache-Control', cacheControl);
+
       if (cached) return sendPaginated(res, cached.items, cached.nextCursor, cached.total);
 
       let result: CourseListResult;
