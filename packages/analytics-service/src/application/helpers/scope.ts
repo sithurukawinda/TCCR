@@ -21,21 +21,30 @@ export interface AnalyticsFilters {
  *   "g12:{uid}"  + cellType=care  → "g12:{uid}|care"
  *   "leader:{uid}" + cellType=care → "leader:{uid}|care"
  */
-export function resolveScope(uid: string, roles: Role[], filters?: AnalyticsFilters): string {
+export function resolveScope(
+  uid:               string,
+  roles:             Role[],
+  filters?:          AnalyticsFilters,
+  reportsFullAccess?: boolean,
+): string {
   let base: string;
 
-  const isAdmin = roles.includes('admin') || roles.includes('super_admin');
+  const isAdmin = roles.includes('admin') || roles.includes('super_admin') || roles.includes('master');
   const isG12   = roles.includes('g12');
 
-  if (filters?.leaderUid && (isAdmin || isG12)) {
-    // Admin or G12 narrowing down to a specific cell leader
+  // G12 with REPORTS_FULL_ACCESS gets org-wide scope identical to admin/master
+  const effectiveAdmin = isAdmin || (isG12 && reportsFullAccess === true);
+
+  if (filters?.leaderUid && (effectiveAdmin || isG12)) {
+    // Admin / elevated-G12 / standard-G12 narrowing to a specific leader
     base = `leader:${filters.leaderUid}`;
-  } else if (filters?.g12Uid && isAdmin) {
-    // Admin narrowing down to a specific G12 supervisor's network
+  } else if (filters?.g12Uid && effectiveAdmin) {
+    // Admin narrowing to a specific G12 network
     base = `g12:${filters.g12Uid}`;
-  } else if (isAdmin) {
+  } else if (effectiveAdmin) {
     base = 'org';
   } else if (isG12) {
+    // Standard G12 — own network only
     base = `g12:${uid}`;
   } else {
     base = `leader:${uid}`;

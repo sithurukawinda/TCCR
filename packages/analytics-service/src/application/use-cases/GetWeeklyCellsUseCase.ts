@@ -17,12 +17,13 @@ export class GetWeeklyCellsUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
   async execute(
-    uid:     string,
-    roles:   Role[],
-    weeks:   number,
-    filters?: AnalyticsFilters,
+    uid:               string,
+    roles:             Role[],
+    weeks:             number,
+    filters?:          AnalyticsFilters,
+    reportsFullAccess?: boolean,
   ): Promise<WeeklyCellsResponse> {
-    const scope    = resolveScope(uid, roles, filters);
+    const scope    = resolveScope(uid, roles, filters, reportsFullAccess);
     const weekKeys = lastNWeekKeys(Math.min(weeks, 52));
     const from     = weekKeys[0];
     const to       = weekKeys[weekKeys.length - 1];

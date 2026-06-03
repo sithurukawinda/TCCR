@@ -232,6 +232,39 @@ const signInFolder = folder('🔐 Sign In', [
   signInRequestDual('Student 2 (approved) Sign In', 'student2@cmp.com', 'Student2@123', 'student2Token', 'student2Id', 'studentToken'),
   signInRequest('Leader Sign In', 'leader@cmp.com', 'Leader@12345', 'leaderToken', 'leaderId'),
   signInRequest('G12 Sign In',    'g12leader@cmp.com', 'G12Lead@123', 'g12Token',  'g12Id'),
+
+  // Master sign-in — email/password set at invite time (POST /master/invite).
+  // masterToken is optional: 400 means no master seeded yet — token stays empty.
+  buildRequest({
+    name: 'Master Sign In (optional — skipped if no master seeded)',
+    method: 'POST',
+    url: {
+      raw:   '{{authBaseUrl}}/accounts:signInWithPassword?key={{firebaseWebApiKey}}',
+      host:  ['{{authBaseUrl}}'],
+      path:  ['accounts:signInWithPassword'],
+      query: [{ key: 'key', value: '{{firebaseWebApiKey}}' }],
+    },
+    auth: noAuth(),
+    headers: jsonHeader(),
+    body: jsonBody({
+      email:             '{{masterEmail}}',
+      password:          '{{masterPassword}}',
+      returnSecureToken: true,
+    }),
+    tests: [
+      `// 200 = master exists and credentials are correct`,
+      `// 400 = no master seeded yet OR wrong credentials — masterToken stays unset`,
+      `pm.test("200 or 400 — Master Sign In (400 = not seeded yet)", () => {`,
+      `  pm.expect([200, 400]).to.include(pm.response.code);`,
+      `});`,
+      `const j = pm.response.json();`,
+      `if (pm.response.code === 200 && j.idToken) {`,
+      `  pm.environment.set("masterToken", j.idToken);`,
+      `  pm.environment.set("masterId",    j.localId);`,
+      `  pm.test("masterToken stored", () => pm.expect(j.idToken).to.be.a("string").and.not.empty);`,
+      `}`,
+    ],
+  }),
 ]);
 
 // ---------------------------------------------------------------------------
@@ -1341,6 +1374,543 @@ const superAdminFolder = folder('4️⃣ User Service — Super Admin', [
     url: { raw: '{{baseUrl}}/super-admin/admins/{{promotedAdminId}}' },
     auth: bearerAuth('superAdminToken'),
     tests: [`pm.test("204 No Content — Delete Admin", () => pm.response.to.have.status(204));`],
+  }),
+
+  // ── REPORTS_FULL_ACCESS — grant permanent org-wide report access to a G12 ──
+  buildRequest({
+    name: 'Grant REPORTS_FULL_ACCESS to G12 (g12Id)',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/reports-full-access' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Grants permanent org-wide report access to a G12 user. No expiry — revoke explicitly. API ref Report_Access_Control_API.md',
+    tests: [
+      `pm.test("200 OK — REPORTS_FULL_ACCESS granted", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms granted", () => pm.expect(j.message).to.include("granted"));`,
+      `pm.test("uid matches g12Id", () => pm.expect(j.uid).to.equal(pm.environment.get("g12Id")));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Revoke REPORTS_FULL_ACCESS from G12 (g12Id)',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/reports-full-access' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Revokes permanent org-wide report access from a G12 user.',
+    tests: [
+      `pm.test("200 OK — REPORTS_FULL_ACCESS revoked", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms revoked", () => pm.expect(j.message).to.include("revoked"));`,
+    ],
+  }),
+
+  // ── TEMPORARY MASTER ACCESS — time-limited master-level report access for G12 ──
+  buildRequest({
+    name: 'Grant Temporary Master Access to G12 (g12Id)',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    description: 'Grants time-limited master-level report access. G12 user can then call ?role=master on network endpoints. API ref Report_Access_Control_API.md',
+    body: jsonBody({ expiresAt: '2099-12-31T23:59:59.000Z' }),
+    tests: [
+      `pm.test("200 OK — Temp Master Access granted", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms granted", () => pm.expect(j.message).to.include("granted"));`,
+      `pm.test("uid matches g12Id", () => pm.expect(j.uid).to.equal(pm.environment.get("g12Id")));`,
+      `pm.test("expiresAt is returned", () => pm.expect(j.expiresAt).to.be.a("string").and.not.empty);`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Grant TMA — past expiresAt → 400 INVALID_EXPIRY',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    description: 'expiresAt must be a future timestamp — past date returns 400.',
+    body: jsonBody({ expiresAt: '2020-01-01T00:00:00.000Z' }),
+    tests: [
+      `pm.test("400 — INVALID_EXPIRY for past date", () => pm.response.to.have.status(400));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is INVALID_EXPIRY", () => pm.expect(j.error.code).to.equal("INVALID_EXPIRY"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Grant TMA — admin caller → 403 FORBIDDEN',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('adminToken'),
+    headers: jsonHeader(),
+    description: 'Only super_admin can grant TMA — admin gets 403.',
+    body: jsonBody({ expiresAt: '2099-12-31T23:59:59.000Z' }),
+    tests: [
+      `pm.test("403 — admin cannot grant TMA", () => pm.response.to.have.status(403));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Extend Temporary Master Access (g12Id)',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    description: 'Extends the expiry of an existing TMA grant. previousExpiresAt is recorded in the audit log.',
+    body: jsonBody({ expiresAt: '2099-12-31T23:59:59.000Z' }),
+    tests: [
+      `pm.test("200 OK — Temp Master Access extended", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms extended", () => pm.expect(j.message).to.include("extended"));`,
+      `pm.test("uid matches g12Id", () => pm.expect(j.uid).to.equal(pm.environment.get("g12Id")));`,
+      `pm.test("expiresAt is returned", () => pm.expect(j.expiresAt).to.be.a("string").and.not.empty);`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Extend TMA — no existing TMA → 400 NO_TEMP_ACCESS',
+    method: 'PATCH',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{student2Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    description: 'Cannot extend TMA for a user who was never granted one — returns 400.',
+    body: jsonBody({ expiresAt: '2099-12-31T23:59:59.000Z' }),
+    tests: [
+      `pm.test("400 — NO_TEMP_ACCESS (no existing TMA)", () => pm.response.to.have.status(400));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is NO_TEMP_ACCESS", () => pm.expect(j.error.code).to.equal("NO_TEMP_ACCESS"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Revoke Temporary Master Access (g12Id)',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Revokes TMA. G12 user reverts to standard own-network access on next token refresh.',
+    tests: [
+      `pm.test("200 OK — Temp Master Access revoked", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms revoked", () => pm.expect(j.message).to.include("revoked"));`,
+      `pm.test("uid matches g12Id", () => pm.expect(j.uid).to.equal(pm.environment.get("g12Id")));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Revoke TMA — already revoked → 400 NO_TEMP_ACCESS',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/super-admin/g12/{{g12Id}}/temp-master-access' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'Revoking TMA that no longer exists returns 400 NO_TEMP_ACCESS.',
+    tests: [
+      `pm.test("400 — NO_TEMP_ACCESS (already revoked)", () => pm.response.to.have.status(400));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is NO_TEMP_ACCESS", () => pm.expect(j.error.code).to.equal("NO_TEMP_ACCESS"));`,
+    ],
+  }),
+]);
+
+// ---------------------------------------------------------------------------
+// 🔑 MASTER ROLE MANAGEMENT (Super Admin only)
+// ---------------------------------------------------------------------------
+
+const masterRoleFolder = folder('🔑 Master Role Management', [
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 1 — Pre-flight: check if a master already exists.
+  //   If one is found, store the uid so Step 2 can delete them.
+  //   This ensures every test run starts from a clean, known state.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '1. Pre-flight — Get Current Master (check slot)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/master' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("response is user object or empty-state object", () => {`,
+      `  pm.expect(typeof j).to.equal("object");`,
+      `});`,
+      `// Store uid if a master exists — Step 2 will hard-delete them`,
+      `if (j && j.uid) {`,
+      `  pm.environment.set("masterUid", j.uid);`,
+      `  pm.test("existing master has master role", () => pm.expect(j.roles).to.include("master"));`,
+      `} else {`,
+      `  pm.environment.set("masterUid", "");`,
+      `}`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 2 — Pre-flight cleanup: delete existing master if found.
+  //   204 = deleted (slot is now free).
+  //   404 = no master existed (slot was already free) — both are fine.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '2. Pre-flight — Delete Existing Master (free the slot)',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `// 204 = deleted; 404 = no master was set (masterUid empty or not found) — both mean slot is free`,
+      `pm.test("204 or 404 — slot is now free", () => {`,
+      `  pm.expect([204, 404]).to.include(pm.response.code);`,
+      `});`,
+      `pm.environment.set("masterUid", "");`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 3 — Invite a brand-new master user.
+  //   Uses environment variables:
+  //     {{masterFirstName}}  e.g. "John"
+  //     {{masterLastName}}   e.g. "Doe"
+  //     {{masterEmail}}      e.g. "john@tccr.lk"
+  //     {{masterPassword}}   e.g. "MyPass@2026!"
+  //   Set these in your environment before running this folder.
+  //   201 = master created; roles = ["member","master"].
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '3. Invite New Master — 201 Created',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/invite' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    body: jsonBody({
+      firstName:       '{{masterFirstName}}',
+      lastName:        '{{masterLastName}}',
+      email:           '{{masterEmail}}',
+      initialPassword: '{{masterPassword}}',
+    }),
+    tests: [
+      `// Validate that required env vars are set before asserting`,
+      `pm.test("masterEmail env var is set", () => {`,
+      `  pm.expect(pm.environment.get("masterEmail")).to.be.a("string").and.not.empty;`,
+      `});`,
+      `pm.test("masterPassword env var is set", () => {`,
+      `  pm.expect(pm.environment.get("masterPassword")).to.be.a("string").and.not.empty;`,
+      `});`,
+      `pm.test("masterFirstName env var is set", () => {`,
+      `  pm.expect(pm.environment.get("masterFirstName")).to.be.a("string").and.not.empty;`,
+      `});`,
+      `pm.test("201 Created — master invited", () => pm.response.to.have.status(201));`,
+      `const j = pm.response.json();`,
+      `pm.test("firstName matches input", () => pm.expect(j.firstName).to.equal(pm.environment.get("masterFirstName")));`,
+      `pm.test("lastName matches input", () => pm.expect(j.lastName).to.equal(pm.environment.get("masterLastName")));`,
+      `pm.test("email matches input", () => pm.expect(j.email).to.equal(pm.environment.get("masterEmail")));`,
+      `pm.test("roles contains master", () => pm.expect(j.roles).to.include("master"));`,
+      `pm.test("roles contains member", () => pm.expect(j.roles).to.include("member"));`,
+      `pm.test("status is approved", () => pm.expect(j.status).to.equal("approved"));`,
+      `pm.test("uid present", () => pm.expect(j.uid).to.be.a("string").and.not.empty);`,
+      `pm.test("tempReportAccess is false by default", () => pm.expect(j.tempReportAccess).to.equal(false));`,
+      `// Store uid for subsequent steps`,
+      `pm.environment.set("masterUid", j.uid);`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 4 — GET /master — verify the created master is returned.
+  //   Checks name, email, roles and uid all match what was submitted.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '4. Verify Master Created — GET /master matches submitted credentials',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/master' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("master exists — not null", () => pm.expect(j).to.not.equal(null));`,
+      `pm.test("uid matches created master", () => pm.expect(j.uid).to.equal(pm.environment.get("masterUid")));`,
+      `pm.test("firstName matches", () => pm.expect(j.firstName).to.equal(pm.environment.get("masterFirstName")));`,
+      `pm.test("lastName matches", () => pm.expect(j.lastName).to.equal(pm.environment.get("masterLastName")));`,
+      `pm.test("email matches", () => pm.expect(j.email).to.equal(pm.environment.get("masterEmail")));`,
+      `pm.test("roles = [member, master]", () => {`,
+      `  pm.expect(j.roles).to.include("master");`,
+      `  pm.expect(j.roles).to.include("member");`,
+      `});`,
+      `pm.test("status is approved", () => pm.expect(j.status).to.equal("approved"));`,
+      `pm.test("tempReportAccess is false", () => pm.expect(j.tempReportAccess).to.equal(false));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 4b — Login check: verify the master can sign in with the
+  //   credentials supplied at invite time (email + password).
+  //   Uses Firebase Identity Toolkit directly — same as all sign-ins.
+  //   200 = login works; stores masterToken for downstream requests.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '4b. Login Check — Master signs in with created credentials',
+    method: 'POST',
+    url: {
+      raw:   '{{authBaseUrl}}/accounts:signInWithPassword?key={{firebaseWebApiKey}}',
+      host:  ['{{authBaseUrl}}'],
+      path:  ['accounts:signInWithPassword'],
+      query: [{ key: 'key', value: '{{firebaseWebApiKey}}' }],
+    },
+    auth: noAuth(),
+    headers: jsonHeader(),
+    body: jsonBody({
+      email:             '{{masterEmail}}',
+      password:          '{{masterPassword}}',
+      returnSecureToken: true,
+    }),
+    tests: [
+      `pm.test("200 OK — master login successful with created credentials", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("idToken received", () => pm.expect(j.idToken).to.be.a("string").and.not.empty);`,
+      `pm.test("localId matches masterUid", () => pm.expect(j.localId).to.equal(pm.environment.get("masterUid")));`,
+      `pm.test("email matches", () => pm.expect(j.email).to.equal(pm.environment.get("masterEmail")));`,
+      `// Store token so master can make authenticated API calls`,
+      `pm.environment.set("masterToken", j.idToken);`,
+      `pm.environment.set("masterId",    j.localId);`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 4c — API check: verify the master token works on a real
+  //   authenticated endpoint. GET /me returns the master's own profile.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '4c. API Check — Master token works on GET /me',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/me' },
+    auth: bearerAuth('masterToken'),
+    tests: [
+      `pm.test("200 OK — master token is valid", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("uid matches master", () => pm.expect(j.uid).to.equal(pm.environment.get("masterUid")));`,
+      `pm.test("email matches", () => pm.expect(j.email).to.equal(pm.environment.get("masterEmail")));`,
+      `pm.test("roles contains master", () => pm.expect(j.roles).to.include("master"));`,
+      `pm.test("firstName matches", () => pm.expect(j.firstName).to.equal(pm.environment.get("masterFirstName")));`,
+      `pm.test("lastName matches", () => pm.expect(j.lastName).to.equal(pm.environment.get("masterLastName")));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 5 — SINGLETON GUARD: Invite again while master is ACTIVE.
+  //   Must return 409 MASTER_ALREADY_EXISTS.
+  //   This is the core system constraint — only ONE master allowed.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '5. Singleton Guard — Invite blocked while active master exists (409)',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/invite' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    body: jsonBody({
+      firstName:       'Second',
+      lastName:        'Master',
+      email:           'master2{{runId}}@tccr.lk',
+      initialPassword: 'Master@Tccr2026!',
+    }),
+    tests: [
+      `pm.test("409 — MASTER_ALREADY_EXISTS (cannot add a second master)", () => pm.response.to.have.status(409));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is MASTER_ALREADY_EXISTS", () => pm.expect(j.error.code).to.equal("MASTER_ALREADY_EXISTS"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 6 — SINGLETON GUARD: Assign while master is ACTIVE.
+  //   Must return 409 MASTER_ALREADY_EXISTS.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '6. Singleton Guard — Assign blocked while active master exists (409)',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/assign' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    body: jsonBody({ uid: '{{student2Id}}' }),
+    tests: [
+      `pm.test("409 — MASTER_ALREADY_EXISTS (cannot assign second master)", () => pm.response.to.have.status(409));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is MASTER_ALREADY_EXISTS", () => pm.expect(j.error.code).to.equal("MASTER_ALREADY_EXISTS"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 7 — Suspend the master.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '7. Suspend Master — 200 status becomes suspended',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}/suspend' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK — master suspended", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("status is suspended", () => pm.expect(j.status).to.equal("suspended"));`,
+      `pm.test("uid unchanged", () => pm.expect(j.uid).to.equal(pm.environment.get("masterUid")));`,
+      `pm.test("roles still contains master", () => pm.expect(j.roles).to.include("master"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 8 — SINGLETON GUARD: Invite while master is SUSPENDED.
+  //   A suspended master still occupies the slot → 409.
+  //   This is the critical edge case: slot is blocked even when suspended.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '8. Singleton Guard — Invite blocked while master is SUSPENDED (409)',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/invite' },
+    auth: bearerAuth('superAdminToken'),
+    headers: jsonHeader(),
+    body: jsonBody({
+      firstName:       'Another',
+      lastName:        'Master',
+      email:           'master3{{runId}}@tccr.lk',
+      initialPassword: 'Master@Tccr2026!',
+    }),
+    tests: [
+      `pm.test("409 — suspended master still blocks new invite", () => pm.response.to.have.status(409));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is MASTER_ALREADY_EXISTS", () => pm.expect(j.error.code).to.equal("MASTER_ALREADY_EXISTS"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 9 — Suspend again → 409 ALREADY_SUSPENDED.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '9. Suspend Again — 409 ALREADY_SUSPENDED',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}/suspend' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("409 — ALREADY_SUSPENDED (cannot suspend twice)", () => pm.response.to.have.status(409));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is ALREADY_SUSPENDED", () => pm.expect(j.error.code).to.equal("ALREADY_SUSPENDED"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 10 — Reactivate the suspended master.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '10. Reactivate Master — 200 status becomes approved',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}/reactivate' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK — master reactivated", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("status is approved", () => pm.expect(j.status).to.equal("approved"));`,
+      `pm.test("uid unchanged", () => pm.expect(j.uid).to.equal(pm.environment.get("masterUid")));`,
+      `pm.test("roles still contains master", () => pm.expect(j.roles).to.include("master"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 11 — Reactivate again → 409 NOT_SUSPENDED.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '11. Reactivate Again — 409 NOT_SUSPENDED',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}/reactivate' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("409 — NOT_SUSPENDED (cannot reactivate active master)", () => pm.response.to.have.status(409));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is NOT_SUSPENDED", () => pm.expect(j.error.code).to.equal("NOT_SUSPENDED"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 12 — Grant temp report access to student2 (set by Sign In).
+  //   This does NOT assign master role — just sets tempReportAccess=true.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '12. Grant Temp Report Access — tempReportAccess becomes true',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/temp-access/{{student2Id}}' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK — temp access granted", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms access granted", () => pm.expect(j.message).to.be.a("string").and.include("granted"));`,
+      `pm.test("uid matches student2", () => pm.expect(j.uid).to.equal(pm.environment.get("student2Id")));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 13 — Grant temp access to a user who already IS a master → 400 ALREADY_MASTER.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '13. Grant Temp Access to Master User — 400 ALREADY_MASTER',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/master/temp-access/{{masterUid}}' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("400 — ALREADY_MASTER (master user does not need temp access)", () => pm.response.to.have.status(400));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is ALREADY_MASTER", () => pm.expect(j.error.code).to.equal("ALREADY_MASTER"));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 14 — Revoke temp report access from student2.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '14. Revoke Temp Report Access — tempReportAccess becomes false',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/master/temp-access/{{student2Id}}' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK — temp access revoked", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("message confirms access revoked", () => pm.expect(j.message).to.be.a("string").and.include("revoked"));`,
+      `pm.test("uid matches student2", () => pm.expect(j.uid).to.equal(pm.environment.get("student2Id")));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 15 — Auth guard: admin token on /master → 403 FORBIDDEN.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '15. Auth Guard — Admin cannot access /master (403)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/master' },
+    auth: bearerAuth('adminToken'),
+    tests: [
+      `pm.test("403 — admin role cannot access master endpoints", () => pm.response.to.have.status(403));`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 16 — Cleanup: hard-delete the master created in this run.
+  //   204 = deleted; 404 = already gone — both are acceptable.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '16. Cleanup — Hard Delete Master (204)',
+    method: 'DELETE',
+    url: { raw: '{{baseUrl}}/master/{{masterUid}}' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("204 — master permanently deleted", () => pm.response.to.have.status(204));`,
+      `pm.environment.unset("masterUid");`,
+    ],
+  }),
+
+  // ─────────────────────────────────────────────────────────────────
+  // STEP 17 — Post-cleanup: GET /master must return null.
+  //   Confirms the slot is free and no master record remains.
+  // ─────────────────────────────────────────────────────────────────
+  buildRequest({
+    name: '17. Post-cleanup — Get Master returns null (slot empty)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/master' },
+    auth: bearerAuth('superAdminToken'),
+    tests: [
+      `pm.test("200 OK", () => pm.response.to.have.status(200));`,
+      `const j = pm.response.json();`,
+      `pm.test("no master exists — response has no uid", () => {`,
+      `  pm.expect(j.uid).to.be.undefined;`,
+      `});`,
+    ],
   }),
 ]);
 
@@ -3082,6 +3652,121 @@ const cellReportsSubFolder = folder('Cell Reports', [
     tests: [`pm.test("403 — student cannot access network reports", () => pm.response.to.have.status(403));`],
   }),
 
+  // ── ?role= query parameter tests ─────────────────────────────────────────────
+
+  buildRequest({
+    name: 'Get Network Summary — ?role=g12 (own network scope)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05&role=g12' },
+    auth: bearerAuth('g12Token'),
+    description: 'Explicit G12 scope. Returns only cells where g12LeaderUid === caller UID. API ref Report_Access_Control_API.md',
+    tests: [
+      `pm.test("200 or 401 — ?role=g12 summary", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("period present", () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
+      `  pm.test("scope.totalCells is number", () => pm.expect(j.scope.totalCells).to.be.a("number"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — ?role=master (org-wide, g12Token — requires TMA)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05&role=master' },
+    auth: bearerAuth('g12Token'),
+    description: 'G12 using org-wide master scope. Requires active Temporary Master Access — 403 if TMA not granted.',
+    tests: [
+      `pm.test("200 (TMA active) or 403 (no TMA) or 401", () => { pm.expect([200, 403, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 403) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code is FORBIDDEN", () => pm.expect(j.error.code).to.equal("FORBIDDEN"));`,
+      `}`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("period present (org-wide data returned)", () => pm.expect(j.period).to.be.a("string").and.not.empty);`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — ?role=master (superAdminToken — 403 not master)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05&role=master' },
+    auth: bearerAuth('superAdminToken'),
+    description: 'super_admin does not hold the master role — ?role=master returns 403.',
+    tests: [
+      `pm.test("403 — super_admin cannot use ?role=master", () => pm.response.to.have.status(403));`,
+      `const j = pm.response.json();`,
+      `pm.test("error code is FORBIDDEN", () => pm.expect(j.error.code).to.equal("FORBIDDEN"));`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Summary — ?role=invalid → 400 VALIDATION_ERROR',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/summary?month=2026-05&role=superuser' },
+    auth: bearerAuth('g12Token'),
+    description: 'Invalid ?role= value returns 400 VALIDATION_ERROR.',
+    tests: [
+      `pm.test("400 or 401 — invalid role value", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code is VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — ?role=g12 (own network scope)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&role=g12' },
+    auth: bearerAuth('g12Token'),
+    description: 'Explicit G12 scope. Returns reports only from cells where g12LeaderUid === caller UID.',
+    tests: [
+      `pm.test("200 or 401 — ?role=g12 reports", () => { pm.expect([200, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("items is array", () => pm.expect(j.items).to.be.an("array"));`,
+      `  pm.test("totalCells is number", () => pm.expect(j.totalCells).to.be.a("number"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — ?role=master (org-wide, g12Token — requires TMA)',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&role=master' },
+    auth: bearerAuth('g12Token'),
+    description: 'G12 using org-wide master scope. Requires active Temporary Master Access — 403 if TMA not granted.',
+    tests: [
+      `pm.test("200 (TMA active) or 403 (no TMA) or 401", () => { pm.expect([200, 403, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 403) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code is FORBIDDEN", () => pm.expect(j.error.code).to.equal("FORBIDDEN"));`,
+      `}`,
+      `if (pm.response.code === 200) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("items is array (org-wide data)", () => pm.expect(j.items).to.be.an("array"));`,
+      `}`,
+    ],
+  }),
+
+  buildRequest({
+    name: 'Get Network Reports — ?role=invalid → 400 VALIDATION_ERROR',
+    method: 'GET',
+    url: { raw: '{{baseUrl}}/cells/network/reports?month=2026-05&role=invalid' },
+    auth: bearerAuth('g12Token'),
+    description: 'Invalid ?role= value returns 400 VALIDATION_ERROR.',
+    tests: [
+      `pm.test("400 or 401 — invalid role value", () => { pm.expect([400, 401]).to.include(pm.response.code); });`,
+      `if (pm.response.code === 400) {`,
+      `  const j = pm.response.json();`,
+      `  pm.test("error code is VALIDATION_ERROR", () => pm.expect(j.error.code).to.equal("VALIDATION_ERROR"));`,
+      `}`,
+    ],
+  }),
+
   // Upload report photos first — returns URLs to include in photoUrls[] of fileReport
   {
     id: uuid(),
@@ -3662,6 +4347,7 @@ const collection = {
     meFolder,
     adminUsersFolder,
     superAdminFolder,
+    masterRoleFolder,
     buildCourseFolder,
     batchesFolder,
     enrollmentFolder,

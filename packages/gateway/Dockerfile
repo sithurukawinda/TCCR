@@ -2,13 +2,15 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
+RUN npm install -g typescript
+
 COPY package*.json ./
 COPY tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/gateway/package.json ./packages/gateway/package.json
 COPY packages/gateway/tsconfig.json ./packages/gateway/tsconfig.json
 
-RUN npm install --workspace=packages/shared/health \
+RUN npm install --include=dev --workspace=packages/shared/health \
                 --workspace=packages/shared/logger \
                 --workspace=packages/gateway
 

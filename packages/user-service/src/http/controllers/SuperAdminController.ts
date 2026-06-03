@@ -2,24 +2,34 @@ import { Request, Response, NextFunction } from 'express';
 import { fromZodError }                    from '@shared/errors';
 import { sendSuccess, sendPaginated }      from '@shared/response';
 import { AuthenticatedRequest }            from '@shared/auth-middleware';
-import { CreateAdminUseCase }              from '../../application/use-cases/CreateAdminUseCase';
-import { DeleteAdminUseCase }              from '../../application/use-cases/DeleteAdminUseCase';
-import { GetUsersUseCase }                 from '../../application/use-cases/GetUsersUseCase';
-import { GetUserByIdUseCase }              from '../../application/use-cases/GetUserByIdUseCase';
-import { SuspendUserUseCase }              from '../../application/use-cases/SuspendUserUseCase';
-import { ReactivateUserUseCase }           from '../../application/use-cases/ReactivateUserUseCase';
-import { PromoteToAdminUseCase }           from '../../application/use-cases/PromoteToAdminUseCase';
-import { createAdminSchema, listAdminsSchema } from '../validators/superAdminValidator';
+import { CreateAdminUseCase }                from '../../application/use-cases/CreateAdminUseCase';
+import { DeleteAdminUseCase }                from '../../application/use-cases/DeleteAdminUseCase';
+import { GetUsersUseCase }                   from '../../application/use-cases/GetUsersUseCase';
+import { GetUserByIdUseCase }                from '../../application/use-cases/GetUserByIdUseCase';
+import { SuspendUserUseCase }                from '../../application/use-cases/SuspendUserUseCase';
+import { ReactivateUserUseCase }             from '../../application/use-cases/ReactivateUserUseCase';
+import { PromoteToAdminUseCase }             from '../../application/use-cases/PromoteToAdminUseCase';
+import { GrantReportsFullAccessUseCase }     from '../../application/use-cases/GrantReportsFullAccessUseCase';
+import { RevokeReportsFullAccessUseCase }    from '../../application/use-cases/RevokeReportsFullAccessUseCase';
+import { GrantTempMasterAccessUseCase }      from '../../application/use-cases/GrantTempMasterAccessUseCase';
+import { ExtendTempMasterAccessUseCase }     from '../../application/use-cases/ExtendTempMasterAccessUseCase';
+import { RevokeTempMasterAccessUseCase }     from '../../application/use-cases/RevokeTempMasterAccessUseCase';
+import { createAdminSchema, listAdminsSchema, tempMasterAccessSchema } from '../validators/superAdminValidator';
 
 export class SuperAdminController {
   constructor(
-    private readonly createAdminUseCase:   CreateAdminUseCase,
-    private readonly deleteAdminUseCase:   DeleteAdminUseCase,
-    private readonly getUsersUseCase:      GetUsersUseCase,
-    private readonly getUserByIdUseCase:   GetUserByIdUseCase,
-    private readonly suspendUserUseCase:   SuspendUserUseCase,
-    private readonly reactivateUseCase:    ReactivateUserUseCase,
-    private readonly promoteToAdminUseCase: PromoteToAdminUseCase,
+    private readonly createAdminUseCase:           CreateAdminUseCase,
+    private readonly deleteAdminUseCase:           DeleteAdminUseCase,
+    private readonly getUsersUseCase:              GetUsersUseCase,
+    private readonly getUserByIdUseCase:           GetUserByIdUseCase,
+    private readonly suspendUserUseCase:           SuspendUserUseCase,
+    private readonly reactivateUseCase:            ReactivateUserUseCase,
+    private readonly promoteToAdminUseCase:        PromoteToAdminUseCase,
+    private readonly grantReportsFullAccessUC:     GrantReportsFullAccessUseCase,
+    private readonly revokeReportsFullAccessUC:    RevokeReportsFullAccessUseCase,
+    private readonly grantTempMasterAccessUC:      GrantTempMasterAccessUseCase,
+    private readonly extendTempMasterAccessUC:     ExtendTempMasterAccessUseCase,
+    private readonly revokeTempMasterAccessUC:     RevokeTempMasterAccessUseCase,
   ) {}
 
   listAdmins = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -83,6 +93,65 @@ export class SuperAdminController {
         requestId,
       });
       sendSuccess(res, user);
+    } catch (err) { next(err); }
+  };
+
+  grantReportsFullAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId          = (req.headers['x-request-id'] as string) ?? '';
+      const user = await this.grantReportsFullAccessUC.execute(req.params.uid, callerUid, requestId);
+      sendSuccess(res, { message: 'REPORTS_FULL_ACCESS granted.', uid: user.uid });
+    } catch (err) { next(err); }
+  };
+
+  revokeReportsFullAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId          = (req.headers['x-request-id'] as string) ?? '';
+      const user = await this.revokeReportsFullAccessUC.execute(req.params.uid, callerUid, requestId);
+      sendSuccess(res, { message: 'REPORTS_FULL_ACCESS revoked.', uid: user.uid });
+    } catch (err) { next(err); }
+  };
+
+  grantTempMasterAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = tempMasterAccessSchema.safeParse(req.body);
+      if (!parsed.success) return next(fromZodError(parsed.error));
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId          = (req.headers['x-request-id'] as string) ?? '';
+      const user = await this.grantTempMasterAccessUC.execute({
+        targetUid: req.params.uid,
+        callerUid,
+        expiresAt: parsed.data.expiresAt,
+        requestId,
+      });
+      sendSuccess(res, { message: 'Temporary Master Access granted.', uid: user.uid, expiresAt: parsed.data.expiresAt });
+    } catch (err) { next(err); }
+  };
+
+  extendTempMasterAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const parsed = tempMasterAccessSchema.safeParse(req.body);
+      if (!parsed.success) return next(fromZodError(parsed.error));
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId          = (req.headers['x-request-id'] as string) ?? '';
+      const user = await this.extendTempMasterAccessUC.execute({
+        targetUid:    req.params.uid,
+        callerUid,
+        newExpiresAt: parsed.data.expiresAt,
+        requestId,
+      });
+      sendSuccess(res, { message: 'Temporary Master Access extended.', uid: user.uid, expiresAt: parsed.data.expiresAt });
+    } catch (err) { next(err); }
+  };
+
+  revokeTempMasterAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const requestId          = (req.headers['x-request-id'] as string) ?? '';
+      const user = await this.revokeTempMasterAccessUC.execute(req.params.uid, callerUid, requestId);
+      sendSuccess(res, { message: 'Temporary Master Access revoked.', uid: user.uid });
     } catch (err) { next(err); }
   };
 }

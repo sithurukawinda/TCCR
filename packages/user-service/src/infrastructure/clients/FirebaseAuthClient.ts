@@ -3,18 +3,20 @@ import { createHttpError } from '@shared/errors';
 import { config }          from '../../config';
 
 export interface CreateUserInput {
-  email:       string;
-  password:    string;
-  displayName: string;
+  email:          string;
+  password:       string;
+  displayName:    string;
+  emailVerified?: boolean;
 }
 
 export class FirebaseAuthClient {
   async createUser(input: CreateUserInput): Promise<string> {
     try {
       const record = await getAuth().createUser({
-        email:       input.email,
-        password:    input.password,
-        displayName: input.displayName,
+        email:         input.email,
+        password:      input.password,
+        displayName:   input.displayName,
+        emailVerified: input.emailVerified ?? false,
       });
       return record.uid;
     } catch (err: unknown) {
@@ -82,5 +84,29 @@ export class FirebaseAuthClient {
     const claims  = record.customClaims ?? {};
     const current: string[] = Array.isArray(claims.roles) ? (claims.roles as string[]) : [];
     await getAuth().setCustomUserClaims(uid, { ...claims, roles: current.filter(r => r !== role) });
+  }
+
+  async setTempReportAccess(uid: string, value: boolean): Promise<void> {
+    const record = await getAuth().getUser(uid);
+    const claims = record.customClaims ?? {};
+    await getAuth().setCustomUserClaims(uid, { ...claims, tempReportAccess: value });
+  }
+
+  async setReportsFullAccess(uid: string, value: boolean): Promise<void> {
+    const record = await getAuth().getUser(uid);
+    const claims = record.customClaims ?? {};
+    await getAuth().setCustomUserClaims(uid, { ...claims, reportsFullAccess: value });
+  }
+
+  async setTempMasterAccess(uid: string, expiresAt: string): Promise<void> {
+    const record = await getAuth().getUser(uid);
+    const claims = record.customClaims ?? {};
+    await getAuth().setCustomUserClaims(uid, { ...claims, tempMasterAccessExpiresAt: expiresAt });
+  }
+
+  async clearTempMasterAccess(uid: string): Promise<void> {
+    const record = await getAuth().getUser(uid);
+    const claims = record.customClaims ?? {};
+    await getAuth().setCustomUserClaims(uid, { ...claims, tempMasterAccessExpiresAt: null });
   }
 }

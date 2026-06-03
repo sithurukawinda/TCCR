@@ -18,12 +18,13 @@ service cloud.firestore {
     }
 
     function isSuperAdmin() { return hasRole('super_admin'); }
+    function isMaster()     { return hasRole('master') || hasRoleV2('master'); }
     function isAdmin()      { return hasRole('admin') || hasRole('super_admin'); }
     function isOwner(uid)   { return isAuthenticated() && request.auth.uid == uid; }
 
-    // leader, g12 — used for analytics/cell access
+    // leader, g12, master — used for analytics/cell access
     function isLeaderOrAbove() {
-      return hasRoleV2('leader') || hasRoleV2('g12') || isAdmin();
+      return hasRoleV2('leader') || hasRoleV2('g12') || isMaster() || isAdmin();
     }
 
     // ── Audit ─────────────────────────────────────────────────────────────────

@@ -15,13 +15,14 @@ export class GetGrowthTrendUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
   async execute(
-    uid:      string,
-    roles:    Role[],
-    from?:    string,
-    to?:      string,
-    filters?: AnalyticsFilters,
+    uid:               string,
+    roles:             Role[],
+    from?:             string,
+    to?:               string,
+    filters?:          AnalyticsFilters,
+    reportsFullAccess?: boolean,
   ): Promise<GrowthTrendResponse> {
-    const scope     = resolveScope(uid, roles, filters);
+    const scope     = resolveScope(uid, roles, filters, reportsFullAccess);
     const snapshots = await this.repo.findByScope(scope, from, to, 52);
 
     const data = snapshots.map(s => ({

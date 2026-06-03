@@ -65,6 +65,7 @@ app.use('/api/v1/me',                          userProxy);
 app.use('/api/v1/users/:uid/audit-log',        auditProxy);  // must precede generic /users → userProxy
 app.use('/api/v1/users',                       userProxy);
 app.use('/api/v1/super-admin',                 userProxy);
+app.use('/api/v1/master',                      userProxy);
 
 // Course enroll must come before the generic /courses catch-all
 app.use('/api/v1/courses/:id/enroll', enrollProxy);

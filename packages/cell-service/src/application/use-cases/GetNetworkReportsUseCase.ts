@@ -37,19 +37,25 @@ export class GetNetworkReportsUseCase {
   ) {}
 
   async execute(
-    opts:        CellReportListOptions & { month?: string },
+    opts:        CellReportListOptions & { month?: string; tempReportAccess?: boolean; reportsFullAccess?: boolean; role?: string; tempMasterAccess?: boolean },
     callerUid:   string,
     callerRoles: Role[],
   ): Promise<NetworkReportsResult> {
-    const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
-    const isG12    = callerRoles.includes('g12');
-    const isLeader = callerRoles.includes('leader');
+    const isAdmin              = callerRoles.includes('admin') || callerRoles.includes('super_admin');
+    const isMaster             = callerRoles.includes('master');
+    const isG12                = callerRoles.includes('g12');
+    const isLeader             = callerRoles.includes('leader');
+    const hasTempAccess        = opts.tempReportAccess   === true;
+    const hasReportsFullAccess = opts.reportsFullAccess  === true;
+    const hasTempMaster        = opts.tempMasterAccess   === true;
+    const hasActiveMaster      = isMaster || hasTempMaster;
+    const requestedRole        = opts.role;
 
-    if (!isAdmin && !isG12 && !isLeader) {
+    if (!isAdmin && !isMaster && !isG12 && !isLeader && !hasTempAccess) {
       throw createHttpError(
         403,
         'FORBIDDEN',
-        'Only G12 leaders, cell leaders, admin, and super_admin can access network reports.',
+        'Only G12 leaders, cell leaders, admins, master, and users with temporary report access can access network reports.',
       );
     }
 
@@ -62,12 +68,24 @@ export class GetNetworkReportsUseCase {
     // ── Determine which cells to fetch reports from ───────────────────────────
     let cellFilter: { g12LeaderUid?: string; leaderUid?: string } = {};
 
-    if (isAdmin) {
-      cellFilter = {}; // all cells — no restriction
-    } else if (isG12) {
-      cellFilter = {}; // G12 — org-wide read access (all cells)
+    if (requestedRole === 'master') {
+      // Explicit master scope — requires master role or active Temporary Master Access
+      if (!hasActiveMaster) {
+        throw createHttpError(403, 'FORBIDDEN', '?role=master requires the Master role or active Temporary Master Access.');
+      }
+      cellFilter = {};
+    } else if (requestedRole === 'g12') {
+      // Explicit G12 scope — requires G12 role (master cannot use this scope)
+      if (!isG12) {
+        throw createHttpError(403, 'FORBIDDEN', '?role=g12 requires the G12 role.');
+      }
+      cellFilter = { g12LeaderUid: callerUid };
     } else {
-      cellFilter = { leaderUid: callerUid }; // only the leader's own cell
+      // No explicit ?role= — existing auto-detect behavior (unchanged)
+      const hasFullAccess = isAdmin || isMaster || hasTempAccess || hasReportsFullAccess;
+      if (hasFullAccess)  cellFilter = {};
+      else if (isG12)     cellFilter = { g12LeaderUid: callerUid };
+      else                cellFilter = { leaderUid: callerUid };
     }
 
     // Fetch up to 100 cells (enough for a full G12 network)

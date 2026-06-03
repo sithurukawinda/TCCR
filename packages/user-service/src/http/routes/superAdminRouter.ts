@@ -10,4 +10,9 @@ superAdminRouter.get(   '/super-admin/admins/:uid',               authenticate()
 superAdminRouter.post(  '/super-admin/admins/:uid/suspend',       authenticate(), authorize('super_admin'), container.superAdminController.suspendAdmin);
 superAdminRouter.post(  '/super-admin/admins/:uid/reactivate',    authenticate(), authorize('super_admin'), container.superAdminController.reactivateAdmin);
 superAdminRouter.delete('/super-admin/admins/:uid',               authenticate(), authorize('super_admin'), container.superAdminController.deleteAdmin);
-superAdminRouter.post(  '/super-admin/users/:uid/make-admin',     authenticate(), authorize('super_admin'), container.superAdminController.promoteToAdmin);
+superAdminRouter.post(  '/super-admin/users/:uid/make-admin',                  authenticate(), authorize('super_admin'), container.superAdminController.promoteToAdmin);
+superAdminRouter.post(  '/super-admin/g12/:uid/reports-full-access',           authenticate(), authorize('super_admin'), container.superAdminController.grantReportsFullAccess);
+superAdminRouter.delete('/super-admin/g12/:uid/reports-full-access',           authenticate(), authorize('super_admin'), container.superAdminController.revokeReportsFullAccess);
+superAdminRouter.post(  '/super-admin/g12/:uid/temp-master-access',            authenticate(), authorize('super_admin'), container.superAdminController.grantTempMasterAccess);
+superAdminRouter.patch( '/super-admin/g12/:uid/temp-master-access',            authenticate(), authorize('super_admin'), container.superAdminController.extendTempMasterAccess);
+superAdminRouter.delete('/super-admin/g12/:uid/temp-master-access',            authenticate(), authorize('super_admin'), container.superAdminController.revokeTempMasterAccess);

@@ -15,8 +15,8 @@ export interface ParticipationResponse {
 export class GetParticipationUseCase {
   constructor(private readonly repo: IAnalyticsRepository) {}
 
-  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters): Promise<ParticipationResponse> {
-    const scope    = resolveScope(uid, roles, filters);
+  async execute(uid: string, roles: Role[], filters?: AnalyticsFilters, reportsFullAccess?: boolean): Promise<ParticipationResponse> {
+    const scope    = resolveScope(uid, roles, filters, reportsFullAccess);
     const snapshot = await this.repo.findLatestByScope(scope);
 
     return {

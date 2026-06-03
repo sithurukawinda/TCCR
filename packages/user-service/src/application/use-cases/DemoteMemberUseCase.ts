@@ -36,7 +36,7 @@ export class DemoteMemberUseCase {
     //   leader       → can only demote g12
     const isSuperAdmin = callerRoles.includes('super_admin');
     const isAdmin      = callerRoles.includes('admin');
-    const isG12        = callerRoles.includes('g12');
+    const isG12        = callerRoles.includes('g12') || callerRoles.includes('master');
     const isLeader     = callerRoles.includes('leader');
 
     let allowedRoles: UserRole[] = [];

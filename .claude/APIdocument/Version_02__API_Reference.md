@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.44.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.45.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.44.0
-**Date:** 31 May 2026
+**Version:** 2.45.0
+**Date:** 03 June 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.39.0 (29 May 2026)
+**Supersedes:** Version 2.44.0 (31 May 2026)
+**Change in 2.45.0:** §14.6 `GET /cells/network/reports` — added `master` to allowed roles; added `role` (`g12`|`master`), `leaderUid`, `cellId`, `cursor` query params; updated scope table with master/TMA rows. §14.7 `GET /cells/network/summary` — added `master` to allowed roles; `month` now optional (accepts `from`+`to` range); added `role` query param; updated scope table. §18 — added §18.16–18.20: five new `super_admin` endpoints for G12 report access (`/super-admin/g12/:uid/reports-full-access` POST/DELETE) and Temporary Master Access (`/super-admin/g12/:uid/temp-master-access` POST/PATCH/DELETE) with full request/response/error docs. §20 Data Models User table — added `tempReportAccess`, `reportsFullAccess`, `temporaryMasterAccess`, `master` role, and extended profile fields. ToC updated.
 **Change in 2.44.0:** Completeness pass — added response JSON examples, field reference tables, and error codes to all previously sparse endpoints across §4 (users), §6–9 (courses/batches/semesters/subjects/lessons), §12 (progress), §13–14 (cells/reports), §15 (analytics), §16 (notifications), §17 (audit), §18 (super-admin). Every endpoint now has a full JSON response example, a field reference table for non-trivial objects, and documented error codes.
 **Change in 2.43.0:** §3.11 `GET /me/courses/:courseId` — corrected response shape: root key `courseId` → `id`; added `title` and `state` at root; replaced `batchId` string with full `batch` object (`id`, `name`, `intakeStart`, `intakeEnd`); added `subjectCount` to semester fields; added `createdAt`, `updatedAt` to subjects. Field reference table updated. §15.6 `GET /analytics/:chart/export` — corrected `Content-Disposition` filename from generic `analytics-export.csv` to `analytics-{chart}-export.csv`.
 **Change in 2.42.0:** §6.2 `GET /courses/:id` — corrected `semesters[]` JSON example: removed `openDate`, `endDate`, `status` (these live under `batches[].semesters[]` only); added `subjectCount`, `createdAt`, `updatedAt` (present in SemesterView); added `createdAt`, `updatedAt` to `subjects[]` example. §2.1 `POST /auth/register` — added missing `422 DISPOSABLE_EMAIL` and `422 EMAIL_DOMAIN_UNREACHABLE` error responses. §11.2 `POST /enrollments` — added missing `404 COURSE_NOT_FOUND` and `409 ENROLLMENT_PENDING` error responses. §6.5 `POST /courses/:id/publish` — added missing `404 COURSE_NOT_FOUND`. §6.4, §7.4, §8.3, §9.7 — added request body field tables (were missing entirely).
@@ -101,6 +102,9 @@
 16. [Notification Endpoints](#16-notification-endpoints)
 17. [Audit Log Endpoints](#17-audit-log-endpoints)
 18. [Admin Management — Super Admin](#18-admin-management--super-admin)
+   - **18.8–18.15 [Master Role Management](#master-role-management)**
+   - **18.16–18.17 [G12 Reports Full Access ★ NEW](#1816-post-super-adming12uidreports-full-access--new)**
+   - **18.18–18.20 [G12 Temporary Master Access (TMA) ★ NEW](#1818-post-super-adming12uidtemp-master-access--new)**
 19. [Health Endpoints](#19-health-endpoints)
 20. [Data Models](#20-data-models)
 21. [Error Codes Reference](#21-error-codes-reference)
@@ -4878,28 +4882,36 @@ Edit a cell report. Only allowed within **24 hours** of the original filing time
 ---
 ### 14.6 `GET /cells/network/reports` ★ UPDATED
 
-Returns reports from all cells in the caller's network. G12 leaders see reports from every cell where they are the `g12LeaderUid`. Cell leaders see their own cell's reports. Admin sees all cells.
+Returns reports from all cells in the caller's network. G12 leaders see reports from every cell where they are the `g12LeaderUid`. Cell leaders see their own cell's reports. Admin/master sees all cells.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`, `master`
 
 #### Query Parameters
 
-| Parameter | Description |
-|-----------|-------------|
-| `limit` | Reports per cell (default 20, max 100) |
-| `from` | Filter by date (`YYYY-MM-DD`) |
-| `to` | Filter by date (`YYYY-MM-DD`) |
-| `voided` | `true` \| `false` (default: non-voided) |
-| `month` ★ NEW | Calendar month (`YYYY-MM`, e.g. `2026-05`). When provided, overrides `from`/`to` with the full month range (`2026-05-01` → `2026-05-31`). |
-| `type` ★ NEW | Cell type filter: `g12` \| `care` \| `children` \| `outreach`. Omit for all types. **This is the Cell Type tab filter on the Reports page.** |
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `month` | `YYYY-MM` | — | Calendar month (e.g. `2026-05`). Overrides `from`/`to`. |
+| `from` | `YYYY-MM-DD` | — | Start date filter (inclusive) |
+| `to` | `YYYY-MM-DD` | — | End date filter (inclusive) |
+| `limit` | `1–100` | `20` | Max reports per page |
+| `cursor` | string | — | Pagination cursor (last `id` from previous page) |
+| `leaderUid` | string | — | Filter to a specific leader's cells |
+| `type` | `g12\|care\|children\|outreach` | — | Cell type filter — the Cell Type tab on the Reports page |
+| `cellId` | string | — | Filter to a single cell |
+| `voided` | `true\|false` | — | `true` = only voided; `false` = exclude voided |
+| `role` ★ NEW | `g12\|master` | — | Explicit scope override — see table below |
 
 #### Scope by role
 
-| Caller | Sees |
-|--------|------|
-| `g12` | All reports from cells where `g12LeaderUid === callerUid` |
-| `leader` | Reports from their own cell only (`leaderUid === callerUid`) |
-| `admin` / `super_admin` | Reports from all active cells |
+| Caller | `?role=` | Scope |
+|--------|----------|-------|
+| `g12` | absent | Own network only (`g12LeaderUid === callerUid`) |
+| `g12` | `role=g12` | Own network only (explicit) |
+| `g12` with active TMA | `role=master` | Org-wide — all active cells |
+| `master` | `role=master` (or absent) | Org-wide — all active cells |
+| `leader` | absent | Own cell only |
+| `admin` / `super_admin` | absent | All active cells |
+| Any | invalid value | `400 VALIDATION_ERROR` |
 
 **Response:**
 ```json
@@ -4959,19 +4971,26 @@ Returns reports from all cells in the caller's network. G12 leaders see reports 
 
 Returns the complete reporting summary for the **Reports page dashboard** — stat cards, unreported-cell alert, weekly/monthly chart data, meeting-type donut, and per-leader breakdown table — all scoped to the caller's network in a single call.
 
-**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`
+**Authentication:** Bearer required | **Roles:** `leader`, `g12`, `admin`, `super_admin`, `master`
 
 | Parameter | Type | Required | Description |
 |-----------|------|:--------:|-------------|
-| `month` | `YYYY-MM` | ✅ | Calendar month to summarise (e.g. `2026-05`) |
+| `month` | `YYYY-MM` | One of `month` **or** `from`+`to` | Calendar month (e.g. `2026-05`) |
+| `from` | `YYYY-MM-DD` | If no `month` | Start of custom date range (inclusive) |
+| `to` | `YYYY-MM-DD` | If no `month` | End of custom date range (inclusive) |
+| `role` ★ NEW | `g12\|master` | — | Explicit scope override — see table below |
 
-#### Scope (same rule as §14.6)
+#### Scope (same rules as §14.6)
 
-| Caller | Sees |
-|--------|------|
-| `g12` | Only cells where `g12LeaderUid === callerUid` |
-| `leader` | Only their own cell |
-| `admin` / `super_admin` | All active cells |
+| Caller | `?role=` | Scope |
+|--------|----------|-------|
+| `g12` | absent | Own network only (`g12LeaderUid === callerUid`) |
+| `g12` | `role=g12` | Own network only (explicit) |
+| `g12` with active TMA | `role=master` | Org-wide — all active cells |
+| `master` | `role=master` (or absent) | Org-wide — all active cells |
+| `leader` | absent | Own cell only |
+| `admin` / `super_admin` | absent | All active cells |
+| Any | invalid value | `400 VALIDATION_ERROR` |
 
 **Response:**
 ```json
@@ -5620,6 +5639,369 @@ No request body.
 
 ---
 
+### Master Role Management
+
+All endpoints below are under `/master/*` and require `Authorization: Bearer <super_admin_token>`.
+
+**Singleton invariant:** Only ONE active (non-suspended) master may exist at a time. Both assign and invite enforce this rule and return `409 MASTER_ALREADY_EXISTS` if an active master already exists. To replace the current master: suspend or delete them first, then assign/invite the new one.
+
+**Standard user object** (returned by GET, assign, invite, suspend, reactivate):
+```json
+{
+  "uid": "firebase-uid", "email": "master@tccr.lk",
+  "firstName": "John", "lastName": "Doe",
+  "role": "member", "roles": ["member","master"], "status": "approved",
+  "tempReportAccess": false,
+  "profilePhotoUrl": null, "phoneNumber": null, "preferredLanguage": "en",
+  "fcmTokens": [], "notificationPreferences": {"email":true,"push":true}, "providers": ["password"],
+  "createdAt": "2026-06-01T08:00:00.000Z", "updatedAt": "2026-06-01T08:00:00.000Z", "deletedAt": null
+}
+```
+
+---
+
+### 18.8 `GET /master`
+
+Get the current active master user. Returns the first non-suspended master; falls back to the first suspended master if none are active; returns `null` if no master exists.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response (master exists):**
+```json
+{ "uid": "firebase-uid", "email": "master@tccr.lk", "roles": ["member","master"], "status": "approved", ... }
+```
+
+**Response (no master):**
+```json
+null
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — master user object or `null` |
+
+---
+
+### 18.9 `POST /master/assign`
+
+Assign the master role to an existing registered user. The user may hold any role(s).
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Request Body:**
+```json
+{ "uid": "firebase-uid-of-existing-user" }
+```
+
+**Response:** Standard user object (200).
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — master role assigned; welcome email sent |
+| 400 | `INVALID_TARGET` — caller tried to assign master to themselves |
+| 404 | `USER_NOT_FOUND` — target user does not exist |
+| 409 | `MASTER_ALREADY_EXISTS` — an active master already exists; suspend or delete them first |
+
+---
+
+### 18.10 `POST /master/invite`
+
+Create a brand-new user account with the master role and send a welcome email containing their credentials and a password-reset link.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Request Body:**
+```json
+{
+  "firstName": "John",
+  "lastName": "Doe",
+  "email": "newmaster@tccr.lk",
+  "initialPassword": "Temp@Pass123"
+}
+```
+
+**Response:** Standard user object (201). `roles` will be `["member","master"]`.
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 201 | Created — master user created and welcome email dispatched |
+| 409 | `MASTER_ALREADY_EXISTS` — an active master already exists |
+| 409 | `EMAIL_EXISTS` — email address is already registered |
+
+---
+
+### 18.11 `POST /master/:uid/suspend`
+
+Suspend the master account. Disables the Firebase Auth account. The master can be reactivated later.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response:** Standard user object with `"status": "suspended"` (200).
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — master suspended |
+| 404 | `USER_NOT_FOUND` — user does not exist or does not hold the master role |
+| 409 | `ALREADY_SUSPENDED` — master is already suspended |
+
+---
+
+### 18.12 `POST /master/:uid/reactivate`
+
+Reactivate a previously suspended master account. Re-enables the Firebase Auth account.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response:** Standard user object with `"status": "approved"` (200).
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — master reactivated |
+| 404 | `USER_NOT_FOUND` — user does not exist or does not hold the master role |
+| 409 | `NOT_SUSPENDED` — master account is not currently suspended |
+| 409 | `MASTER_ALREADY_EXISTS` — another active master exists; cannot reactivate a second one |
+
+---
+
+### 18.13 `DELETE /master/:uid`
+
+Permanently hard-delete the master user from Firestore and Firebase Auth. **Irreversible.**
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response:** `204 No Content`
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 204 | Deleted |
+| 404 | `USER_NOT_FOUND` — user does not exist or does not hold the master role |
+
+---
+
+### 18.14 `POST /master/temp-access/:uid`
+
+Grant a regular user temporary org-wide report access (`tempReportAccess = true`) without assigning the master role. Useful when no active master exists and the super admin needs someone to view system-wide reports.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response:** Standard user object with `"tempReportAccess": true` (200).
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — temporary access granted |
+| 400 | `ALREADY_MASTER` — user already holds the master role; no need for temp access |
+| 404 | `USER_NOT_FOUND` — user does not exist |
+
+---
+
+### 18.15 `DELETE /master/temp-access/:uid`
+
+Revoke temporary org-wide report access from a user (`tempReportAccess = false`).
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+No request body.
+
+**Response:** Standard user object with `"tempReportAccess": false` (200).
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — temporary access revoked |
+| 404 | `USER_NOT_FOUND` — user does not exist |
+
+---
+
+### G12 Report Access Management ★ NEW
+
+The following five endpoints manage two distinct access-elevation mechanisms for G12 users. All require `super_admin`.
+
+| Permission | Endpoint | Expiry | Activates `?role=master` | Audit logged |
+|-----------|----------|--------|--------------------------|-------------|
+| `tempReportAccess` | `POST /master/temp-access/:uid` | None | No | No |
+| `reportsFullAccess` | `POST /super-admin/g12/:uid/reports-full-access` | None | No | Yes |
+| Temporary Master Access (TMA) | `POST /super-admin/g12/:uid/temp-master-access` | Yes (`expiresAt`) | **Yes** | Yes |
+
+> **Token refresh:** `reportsFullAccess` takes effect immediately (claim written synchronously). TMA changes (`tempMasterAccessExpiresAt` claim) require the G12 user to sign out and sign back in before they activate.
+
+---
+
+### 18.16 `POST /super-admin/g12/:uid/reports-full-access` ★ NEW
+
+Grant **permanent** org-wide report access to a G12 user. Sets `reportsFullAccess = true`. The user can then access all network endpoints without network restrictions — no `?role=` parameter needed, no expiry.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Path Parameters:** `uid` — Firebase UID of the target G12 user
+
+**Request Body:** None
+
+**Response (200):**
+```json
+{ "message": "REPORTS_FULL_ACCESS granted.", "uid": "uid-g12-01" }
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — permanent org-wide access granted |
+| 400 | `INVALID_TARGET` — target does not hold the `g12` role |
+| 400 | `ALREADY_MASTER` — target already holds the `master` role |
+| 401 | `UNAUTHENTICATED` — missing or expired token |
+| 403 | `FORBIDDEN` — caller is not `super_admin` |
+| 404 | `USER_NOT_FOUND` — target UID does not exist |
+
+---
+
+### 18.17 `DELETE /super-admin/g12/:uid/reports-full-access` ★ NEW
+
+Revoke permanent org-wide report access from a G12 user (`reportsFullAccess = false`). The user immediately reverts to own-network scope.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Path Parameters:** `uid` — Firebase UID of the target G12 user
+
+**Request Body:** None
+
+**Response (200):**
+```json
+{ "message": "REPORTS_FULL_ACCESS revoked.", "uid": "uid-g12-01" }
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — permanent access revoked |
+| 401 | `UNAUTHENTICATED` — missing or expired token |
+| 403 | `FORBIDDEN` — caller is not `super_admin` |
+| 404 | `USER_NOT_FOUND` — target UID does not exist |
+
+---
+
+### 18.18 `POST /super-admin/g12/:uid/temp-master-access` ★ NEW
+
+Grant **Temporary Master Access (TMA)** to a G12 user with a defined expiry. While active and after token refresh, the G12 user can pass `?role=master` on `GET /cells/network/summary` and `GET /cells/network/reports` to receive org-wide data. All TMA actions are written to the audit log.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Path Parameters:** `uid` — Firebase UID of the target G12 user
+
+**Request Body:**
+```json
+{ "expiresAt": "2026-06-10T23:59:59.000Z" }
+```
+
+| Field | Type | Required | Validation |
+|-------|------|----------|------------|
+| `expiresAt` | ISO 8601 datetime | Yes | Must be a future timestamp |
+
+**Response (200):**
+```json
+{
+  "message": "Temporary Master Access granted.",
+  "uid": "uid-g12-01",
+  "expiresAt": "2026-06-10T23:59:59.000Z"
+}
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — TMA granted; `tempMasterAccessExpiresAt` claim set in Firebase |
+| 400 | `INVALID_TARGET` — target does not hold the `g12` role |
+| 400 | `ALREADY_MASTER` — target already holds the `master` role |
+| 400 | `INVALID_EXPIRY` — `expiresAt` is in the past |
+| 400 | `VALIDATION_ERROR` — missing or malformed `expiresAt` |
+| 401 | `UNAUTHENTICATED` — missing or expired token |
+| 403 | `FORBIDDEN` — caller is not `super_admin` |
+| 404 | `USER_NOT_FOUND` — target UID does not exist |
+
+**Audit log action:** `GRANT_TEMP_MASTER_ACCESS` — fields: `actorUid`, `targetId`, `grantedAt`, `expiresAt`
+
+---
+
+### 18.19 `PATCH /super-admin/g12/:uid/temp-master-access` ★ NEW
+
+Extend the expiry of an existing TMA grant. The previous expiry is recorded in the audit log.
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Path Parameters:** `uid` — Firebase UID of the G12 user whose TMA is being extended
+
+**Request Body:**
+```json
+{ "expiresAt": "2026-06-20T23:59:59.000Z" }
+```
+
+**Response (200):**
+```json
+{
+  "message": "Temporary Master Access extended.",
+  "uid": "uid-g12-01",
+  "expiresAt": "2026-06-20T23:59:59.000Z"
+}
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — TMA expiry updated; Firebase claim updated |
+| 400 | `NO_TEMP_ACCESS` — user has no existing TMA grant to extend |
+| 400 | `INVALID_EXPIRY` — new `expiresAt` is in the past |
+| 400 | `VALIDATION_ERROR` — missing or malformed `expiresAt` |
+| 401 | `UNAUTHENTICATED` — missing or expired token |
+| 403 | `FORBIDDEN` — caller is not `super_admin` |
+| 404 | `USER_NOT_FOUND` — target UID does not exist |
+
+**Audit log action:** `EXTEND_TEMP_MASTER_ACCESS` — fields: `actorUid`, `targetId`, `previousExpiresAt`, `newExpiresAt`, `extendedAt`
+
+---
+
+### 18.20 `DELETE /super-admin/g12/:uid/temp-master-access` ★ NEW
+
+Revoke TMA immediately. Sets `temporaryMasterAccess = null` on the user document and clears `tempMasterAccessExpiresAt` from Firebase custom claims. The G12 user reverts to own-network scope after their token refreshes (~1 hour).
+
+**Authentication:** Bearer required | **Roles:** `super_admin`
+
+**Path Parameters:** `uid` — Firebase UID of the G12 user whose TMA is being revoked
+
+**Request Body:** None
+
+**Response (200):**
+```json
+{ "message": "Temporary Master Access revoked.", "uid": "uid-g12-01" }
+```
+
+**Status Codes:**
+| Code | Description |
+|------|-------------|
+| 200 | OK — TMA revoked; Firebase claim cleared |
+| 400 | `NO_TEMP_ACCESS` — user has no active TMA to revoke |
+| 401 | `UNAUTHENTICATED` — missing or expired token |
+| 403 | `FORBIDDEN` — caller is not `super_admin` |
+| 404 | `USER_NOT_FOUND` — target UID does not exist |
+
+**Audit log action:** `REVOKE_TEMP_MASTER_ACCESS` — fields: `actorUid`, `targetId`, `revokedAt`, `originalExpiresAt`
+
+---
+
 ## 19. Health Endpoints
 
 ---
@@ -5671,15 +6053,25 @@ Readiness probe.
 | `email` | string | Unique |
 | `firstName` | string | |
 | `lastName` | string | |
-| `preferredLanguage` | string | `si` \| `ta` \| `en` — defaults to `en` — **NEW V2** |
-| `roles` | string[] | `member`, `student`, `leader`, `g12`, `admin`, `super_admin` — **NEW V2** (was scalar `role` in V1) |
-| `providers` | string[] | `password`, `google.com`, `apple.com` — **NEW V2** |
-| `status` | string | `approved` \| `suspended` |
-| `profilePhotoUrl` | string or null | |
-| `notificationPreferences` | object | `{ email: boolean, push: boolean }` — **NEW V2** (FR-NOT-006) |
+| `preferredLanguage` | string | `en` \| `si` \| `ta` — defaults to `en` |
+| `role` | string | Legacy scalar — primary role for backward compat; always use `roles[]` for auth logic |
+| `roles` | string[] | `member`, `student`, `leader`, `g12`, `admin`, `super_admin`, `master` — additive array |
+| `status` | string | `approved` \| `suspended` \| `pending_approval` \| `rejected` |
+| `providers` | string[] | `password`, `google.com`, `apple.com` |
+| `profilePhotoUrl` | string or null | Firebase Storage URL |
+| `phoneNumber` | string or null | |
+| `notificationPreferences` | object | `{ email: boolean, push: boolean }` |
+| `fcmTokens` | string[] | Registered device FCM push tokens |
+| `dateOfBirth` | string or null | `YYYY-MM-DD` |
+| `gender` | string or null | `male` \| `female` \| `other` |
+| `address` | string or null | |
+| `qualifications` | Qualification[] | Ordered list; `[0]` sent with role request. Each: `{ id, title, fileUrl? }` |
+| `tempReportAccess` | boolean | `true` = legacy org-wide report visibility (set via `POST /master/temp-access/:uid`; no expiry) |
+| `reportsFullAccess` | boolean | `true` = permanent org-wide report access for G12 (set via `POST /super-admin/g12/:uid/reports-full-access`; no expiry) ★ NEW |
+| `temporaryMasterAccess` | object or null | Active TMA grant: `{ grantedBy, grantedAt, expiresAt, extendedAt? }`. `null` when none active. ★ NEW |
 | `createdAt` | string | ISO 8601 |
 | `updatedAt` | string | ISO 8601 |
-| `deletedAt` | string or null | Non-null = soft-deleted |
+| `deletedAt` | null | Always `null` — users are hard-deleted, not soft-deleted |
 
 ---
 
@@ -6131,3 +6523,4 @@ Events published to the `outbox` Firestore collection and dispatched by the Outb
 
 *© 2026 Future CX Lanka (Pvt) Ltd — Confidential*
 *Document version: 2.19.0 | Paired with TCCR SRS v2.0 dated 22 May 2026 and TCCR Backend Blueprint v2.0.0*
+

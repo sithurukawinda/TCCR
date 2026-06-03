@@ -1,10 +1,11 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
+RUN npm install -g typescript
 COPY package*.json tsconfig.base.json ./
 COPY packages/shared ./packages/shared
 COPY packages/outbox-worker/package.json ./packages/outbox-worker/package.json
 COPY packages/outbox-worker/tsconfig.json ./packages/outbox-worker/tsconfig.json
-RUN npm install --workspace=packages/shared/firebase --workspace=packages/shared/logger \
+RUN npm install --include=dev --workspace=packages/shared/firebase --workspace=packages/shared/logger \
     --workspace=packages/shared/internal-http-client \
     --workspace=packages/outbox-worker
 RUN npm run build --workspace=packages/shared/logger \
