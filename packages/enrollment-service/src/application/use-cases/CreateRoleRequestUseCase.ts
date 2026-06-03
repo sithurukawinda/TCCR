@@ -8,6 +8,7 @@ import { UserServiceClient }                              from '../../infrastruc
 export interface CreateRoleRequestInput {
   requesterUid:  string;
   requestedRole: 'student';
+  callerRoles:   string[];
 }
 
 export class CreateRoleRequestUseCase {
@@ -18,6 +19,10 @@ export class CreateRoleRequestUseCase {
   ) {}
 
   async execute(input: CreateRoleRequestInput, requestId: string): Promise<RoleRequest> {
+    if (input.callerRoles.includes(input.requestedRole)) {
+      throw createHttpError(409, 'ROLE_ALREADY_HELD', `You already hold the '${input.requestedRole}' role.`);
+    }
+
     // Fetch profile first — outside the transaction (HTTP call, not retry-safe inside tx)
     const profile = await this.userClient.getUser(input.requesterUid);
     if (!profile) {

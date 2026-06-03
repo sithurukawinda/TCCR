@@ -37,11 +37,11 @@ export class RoleRequestController {
       const parsed = createRoleRequestSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
-      const { uid }   = (req as AuthenticatedRequest).principal;
-      const requestId = (req.headers['x-request-id'] as string) ?? '';
+      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const requestId      = (req.headers['x-request-id'] as string) ?? '';
 
       const result = await this.createUseCase.execute(
-        { requesterUid: uid, requestedRole: 'student' },
+        { requesterUid: uid, requestedRole: 'student', callerRoles: roles },
         requestId,
       );
 

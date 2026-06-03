@@ -35,7 +35,7 @@ const mockProfile = {
   qualificationUrl:   'https://storage.example.com/qual.pdf',
 };
 
-const validInput: CreateRoleRequestInput = { requesterUid: 'uid-1', requestedRole: 'student' };
+const validInput: CreateRoleRequestInput = { requesterUid: 'uid-1', requestedRole: 'student', callerRoles: ['member'] as string[] };
 
 // ─── tests ───────────────────────────────────────────────────────────────────
 
@@ -136,6 +136,25 @@ describe('CreateRoleRequestUseCase', () => {
       errorCode: 'ROLE_ALREADY_GRANTED',
     });
 
+    expect(outbox.publishWithBatch).not.toHaveBeenCalled();
+  });
+
+  // ── guard: caller already holds the requested role ───────────────────────────
+
+  it('throws 409 ROLE_ALREADY_HELD when caller already has the requested role', async () => {
+    const inputWithRole: CreateRoleRequestInput = {
+      requesterUid:  'uid-1',
+      requestedRole: 'student',
+      callerRoles:   ['member', 'student'] as string[],
+    };
+
+    await expect(useCase.execute(inputWithRole, 'req-id-1')).rejects.toMatchObject({
+      status:    409,
+      errorCode: 'ROLE_ALREADY_HELD',
+    });
+
+    expect(userClient.getUser).not.toHaveBeenCalled();
+    expect(repo.createUnique).not.toHaveBeenCalled();
     expect(outbox.publishWithBatch).not.toHaveBeenCalled();
   });
 

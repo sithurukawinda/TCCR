@@ -86,12 +86,13 @@ export class FirestoreRoleRequestRepository implements IRoleRequestRepository {
         throw createHttpError(409, 'ROLE_REQUEST_PENDING', 'You already have a pending role request.');
       }
 
-      // Approved check: compound query is safe here — no concurrent race exists because
-      // approval is admin-only and does not create new documents concurrently with a POST.
+      // Approved check: scoped to the same requestedRole so a user who was approved for
+      // 'student' is not blocked from requesting a different role (e.g. 'g12').
       const approvedSnap = await tx.get(
         this.col
-          .where('requesterUid', '==', req.requesterUid)
-          .where('status', '==', 'approved')
+          .where('requesterUid',  '==', req.requesterUid)
+          .where('requestedRole', '==', req.requestedRole)
+          .where('status',        '==', 'approved')
           .limit(1),
       );
       if (!approvedSnap.empty) {
