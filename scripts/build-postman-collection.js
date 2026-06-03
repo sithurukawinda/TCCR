@@ -2447,31 +2447,33 @@ const enrollmentFolder = folder('7️⃣ Enrollment', [
 // ---------------------------------------------------------------------------
 
 const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
-  // ── 1. Create Role Request — JSON body: { requestedRole: "student" } ────────
-  // Uses leaderToken: leader has ["member","leader"] — no "student" role yet,
+  // ── 1. Create Role Request — JSON body: { requestedRole: "leader" } ─────────
+  // Uses student2Token: student2 has ["member","student"] — no "leader" role yet,
   // so this is a valid new request that returns 201 and saves roleRequestId.
-  // Cannot use tempMemberToken: it was revoked by Logout in folder 1 and the
-  // registered user is deleted in folder 3 before this folder runs.
+  // (leaderToken cannot be used — leader already holds "student", triggering ROLE_ALREADY_HELD)
   buildRequest({
     name: 'Create Role Request',
     method: 'POST',
     url: { raw: '{{baseUrl}}/role-requests' },
-    auth: bearerAuth('leaderToken'),
+    auth: bearerAuth('student2Token'),
     headers: jsonHeader(),
-    body: jsonBody({ requestedRole: 'student' }),
+    body: jsonBody({ requestedRole: 'leader' }),
     description: [
-      'Submit a student role application.',
+      'Submit a leader role application (student requesting to become a leader).',
       '',
       'Prerequisites (must be done first):',
       '  1. PATCH /me — fill dateOfBirth, gender, address, qualificationTitle',
       '  2. POST /me/qualification — upload the PDF to user profile',
       '',
       'The system reads all personal details from the member\'s profile automatically.',
-      'No personal fields needed in this request — only { requestedRole: "student" }.',
+      'No personal fields needed in this request — only { requestedRole: "leader" }.',
+      '',
+      'Valid requestedRole values: "student" | "leader" | "g12"',
       '',
       'Errors:',
-      '  400 VALIDATION_ERROR  — missing or invalid requestedRole',
-      '  404 USER_NOT_FOUND    — profile could not be loaded',
+      '  400 VALIDATION_ERROR     — missing or invalid requestedRole (e.g. "admin" is blocked)',
+      '  404 USER_NOT_FOUND       — profile could not be loaded',
+      '  409 ROLE_ALREADY_HELD    — caller already holds the requested role',
       '  409 ROLE_REQUEST_PENDING — already has a pending request',
     ].join('\n'),
     tests: [
@@ -2483,7 +2485,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  pm.environment.set("roleRequestId", j.id);`,
       `  pm.test("id is a string",              () => pm.expect(j.id).to.be.a("string"));`,
       `  pm.test("status is pending",           () => pm.expect(j.status).to.equal("pending"));`,
-      `  pm.test("requestedRole is student",    () => pm.expect(j.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is leader",     () => pm.expect(j.requestedRole).to.equal("leader"));`,
       `  pm.test("applicantProfile is object",  () => pm.expect(j.applicantProfile).to.be.an("object"));`,
       `  pm.test("applicantProfile.email set",  () => pm.expect(j.applicantProfile.email).to.be.a("string"));`,
       `  pm.test("qualificationStoragePath is null", () => pm.expect(j.qualificationStoragePath).to.be.null);`,
@@ -2491,14 +2493,38 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
     ],
   }),
 
+  // ── 1b. Create Role Request — expect 409 ROLE_ALREADY_HELD ───────────────────
+  // Leader already holds ["member","student","leader"] — requesting "student" again
+  // returns 409 ROLE_ALREADY_HELD (guard fires before any DB read).
+  buildRequest({
+    name: 'Create Role Request — expect 409 ROLE_ALREADY_HELD',
+    method: 'POST',
+    url: { raw: '{{baseUrl}}/role-requests' },
+    auth: bearerAuth('leaderToken'),
+    headers: jsonHeader(),
+    body: jsonBody({ requestedRole: 'student' }),
+    description: [
+      'Negative test: leader already holds ["member","student","leader"].',
+      'Requesting "student" returns 409 ROLE_ALREADY_HELD — the guard in',
+      'CreateRoleRequestUseCase fires immediately before any Firestore read.',
+    ].join('\n'),
+    tests: [
+      `pm.test("409 ROLE_ALREADY_HELD — requesting a role already held", () => {`,
+      `  pm.response.to.have.status(409);`,
+      `});`,
+      `const j = pm.response.json();`,
+      `pm.test("error.code is ROLE_ALREADY_HELD", () => pm.expect(j.error.code).to.equal("ROLE_ALREADY_HELD"));`,
+    ],
+  }),
+
   // ── 2. Get My Role Requests ────────────────────────────────────────────────
   // Response: plain array (NOT paginated). GetMyRoleRequestsUseCase uses sendSuccess(), not sendPaginated().
-  // Uses leaderToken — same caller who created the role request above.
+  // Uses student2Token — same caller who created the role request above.
   buildRequest({
     name: 'Get My Role Requests',
     method: 'GET',
     url: { raw: '{{baseUrl}}/role-requests/mine' },
-    auth: bearerAuth('leaderToken'),
+    auth: bearerAuth('student2Token'),
     description: 'Returns a plain array of the caller\'s own role requests. Route is accessible to any authenticated role.',
     tests: [
       `pm.test("200 OK — Get My Role Requests", () => pm.response.to.have.status(200));`,
@@ -2510,7 +2536,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  if (!pm.environment.get("roleRequestId")) { pm.environment.set("roleRequestId", first.id); }`,
       `  pm.test("id is a string",            () => pm.expect(first.id).to.be.a("string"));`,
       `  pm.test("requesterUid is a string",  () => pm.expect(first.requesterUid).to.be.a("string"));`,
-      `  pm.test("requestedRole is 'student'",() => pm.expect(first.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is valid",    () => pm.expect(["student","leader","g12"]).to.include(first.requestedRole));`,
       `  pm.test("status is valid",           () => pm.expect(["pending","approved","rejected"]).to.include(first.status));`,
       `  pm.test("createdAt is a string",     () => pm.expect(first.createdAt).to.be.a("string"));`,
       `  if (first.applicantProfile) {`,
@@ -2568,7 +2594,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
     name: 'Get Own Role Request by ID (Member)',
     method: 'GET',
     url: { raw: '{{baseUrl}}/role-requests/{{roleRequestId}}' },
-    auth: bearerAuth('leaderToken'),
+    auth: bearerAuth('student2Token'),
     description: [
       'Member (or student/leader/g12) fetches their own role request by ID.',
       'Access rule: GetRoleRequestByIdUseCase enforces ownership — non-admin callers',
@@ -2586,7 +2612,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  const j = pm.response.json();`,
       `  pm.test("id is a string",          () => pm.expect(j.id).to.be.a("string"));`,
       `  pm.test("requesterUid is a string", () => pm.expect(j.requesterUid).to.be.a("string"));`,
-      `  pm.test("requestedRole is student", () => pm.expect(j.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is valid",   () => pm.expect(["student","leader","g12"]).to.include(j.requestedRole));`,
       `  pm.test("status is valid",          () => pm.expect(["pending","approved","rejected"]).to.include(j.status));`,
       `  pm.test("createdAt is a string",    () => pm.expect(j.createdAt).to.be.a("string"));`,
       `  if (j.qualificationTitle) pm.test("qualificationTitle is a string", () => pm.expect(j.qualificationTitle).to.be.a("string"));`,
@@ -2636,7 +2662,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  // ── Core RoleRequest fields ─────────────────────────────────────`,
       `  pm.test("id is a string",          () => pm.expect(j.id).to.be.a("string"));`,
       `  pm.test("requesterUid is a string",() => pm.expect(j.requesterUid).to.be.a("string"));`,
-      `  pm.test("requestedRole is student",() => pm.expect(j.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is valid",  () => pm.expect(["student","leader","g12"]).to.include(j.requestedRole));`,
       `  pm.test("status is valid",         () => pm.expect(["pending","approved","rejected"]).to.include(j.status));`,
       `  pm.test("createdAt is a string",   () => pm.expect(j.createdAt).to.be.a("string"));`,
       `  if (j.qualificationTitle) pm.test("qualificationTitle is a string", () => pm.expect(j.qualificationTitle).to.be.a("string"));`,
@@ -2729,7 +2755,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  // Response is the full RoleRequest entity, not a custom {roleRequestId,userRoles,message} shape`,
       `  pm.test("id is a string",              () => pm.expect(j.id).to.be.a("string"));`,
       `  pm.test("requesterUid is a string",    () => pm.expect(j.requesterUid).to.be.a("string"));`,
-      `  pm.test("requestedRole is 'student'",  () => pm.expect(j.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is valid",       () => pm.expect(["student","leader","g12"]).to.include(j.requestedRole));`,
       `  pm.test("status is 'approved'",        () => pm.expect(j.status).to.equal("approved"));`,
       `  pm.test("decidedByUid is a string",    () => pm.expect(j.decidedByUid).to.be.a("string"));`,
       `  pm.test("decidedAt is a string",       () => pm.expect(j.decidedAt).to.be.a("string"));`,
@@ -2777,7 +2803,7 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
       `  // Response is the full RoleRequest entity`,
       `  pm.test("id is a string",              () => pm.expect(j.id).to.be.a("string"));`,
       `  pm.test("requesterUid is a string",    () => pm.expect(j.requesterUid).to.be.a("string"));`,
-      `  pm.test("requestedRole is 'student'",  () => pm.expect(j.requestedRole).to.equal("student"));`,
+      `  pm.test("requestedRole is valid",       () => pm.expect(["student","leader","g12"]).to.include(j.requestedRole));`,
       `  pm.test("status is 'rejected'",        () => pm.expect(j.status).to.equal("rejected"));`,
       `  pm.test("decidedByUid is a string",    () => pm.expect(j.decidedByUid).to.be.a("string"));`,
       `  pm.test("decidedAt is a string",       () => pm.expect(j.decidedAt).to.be.a("string"));`,
