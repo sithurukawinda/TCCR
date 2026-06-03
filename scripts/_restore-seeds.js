@@ -33,9 +33,12 @@ const seeds = [
 ];
 
 async function run() {
+  const uidMap = {};
+
   for (const seed of seeds) {
     try {
       const u = await admin.auth().getUserByEmail(seed.email);
+      uidMap[seed.email] = u.uid;
 
       // 1. Fix Firebase Auth — do NOT include password here so Firebase does NOT
       //    revoke refresh tokens. Token revocation breaks the Newman online run because
@@ -59,6 +62,49 @@ async function run() {
     } catch (e) {
       console.error(`❌  ${seed.email}: ${e.message}`);
     }
+  }
+
+  // 3. Delete any pending/approved/rejected role_requests left over from previous Newman runs.
+  //    Without this, POST /role-requests returns 409 ROLE_REQUEST_PENDING on the next run.
+  const studentEmails = ['student1@cmp.com', 'student2@cmp.com'];
+  const studentUids   = studentEmails.map(e => uidMap[e]).filter(Boolean);
+  if (studentUids.length > 0) {
+    try {
+      const snap = await db.collection('role_requests')
+        .where('requesterUid', 'in', studentUids)
+        .get();
+      if (!snap.empty) {
+        const batch = db.batch();
+        snap.docs.forEach(doc => batch.delete(doc.ref));
+        await batch.commit();
+        console.log(`🧹  Deleted ${snap.size} stale role_request(s) for seed students`);
+      }
+    } catch (e) {
+      console.error(`⚠️   role_requests cleanup failed: ${e.message}`);
+    }
+  }
+
+  // 4. Delete any master account left from a previous Newman master-management test run.
+  //    Without this, POST /master/invite returns 409 MASTER_ALREADY_EXISTS on the next run.
+  try {
+    const masterSnap = await db.collection('users')
+      .where('roles', 'array-contains', 'master')
+      .get();
+    if (!masterSnap.empty) {
+      const seedEmails = new Set(seeds.map(s => s.email));
+      const masterDocs = masterSnap.docs.filter(d => !seedEmails.has(d.data().email));
+      if (masterDocs.length > 0) {
+        const batch = db.batch();
+        for (const doc of masterDocs) {
+          batch.delete(doc.ref);
+          try { await admin.auth().deleteUser(doc.id); } catch (_) { /* already gone */ }
+        }
+        await batch.commit();
+        console.log(`🧹  Deleted ${masterDocs.length} stale master user(s) from previous test run`);
+      }
+    }
+  } catch (e) {
+    console.error(`⚠️   master cleanup failed: ${e.message}`);
   }
 }
 
