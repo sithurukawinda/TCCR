@@ -40,7 +40,7 @@ export class UnmarkLessonCompleteUseCase {
         this.lessonProgressRepo.findBySubjectAndStudent(existing.subjectId, input.studentUid),
       ]);
 
-      if (remainingCompleted.length < totalLessons) {
+      if (remainingCompleted.length < (totalLessons ?? 0)) {
         await this.subjectProgressRepo.revertCompletion(input.studentUid, existing.subjectId);
       }
     }

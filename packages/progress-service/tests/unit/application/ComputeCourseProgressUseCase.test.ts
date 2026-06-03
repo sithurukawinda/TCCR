@@ -98,4 +98,25 @@ describe('ComputeCourseProgressUseCase', () => {
     const result = await useCase.execute('uid1', 'c1');
     expect(result.lastAccessedLessonId).toBeNull();
   });
+
+  it('throws 404 COURSE_NOT_FOUND when course-service returns null for subject count', async () => {
+    client.getSubjectCount.mockResolvedValue(null);
+    client.getCourseLessonCount.mockResolvedValue(null);
+    repo.findByCourseAndStudent.mockResolvedValue([]);
+
+    await expect(useCase.execute('uid1', 'nonexistent-000')).rejects.toMatchObject({
+      status: 404, errorCode: 'COURSE_NOT_FOUND',
+    });
+  });
+
+  it('returns valid progress when lesson count is null (graceful fallback to 0)', async () => {
+    client.getSubjectCount.mockResolvedValue(2);
+    client.getCourseLessonCount.mockResolvedValue(null);
+    repo.findByCourseAndStudent.mockResolvedValue([makeProgress('completed', 'sub1'), makeProgress('not_started', 'sub2')]);
+
+    const result = await useCase.execute('uid1', 'c1');
+    expect(result.totalLessons).toBe(0);
+    expect(result.lessonCompletionPercent).toBe(0);
+    expect(result.completionPercent).toBe(50);
+  });
 });

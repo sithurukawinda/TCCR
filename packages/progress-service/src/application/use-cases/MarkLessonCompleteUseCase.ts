@@ -91,7 +91,7 @@ export class MarkLessonCompleteUseCase {
     ]);
 
     let subjectAutoCompleted = false;
-    if (totalLessons > 0 && completedInSubject.length >= totalLessons) {
+    if ((totalLessons ?? 0) > 0 && completedInSubject.length >= (totalLessons ?? 0)) {
       await this.markSubjectComplete.execute(
         {
           studentUid: input.studentUid,

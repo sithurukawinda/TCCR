@@ -1,3 +1,4 @@
+import { createHttpError }             from '@shared/errors';
 import { IProgressRepository }        from '../../domain/repositories/IProgressRepository';
 import { ILessonProgressRepository }  from '../../domain/repositories/ILessonProgressRepository';
 import { CourseServiceClient }        from '../../infrastructure/clients/CourseServiceClient';
@@ -33,6 +34,12 @@ export class ComputeCourseProgressUseCase {
       this.courseClient.getCourseLessonCount(courseId),
     ]);
 
+    if (totalSubjects === null) {
+      throw createHttpError(404, 'COURSE_NOT_FOUND', 'Course not found.');
+    }
+
+    const safeTotalLessons = totalLessons ?? 0;
+
     const completedCount = records.filter(r => r.state === 'completed').length;
     const pendingCount   = totalSubjects - completedCount;
     const completionPercent = totalSubjects === 0
@@ -44,9 +51,9 @@ export class ComputeCourseProgressUseCase {
       .sort((a, b) => (b.lastAccessedAt ?? '').localeCompare(a.lastAccessedAt ?? ''))[0];
 
     const completedLessonIds      = lessonRecords.map(r => r.lessonId);
-    const lessonCompletionPercent = totalLessons === 0
+    const lessonCompletionPercent = safeTotalLessons === 0
       ? 0
-      : Math.round((completedLessonIds.length / totalLessons) * 100);
+      : Math.round((completedLessonIds.length / safeTotalLessons) * 100);
 
     return {
       courseId,
@@ -59,7 +66,7 @@ export class ComputeCourseProgressUseCase {
       lastAccessedLessonId:    lastAccessed?.lastAccessedLessonId ?? null,
       lastAccessedAt:          lastAccessed?.lastAccessedAt       ?? null,
       completedLessonIds,
-      totalLessons,
+      totalLessons:            safeTotalLessons,
       lessonCompletionPercent,
     };
   }

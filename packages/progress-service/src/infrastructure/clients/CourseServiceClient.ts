@@ -11,9 +11,11 @@ export interface LessonMeta {
 export class CourseServiceClient {
   private readonly http = createInternalClient(config.serviceCourseUrl, config.internalServiceKey);
 
-  async getSubjectCount(courseId: string): Promise<number> {
-    const res = await this.http.get<{ subjectCount: number }>(`/internal/courses/${courseId}/subject-count`);
-    return res.data.subjectCount;
+  async getSubjectCount(courseId: string): Promise<number | null> {
+    try {
+      const res = await this.http.get<{ subjectCount: number }>(`/internal/courses/${courseId}/subject-count`);
+      return res.data.subjectCount;
+    } catch { return null; }
   }
 
   async getLesson(lessonId: string): Promise<LessonMeta | null> {
@@ -25,13 +27,17 @@ export class CourseServiceClient {
     }
   }
 
-  async getLessonCount(subjectId: string): Promise<number> {
-    const res = await this.http.get<{ lessonCount: number }>(`/internal/subjects/${subjectId}/lesson-count`);
-    return res.data.lessonCount;
+  async getLessonCount(subjectId: string): Promise<number | null> {
+    try {
+      const res = await this.http.get<{ lessonCount: number }>(`/internal/subjects/${subjectId}/lesson-count`);
+      return res.data.lessonCount;
+    } catch { return null; }
   }
 
-  async getCourseLessonCount(courseId: string): Promise<number> {
-    const res = await this.http.get<{ lessonCount: number }>(`/internal/courses/${courseId}/lesson-count`);
-    return res.data.lessonCount;
+  async getCourseLessonCount(courseId: string): Promise<number | null> {
+    try {
+      const res = await this.http.get<{ lessonCount: number }>(`/internal/courses/${courseId}/lesson-count`);
+      return res.data.lessonCount;
+    } catch { return null; }
   }
 }
