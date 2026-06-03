@@ -62,7 +62,7 @@ describe('GetUsersUseCase', () => {
       expect(repo.findAll).toHaveBeenCalledWith({
         limit:        10,
         status:       'approved',
-        excludeRoles: ['admin', 'super_admin', 'master'],
+        excludeRoles: ['admin', 'super_admin'],
       });
     });
 
@@ -76,7 +76,7 @@ describe('GetUsersUseCase', () => {
         limit:        20,
         name:         'John',
         status:       'approved',
-        excludeRoles: ['admin', 'super_admin', 'master'],
+        excludeRoles: ['admin', 'super_admin'],
       });
     });
 
@@ -100,7 +100,7 @@ describe('GetUsersUseCase', () => {
       expect(repo.findAll).toHaveBeenCalledWith({
         limit:        10,
         status:       'approved',
-        excludeRoles: ['admin', 'super_admin', 'master'],
+        excludeRoles: ['admin', 'super_admin'],
       });
     });
   });

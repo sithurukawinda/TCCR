@@ -81,7 +81,7 @@ export class RoleRequestController {
   getOne = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
       const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const isAdmin = roles.includes('admin') || (roles.includes('super_admin') || roles.includes('master'));
+      const isAdmin = roles.includes('admin') || roles.includes('super_admin');
 
       const detail = await this.getByIdUseCase.execute({
         id:           req.params.id,

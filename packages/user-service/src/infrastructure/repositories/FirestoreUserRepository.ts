@@ -56,8 +56,9 @@ export class FirestoreUserRepository implements IUserRepository {
 
   async findAll(opts: FindAllOptions): Promise<FindAllResult> {
     let base: FirebaseFirestore.Query = this.col.where('deletedAt', '==', null);
-    if (opts.role)   base = base.where('role',   '==', opts.role);
-    if (opts.status) base = base.where('status', '==', opts.status);
+    if (opts.role)        base = base.where('role',  '==',              opts.role);
+    if (opts.roleInArray) base = base.where('roles', 'array-contains',  opts.roleInArray);
+    if (opts.status)      base = base.where('status', '==',             opts.status);
 
     if (opts.name) {
       // Prefix search on firstName — orderBy switches to firstName asc

@@ -41,12 +41,12 @@ export class DeleteUserUseCase {
       throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
     }
 
-    // Guard: admin/super_admin/master users cannot be deleted through this endpoint
-    if (user.roles.includes('admin') || user.roles.includes('super_admin') || user.roles.includes('master')) {
+    // Guard: admin/super_admin users cannot be deleted through this endpoint
+    if (user.roles.includes('admin') || user.roles.includes('super_admin')) {
       throw createHttpError(
         403,
         'FORBIDDEN',
-        'Admin, super_admin, and master accounts cannot be deleted through this endpoint.',
+        'Admin and super_admin accounts cannot be deleted through this endpoint.',
       );
     }
 

@@ -31,12 +31,7 @@ import { UnlinkProviderUseCase }                from './application/use-cases/Un
 import { MeController }                         from './http/controllers/MeController';
 import { UsersController }         from './http/controllers/UsersController';
 import { SuperAdminController }    from './http/controllers/SuperAdminController';
-import { MasterController }        from './http/controllers/MasterController';
 import { InternalController }      from './http/controllers/InternalController';
-import { GrantMasterUseCase }      from './application/use-cases/GrantMasterUseCase';
-import { RevokeMasterUseCase }     from './application/use-cases/RevokeMasterUseCase';
-import { ListMasterUsersUseCase }  from './application/use-cases/ListMasterUsersUseCase';
-import { TransferMasterUseCase }   from './application/use-cases/TransferMasterUseCase';
 
 // Infrastructure
 const userRepo      = new FirestoreUserRepository();
@@ -66,10 +61,6 @@ const promoteMember        = new PromoteMemberUseCase(userRepo, authClient, outb
 const demoteMember         = new DemoteMemberUseCase(userRepo, authClient, outbox);
 const deleteUser           = new DeleteUserUseCase(userRepo, authClient);
 const getUserSummary       = new GetUserSummaryUseCase(userRepo);
-const grantMaster          = new GrantMasterUseCase(userRepo, authClient);
-const revokeMaster         = new RevokeMasterUseCase(userRepo, authClient);
-const listMasterUsers      = new ListMasterUsersUseCase(userRepo);
-const transferMaster       = new TransferMasterUseCase(userRepo, authClient, outbox);
 const registerFcm      = new RegisterFcmTokenUseCase(userRepo);
 const deregisterFcm    = new DeregisterFcmTokenUseCase(userRepo);
 const updateNotifPrefs = new UpdateNotificationPreferencesUseCase(userRepo);
@@ -85,6 +76,5 @@ export const container = {
   ),
   usersController:      new UsersController(getUsers, getUserById, suspendUser, reactivate, addRole, removeRole, createUserDirectly, promoteMember, demoteMember, deleteUser, getUserSummary),
   superAdminController: new SuperAdminController(createAdmin, deleteAdmin, getUsers, getUserById, suspendUser, reactivate, promoteToAdmin),
-  masterController:     new MasterController(grantMaster, revokeMaster, listMasterUsers, transferMaster),
   internalController:   new InternalController(checkEmail, approveUser, getUsers, addRole, removeRole, getUserById),
 };

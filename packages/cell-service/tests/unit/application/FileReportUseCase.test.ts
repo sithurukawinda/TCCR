@@ -98,15 +98,11 @@ describe('FileReportUseCase', () => {
     });
   });
 
-  it('super_admin can file a report even if not the cell leader', async () => {
+  it('throws FORBIDDEN when caller is not the cell leader or G12 leader', async () => {
     cellRepo.findById.mockResolvedValue(makeCell());
-    reportRepo.findByClientReqId.mockResolvedValue(null);
-    reportRepo.create.mockResolvedValue(undefined);
-    cellRepo.update.mockResolvedValue(undefined);
-    outbox.publishWithBatch.mockResolvedValue(undefined);
 
-    const { isNew } = await useCase.execute('cell-1', reportInput, 'super-uid', ['super_admin'], 'req-1');
-
-    expect(isNew).toBe(true);
+    await expect(
+      useCase.execute('cell-1', reportInput, 'other-uid', ['super_admin'], 'req-1'),
+    ).rejects.toMatchObject({ status: 403, errorCode: 'FORBIDDEN' });
   });
 });

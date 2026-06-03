@@ -24,7 +24,7 @@ export interface AnalyticsFilters {
 export function resolveScope(uid: string, roles: Role[], filters?: AnalyticsFilters): string {
   let base: string;
 
-  const isAdmin = roles.includes('admin') || roles.includes('super_admin') || roles.includes('master');
+  const isAdmin = roles.includes('admin') || roles.includes('super_admin');
   const isG12   = roles.includes('g12');
 
   if (filters?.leaderUid && (isAdmin || isG12)) {

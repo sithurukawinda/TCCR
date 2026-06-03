@@ -126,9 +126,9 @@ async function main() {
   check('POST', '/auth/register', r, 201);
   const TS = await signIn(TS_EMAIL, TS_PASS).catch(() => null);
 
-  // 2. POST /auth/password-reset (always 204 — never reveals if email exists)
+  // 2. POST /auth/password-reset (always 200 — never reveals if email exists)
   r = await api('POST', '/auth/password-reset', { email: TS_EMAIL });
-  check('POST', '/auth/password-reset', r, 204);
+  check('POST', '/auth/password-reset', r, 200);
 
   // 3. POST /auth/track-failure
   r = await api('POST', '/auth/track-failure', { email: TS_EMAIL });
