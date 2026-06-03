@@ -32,8 +32,7 @@ export class PromoteMemberUseCase {
     const isElevatedCaller =
       callerRoles.includes('g12') ||
       callerRoles.includes('admin') ||
-      callerRoles.includes('super_admin') ||
-      callerRoles.includes('master');
+      callerRoles.includes('super_admin');
 
     const allowedRoles = isElevatedCaller ? PROMOTABLE_ROLES : LEADER_PROMOTABLE_ROLES;
 
@@ -50,11 +49,10 @@ export class PromoteMemberUseCase {
     const target = await this.userRepo.findById(targetUid);
     if (!target) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
 
-    // Prevent promoting admins, super_admins, or masters
+    // Prevent promoting admins or super_admins
     if (
       target.roles.includes('admin') ||
-      target.roles.includes('super_admin') ||
-      target.roles.includes('master')
+      target.roles.includes('super_admin')
     ) {
       throw createHttpError(
         403,

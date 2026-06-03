@@ -41,7 +41,7 @@ export class GetNetworkReportsUseCase {
     callerUid:   string,
     callerRoles: Role[],
   ): Promise<NetworkReportsResult> {
-    const isAdmin  = callerRoles.includes('admin') || (callerRoles.includes('super_admin') || callerRoles.includes('master'));
+    const isAdmin  = callerRoles.includes('admin') || callerRoles.includes('super_admin');
     const isG12    = callerRoles.includes('g12');
     const isLeader = callerRoles.includes('leader');
 

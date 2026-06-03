@@ -10,7 +10,7 @@ export const approveUserSchema = z.object({
 
 export const addRoleSchema = z.object({
   uid:  z.string().min(1),
-  role: z.enum(['member', 'student', 'leader', 'g12', 'admin', 'super_admin', 'master']),
+  role: z.enum(['member', 'student', 'leader', 'g12', 'admin', 'super_admin']),
 });
 
 export const removeRoleSchema = z.object({

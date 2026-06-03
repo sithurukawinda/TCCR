@@ -47,10 +47,10 @@ export class GetUserSummaryUseCase {
   constructor(private readonly userRepo: IUserRepository) {}
 
   async execute(callerRoles: Role[] = []): Promise<UserSummaryResult> {
-    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin') || callerRoles.includes('master');
+    const isAdmin = callerRoles.includes('admin') || callerRoles.includes('super_admin');
 
     // Drain all approved users via internal cursor pagination.
-    // Leaders and G12 receive the same scoped view as GET /users — no admin/super_admin/master profiles.
+    // Leaders and G12 receive the same scoped view as GET /users — no admin/super_admin profiles.
     const allUsers: User[] = [];
     let cursor: string | undefined;
 
@@ -59,7 +59,7 @@ export class GetUserSummaryUseCase {
         limit:  100,
         cursor,
         status: 'approved',
-        ...(!isAdmin ? { excludeRoles: ['admin', 'super_admin', 'master'] } : {}),
+        ...(!isAdmin ? { excludeRoles: ['admin', 'super_admin'] } : {}),
       });
       allUsers.push(...page.items);
       cursor = page.nextCursor ?? undefined;
@@ -79,8 +79,7 @@ export class GetUserSummaryUseCase {
       const roles = user.roles ?? [];
       const p = toProfile(user);
 
-      if (roles.includes('master'))            groups.superAdmins.push(p); // master grouped with superAdmins
-      else if (roles.includes('super_admin')) groups.superAdmins.push(p);
+      if      (roles.includes('super_admin')) groups.superAdmins.push(p);
       else if (roles.includes('admin'))       groups.admins.push(p);
       else if (roles.includes('g12'))         groups.g12.push(p);
       else if (roles.includes('leader'))      groups.leaders.push(p);

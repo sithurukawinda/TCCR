@@ -1,12 +1,13 @@
 import { User, UserRole, UserStatus } from '../entities/User';
 
 export interface FindAllOptions {
-  limit:         number;
-  cursor?:       string;
-  role?:         UserRole;
-  status?:       UserStatus;
-  name?:         string;
-  excludeRoles?: UserRole[];
+  limit:          number;
+  cursor?:        string;
+  role?:          UserRole;          // scalar `role` field equality
+  roleInArray?:   UserRole;          // `roles[]` array-contains query
+  status?:        UserStatus;
+  name?:          string;
+  excludeRoles?:  UserRole[];
 }
 
 export interface FindAllResult {

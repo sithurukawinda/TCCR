@@ -18,19 +18,7 @@ export class CreateRoleRequestUseCase {
   ) {}
 
   async execute(input: CreateRoleRequestInput, requestId: string): Promise<RoleRequest> {
-    // Guard: only one pending request at a time
-    const existing = await this.roleRequestRepo.findPendingByRequester(input.requesterUid);
-    if (existing) {
-      throw createHttpError(409, 'ROLE_REQUEST_PENDING', 'You already have a pending role request.');
-    }
-
-    // Guard: role already granted via a previous approved request
-    const approved = await this.roleRequestRepo.findApprovedByRequester(input.requesterUid);
-    if (approved) {
-      throw createHttpError(409, 'ROLE_ALREADY_GRANTED', 'Your role request has already been approved.');
-    }
-
-    // Read profile from user-service and snapshot into the role request
+    // Fetch profile first — outside the transaction (HTTP call, not retry-safe inside tx)
     const profile = await this.userClient.getUser(input.requesterUid);
     if (!profile) {
       throw createHttpError(404, 'USER_NOT_FOUND', 'Could not load your profile. Please try again.');
@@ -48,7 +36,7 @@ export class CreateRoleRequestUseCase {
       createdAt:                new Date().toISOString(),
       decidedAt:                null,
       qualificationTitle:       profile.qualificationTitle,
-      qualificationStoragePath: null, // qualification is on the user profile, not stored here
+      qualificationStoragePath: null,
       applicantProfile: {
         firstName:          profile.firstName,
         lastName:           profile.lastName,
@@ -62,7 +50,8 @@ export class CreateRoleRequestUseCase {
       },
     });
 
-    await this.roleRequestRepo.create(roleRequest);
+    // Atomic check-then-create — closes TOCTOU race condition
+    await this.roleRequestRepo.createUnique(roleRequest);
 
     await this.outbox.publishWithBatch({
       type:    'role.requested',

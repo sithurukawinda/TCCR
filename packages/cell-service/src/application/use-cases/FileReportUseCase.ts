@@ -19,21 +19,18 @@ export class FileReportUseCase {
     cellId:      string,
     input:       FileReportInput,
     filledByUid: string,
-    callerRoles: Role[],
+    _callerRoles: Role[],
     requestId:   string,
   ): Promise<{ report: CellReport; isNew: boolean }> {
     const cell = await this.cellRepo.findById(cellId);
     if (!cell) throw createHttpError(404, 'CELL_NOT_FOUND', 'Cell group not found.');
 
-    const isAdmin      = callerRoles.includes('admin') || callerRoles.includes('super_admin') || callerRoles.includes('master');
-    const isSuperAdmin = callerRoles.includes('super_admin') || callerRoles.includes('master');
-    const isOwner      = cell.isOwnedBy(filledByUid);
+    const isOwner = cell.isOwnedBy(filledByUid);
 
-    // Only owning leader, G12 leader, super_admin, or master may file — regular admin cannot
-    if (!isSuperAdmin && !isOwner) {
-      throw createHttpError(403, 'FORBIDDEN', 'Only the cell leader or super admin can file a cell report.');
+    // Only the owning leader or G12 leader may file — admin/super_admin excluded at route level
+    if (!isOwner) {
+      throw createHttpError(403, 'FORBIDDEN', 'Only the cell leader or G12 leader can file a cell report.');
     }
-    void isAdmin; // used above implicitly
 
     // Idempotency check
     const existing = await this.reportRepo.findByClientReqId(cellId, input.clientReqId);
