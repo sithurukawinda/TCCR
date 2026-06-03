@@ -132,6 +132,7 @@ function buildRequest({
   body = null,
   query = null,
   tests = [],
+  prerequest = [],
 }) {
   // Always build a full Postman URL object (Newman 6 requires host/path arrays)
   const rawStr = typeof url === 'string' ? url : (url.raw || '');
@@ -139,6 +140,17 @@ function buildRequest({
   const urlObj = (typeof url === 'object' && url !== null && Array.isArray(url.host))
     ? url
     : makeUrl(rawStr, query);
+
+  const events = [];
+  if (prerequest.length) {
+    events.push({
+      listen: 'prerequest',
+      script: { id: uuid(), type: 'text/javascript', exec: prerequest },
+    });
+  }
+  if (tests.length) {
+    events.push(...testScript(tests));
+  }
 
   return {
     id: uuid(),
@@ -151,7 +163,7 @@ function buildRequest({
       auth: auth || noAuth(),
     },
     response: [],
-    event: tests.length ? testScript(tests) : undefined,
+    event: events.length ? events : undefined,
   };
 }
 
@@ -2448,9 +2460,9 @@ const enrollmentFolder = folder('7️⃣ Enrollment', [
 
 const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
   // ── 1. Create Role Request — JSON body: { requestedRole: "leader" } ─────────
-  // Uses student2Token: student2 has ["member","student"] — no "leader" role yet,
-  // so this is a valid new request that returns 201 and saves roleRequestId.
-  // (leaderToken cannot be used — leader already holds "student", triggering ROLE_ALREADY_HELD)
+  // Uses student2Token: student2 has ["member","student"] — no "leader" role yet.
+  // Pre-request script auto-creates student2's Firestore doc in the emulator if missing,
+  // so the test works without manually running seed-emulator.js.
   buildRequest({
     name: 'Create Role Request',
     method: 'POST',
@@ -2461,25 +2473,75 @@ const roleRequestsFolder = folder('8️⃣ Role Requests (V2)', [
     description: [
       'Submit a leader role application (student requesting to become a leader).',
       '',
-      'Prerequisites (must be done first):',
-      '  1. PATCH /me — fill dateOfBirth, gender, address, qualificationTitle',
-      '  2. POST /me/qualification — upload the PDF to user profile',
-      '',
-      'The system reads all personal details from the member\'s profile automatically.',
-      'No personal fields needed in this request — only { requestedRole: "leader" }.',
+      'Pre-request script automatically creates student2\'s Firestore document in the',
+      'local emulator if it is missing — no manual seed step needed for this request.',
       '',
       'Valid requestedRole values: "student" | "leader" | "g12"',
       '',
       'Errors:',
       '  400 VALIDATION_ERROR     — missing or invalid requestedRole (e.g. "admin" is blocked)',
-      '  404 USER_NOT_FOUND       — profile could not be loaded',
+      '  404 USER_NOT_FOUND       — profile could not be loaded (emulator may need seed-emulator.js)',
       '  409 ROLE_ALREADY_HELD    — caller already holds the requested role',
-      '  409 ROLE_REQUEST_PENDING — already has a pending request',
+      '  409 ROLE_REQUEST_PENDING — already has a pending request (run _restore-seeds.js to reset)',
     ].join('\n'),
+    prerequest: [
+      `// Auto-setup: ensure student2's Firestore document exists in the local emulator.`,
+      `// Uses Firestore emulator admin bypass (Bearer owner) — no-op for production.`,
+      `const base = pm.environment.get('baseUrl') || '';`,
+      `if (!base.includes('localhost')) return;`,
+      `const uid = pm.environment.get('student2Id');`,
+      `if (!uid) { console.log('⚠️  student2Id not set — run 🔐 Sign In folder first'); return; }`,
+      `const projectId = 'e-learning-f4209';`,
+      `const docUrl = 'http://localhost:8080/v1/projects/' + projectId + '/databases/(default)/documents/users/' + uid;`,
+      `const now = new Date().toISOString();`,
+      `pm.sendRequest({ url: docUrl, method: 'GET', header: { Authorization: 'Bearer owner' } },`,
+      `  function(err, res) {`,
+      `    if (res && res.code === 200) { console.log('✅ student2 Firestore doc exists'); return; }`,
+      `    const doc = { fields: {`,
+      `      uid:                     { stringValue: uid },`,
+      `      email:                   { stringValue: 'student2@cmp.com' },`,
+      `      firstName:               { stringValue: 'Student' },`,
+      `      lastName:                { stringValue: 'Two' },`,
+      `      displayName:             { stringValue: 'Student Two' },`,
+      `      role:                    { stringValue: 'student' },`,
+      `      roles:                   { arrayValue: { values: [{ stringValue: 'member' }, { stringValue: 'student' }] } },`,
+      `      status:                  { stringValue: 'approved' },`,
+      `      preferredLanguage:       { stringValue: 'en' },`,
+      `      providers:               { arrayValue: { values: [{ stringValue: 'password' }] } },`,
+      `      fcmTokens:               { arrayValue: { values: [] } },`,
+      `      notificationPreferences: { mapValue: { fields: { email: { booleanValue: true }, push: { booleanValue: true } } } },`,
+      `      tempReportAccess:        { booleanValue: false },`,
+      `      reportsFullAccess:       { booleanValue: false },`,
+      `      profilePhotoUrl:         { nullValue: null },`,
+      `      phoneNumber:             { nullValue: null },`,
+      `      dateOfBirth:             { nullValue: null },`,
+      `      gender:                  { nullValue: null },`,
+      `      address:                 { nullValue: null },`,
+      `      qualifications:          { arrayValue: { values: [] } },`,
+      `      qualificationTitle:      { nullValue: null },`,
+      `      qualificationUrl:        { nullValue: null },`,
+      `      deletedAt:               { nullValue: null },`,
+      `      createdAt:               { stringValue: now },`,
+      `      updatedAt:               { stringValue: now },`,
+      `      accountCreatedAt:        { stringValue: now },`,
+      `    }};`,
+      `    pm.sendRequest({`,
+      `      url: docUrl, method: 'PATCH',`,
+      `      header: { Authorization: 'Bearer owner', 'Content-Type': 'application/json' },`,
+      `      body: { mode: 'raw', raw: JSON.stringify(doc) }`,
+      `    }, function(e2, r2) {`,
+      `      console.log(r2 && r2.code === 200 ? '✅ student2 Firestore doc auto-created' : ('⚠️  doc create failed: ' + (r2 && r2.code)));`,
+      `    });`,
+      `  }`,
+      `);`,
+    ],
     tests: [
-      `pm.test("201/403/404/409 — Create Role Request", () => {`,
-      `  pm.expect([201, 403, 404, 409]).to.include(pm.response.code);`,
+      `pm.test("201/403/409 — Create Role Request", () => {`,
+      `  pm.expect([201, 403, 409]).to.include(pm.response.code);`,
       `});`,
+      `if (pm.response.code === 404) {`,
+      `  pm.test("❌ USER_NOT_FOUND — run: node scripts/seed-emulator.js", () => { throw new Error("student2 profile missing in Firestore — run: node scripts/seed-emulator.js then restart services"); });`,
+      `}`,
       `if (pm.response.code === 201) {`,
       `  const j = pm.response.json();`,
       `  pm.environment.set("roleRequestId", j.id);`,
