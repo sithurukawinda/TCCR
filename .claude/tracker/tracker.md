@@ -3,7 +3,7 @@
 **Project:** Course Management Portal (`slp-backend`)  
 **Organisation:** Future CX Lanka (Pvt) Ltd  
 **Version:** 1.0.0  
-**Last Updated:** 2026-05-25 (Phase 21 complete + session additions: qualification profile flow, role-request simplification, access control hardening, API doc fully synced, Postman 188 requests)
+**Last Updated:** 2026-06-04 (Session additions: audit actorEmail fixes, MASTER_DELETED trail, _restore-seeds.js master-delete guard, role-request expanded to student|leader|g12, Postman 267 requests / 18 folders)
 
 > Update this file as implementation progresses. Change `[ ]` to `[x]` when a task is done.
 
@@ -913,5 +913,39 @@
 - [x] `scripts/delete-user.js` — soft-delete a user (sets `deletedAt` + disables Firebase Auth)
 - [x] `scripts/test-login.js` — end-to-end login test; marks email verified + generates custom token + calls GET /me
 - [x] `scripts/fix-deleted-at.js` — set `deletedAt: null` (explicit null, not missing field) for Firestore query compatibility
+
+---
+
+## Session Additions — 2026-06-04
+
+### User Service — TMA Audit actorEmail Fix
+- [x] `GrantTempMasterAccessUseCase` — added `callerEmail` to input interface; `actorEmail` in `audit.action` payload was hardcoded `''` (empty string); now populated from `req.principal.email`
+- [x] `ExtendTempMasterAccessUseCase` — same fix; `callerEmail` added to input interface
+- [x] `RevokeTempMasterAccessUseCase` — same fix; `callerEmail` added as positional parameter
+- [x] `SuperAdminController` — extracts `email` from `req.principal` and passes to all three TMA use cases
+
+### User Service — MASTER_DELETED Audit Trail
+- [x] `DeleteMasterUseCase` — previously had **no audit event at all**; now injects `OutboxEventPublisher`, accepts `callerUid`, `callerEmail`, `requestId`, and publishes `MASTER_DELETED` `audit.action` event with `deletedEmail` field
+- [x] `MasterController.deleteMaster` — now extracts `callerUid` + `callerEmail` from `req.principal` and passes to use case
+- [x] `container.ts` — wires `outbox` into `DeleteMasterUseCase`
+
+### Scripts — _restore-seeds.js Master-Delete Guard
+- [x] `scripts/_restore-seeds.js` — previously **hard-deleted any non-seed master user** every time the script ran (called by `newman-run-online.js` before each test run); replaced hard-delete block with a warning log; the Newman collection's own pre-flight step ("Pre-flight — Delete Existing Master") handles slot cleanup during test runs — auto-deletion here was silently destroying real master accounts
+
+### Enrollment Service — Role-Request Expansion
+- [x] `requestedRole` Zod schema expanded from `z.literal('student')` → `z.enum(['student', 'leader', 'g12'])`; members can now request any of the three non-member roles via `POST /role-requests`
+
+### Postman Collection — Audit Verification Tests
+- [x] Added `pm.sendRequest()` audit-log check blocks to 4 requests:
+  - "Grant Temporary Master Access" → asserts `GRANT_TEMP_MASTER_ACCESS` entry exists with non-empty `actorEmail`
+  - "Extend Temporary Master Access" → asserts `EXTEND_TEMP_MASTER_ACCESS` entry exists with non-empty `actorEmail`
+  - "Revoke Temporary Master Access" → asserts `REVOKE_TEMP_MASTER_ACCESS` entry exists with non-empty `actorEmail`
+  - "16. Cleanup — Hard Delete Master" → asserts `MASTER_DELETED` entry exists with non-empty `actorEmail`
+- [x] Postman collection rebuilt to **267 requests across 18 folders** (was 188 at Phase 21 close)
+
+### Documentation
+- [x] `CLAUDE.md` — corrected `requestedRole` example from `"student"` → `"student" | "leader" | "g12"`
+- [x] `CLAUDE.md` — updated Postman count from 230 requests/17 folders → 267 requests/18 folders
+- [x] `.claude/APIdocument/Report_Access_Control_API.md` — permanently deleted; content covered by `g12_master_report.md`; reference removed from `CLAUDE.md`
 
 *© 2026 Future CX Lanka (Pvt) Ltd — Confidential*
