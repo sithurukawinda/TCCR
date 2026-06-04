@@ -1097,7 +1097,6 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/APIdocument/API_Document.md`** — Complete V1 REST API reference (all endpoints, request/response schemas, error codes). Audited and corrected to match the actual implementation.
 - **`.claude/APIdocument/Version_02__API_Reference.md`** — V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.44.0.
 - **`.claude/APIdocument/g12_master_report.md`** — G12 & Master report access API reference: `GET /cells/network/summary`, `GET /cells/network/reports` with `?role=` scoping, and all five TMA + reports-full-access super-admin endpoints. Includes role access matrix, response field reference, workflows, and error codes.
-- **`.claude/APIdocument/Report_Access_Control_API.md`** — Companion reference for the report section access control system; covers the same endpoints as `g12_master_report.md` with end-to-end workflow examples and audit log payloads.
 - **`.claude/tracker/tracker.md`** — Phase-by-phase implementation checklist (Phases 0—21). Update `[ ]` → `[x]` as work completes. Check this before starting any phase to understand what’s done and what’s blocked.
 - **`.claude/plan/implementation-plan.md`** — Detailed implementation plan with phase dependencies and sequencing.
 - **`.claude/sprints/`** — Per-sprint breakdown (`sprint-1-*.md` through `sprint-7-*.md`) with user stories and acceptance criteria.
