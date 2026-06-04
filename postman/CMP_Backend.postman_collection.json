@@ -456,7 +456,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"firstName\": \"New\",\n  \"lastName\": \"Member\",\n  \"email\": \"newmember{{runId}}@gmail.com\",\n  \"password\": \"Member@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
+              "raw": "{\n  \"firstName\": \"dasun\",\n  \"lastName\": \"Member\",\n  \"email\": \"newmember{{runId}}@gmail.com\",\n  \"password\": \"Member@Tccr2026\",\n  \"preferredLanguage\": \"en\"\n}",
               "options": {
                 "raw": {
                   "language": "json"
