@@ -51,7 +51,8 @@ export class FirestoreRoleRequestRepository implements IRoleRequestRepository {
 
   async findAll(opts: RoleRequestListOptions): Promise<RoleRequestListResult> {
     let q: FirebaseFirestore.Query = this.col;
-    if (opts.status) q = q.where('status', '==', opts.status);
+    if (opts.status)                          q = q.where('status',           '==', opts.status);
+    if (opts.submittedByAdmin !== undefined)  q = q.where('submittedByAdmin', '==', opts.submittedByAdmin);
 
     const total = (await q.count().get()).data().count;
     let paged   = q.orderBy('createdAt', 'desc').limit(opts.limit);

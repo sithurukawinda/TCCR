@@ -12,9 +12,13 @@ export class ApproveRoleRequestUseCase {
     private readonly outbox:          OutboxEventPublisher,
   ) {}
 
-  async execute(id: string, decidedByUid: string, note: string | undefined, requestId: string): Promise<RoleRequest> {
+  async execute(id: string, decidedByUid: string, note: string | undefined, requestId: string, callerRoles: string[] = []): Promise<RoleRequest> {
     const req = await this.roleRequestRepo.findById(id);
     if (!req) throw createHttpError(404, 'ROLE_REQUEST_NOT_FOUND', 'Role request not found.');
+
+    if (req.submittedByAdmin && !callerRoles.includes('super_admin')) {
+      throw createHttpError(403, 'FORBIDDEN', 'Only super_admin can approve role requests submitted by admin accounts.');
+    }
 
     req.approve(decidedByUid, note); // throws 409 if not pending
 

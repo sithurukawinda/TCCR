@@ -65,11 +65,12 @@ export class RoleRequestController {
       const parsed = listRoleRequestsSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
-      const cacheKey = JSON.stringify({ ...parsed.data });
-      const cached   = RoleRequestController.listCache.get(cacheKey);
+      const { roles } = (req as AuthenticatedRequest).principal;
+      const cacheKey  = JSON.stringify({ ...parsed.data, roles });
+      const cached    = RoleRequestController.listCache.get(cacheKey);
       if (cached) return sendPaginated(res, cached.items, cached.nextCursor, cached.total);
 
-      const result = await this.listUseCase.execute(parsed.data);
+      const result = await this.listUseCase.execute(parsed.data, roles);
       RoleRequestController.listCache.set(cacheKey, result);
       sendPaginated(res, result.items, result.nextCursor, result.total);
     } catch (err) { next(err); }
@@ -107,9 +108,9 @@ export class RoleRequestController {
       const parsed = decideRoleRequestSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
-      const { uid } = (req as AuthenticatedRequest).principal;
-      const requestId = (req.headers['x-request-id'] as string) ?? '';
-      const result = await this.approveUseCase.execute(req.params.id, uid, parsed.data.note, requestId);
+      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const requestId      = (req.headers['x-request-id'] as string) ?? '';
+      const result = await this.approveUseCase.execute(req.params.id, uid, parsed.data.note, requestId, roles);
       RoleRequestController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }
@@ -121,9 +122,9 @@ export class RoleRequestController {
       const parsed = decideRoleRequestSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
-      const { uid } = (req as AuthenticatedRequest).principal;
-      const requestId = (req.headers['x-request-id'] as string) ?? '';
-      const result = await this.rejectUseCase.execute(req.params.id, uid, parsed.data.note, requestId);
+      const { uid, roles } = (req as AuthenticatedRequest).principal;
+      const requestId      = (req.headers['x-request-id'] as string) ?? '';
+      const result = await this.rejectUseCase.execute(req.params.id, uid, parsed.data.note, requestId, roles);
       RoleRequestController.listCache.clear();
       sendSuccess(res, result);
     } catch (err) { next(err); }

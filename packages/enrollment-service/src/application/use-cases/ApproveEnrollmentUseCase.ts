@@ -14,9 +14,13 @@ export class ApproveEnrollmentUseCase {
     private readonly courseClient: CourseServiceClient,
   ) {}
 
-  async execute(id: string, requestId: string, note?: string): Promise<Enrollment> {
+  async execute(id: string, requestId: string, note?: string, callerRoles: string[] = []): Promise<Enrollment> {
     const enrollment = await this.enrollRepo.findById(id);
     if (!enrollment) throw createHttpError(404, 'ENROLLMENT_NOT_FOUND', 'Enrollment not found.');
+
+    if (enrollment.submittedByAdmin && !callerRoles.includes('super_admin')) {
+      throw createHttpError(403, 'FORBIDDEN', 'Only super_admin can approve enrollments submitted by admin accounts.');
+    }
 
     enrollment.approve();
     await this.enrollRepo.update(enrollment);

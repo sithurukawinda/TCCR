@@ -1,9 +1,10 @@
 import { RoleRequest, RoleRequestStatus } from '../entities/RoleRequest';
 
 export interface RoleRequestListOptions {
-  limit:   number;
-  cursor?: string;
-  status?: RoleRequestStatus;
+  limit:             number;
+  cursor?:           string;
+  status?:           RoleRequestStatus;
+  submittedByAdmin?: boolean;
 }
 
 export interface RoleRequestListResult {

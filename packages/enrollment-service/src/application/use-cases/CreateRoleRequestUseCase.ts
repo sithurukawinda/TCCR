@@ -42,6 +42,7 @@ export class CreateRoleRequestUseCase {
       decidedAt:                null,
       qualificationTitle:       profile.qualificationTitle,
       qualificationStoragePath: null,
+      submittedByAdmin:         input.callerRoles.includes('admin'),
       applicantProfile: {
         firstName:          profile.firstName,
         lastName:           profile.lastName,
