@@ -7459,6 +7459,302 @@
               }
             }
           ]
+        },
+        {
+          "id": "c7f41169-3eb4-4ff1-b4bf-7090e63fccfe",
+          "name": "Admin-Submitted H — Setup: Add student role to admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"student\",\n  \"action\": \"add\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{adminId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{adminId}}",
+                "roles"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — student role added to admin\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "03643919-1eeb-41e7-b542-e33c0cf2f2f2",
+          "name": "Admin-Submitted I — Admin enrolls in course (submittedByAdmin=true)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/courses/{{courseId}}/enroll",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "courses",
+                "{{courseId}}",
+                "enroll"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Re-sign admin to get token with updated roles (student added in step H)",
+                  "const apiKey   = pm.environment.get(\"firebaseWebApiKey\");",
+                  "const authBase = pm.environment.get(\"authBaseUrl\");",
+                  "pm.sendRequest({",
+                  "  url: authBase + \"/accounts:signInWithPassword?key=\" + apiKey,",
+                  "  method: \"POST\",",
+                  "  header: [{ key: \"Content-Type\", value: \"application/json\" }],",
+                  "  body: { mode: \"raw\", raw: JSON.stringify({ email: \"admin@cmp.com\", password: \"Admin@12345\", returnSecureToken: true }) }",
+                  "}, (err, res) => {",
+                  "  if (!err && res.code === 200) pm.environment.set(\"adminToken\", res.json().idToken);",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 201 = enrolled; 409 = already enrolled",
+                  "pm.test(\"201 or 409 — enrollment submitted\", () => {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const j = pm.response.json();",
+                  "  pm.environment.set(\"adminEnrollmentId\", j.id);",
+                  "  pm.test(\"submittedByAdmin is true\", () => pm.expect(j.submittedByAdmin).to.equal(true));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "2b8248d2-d89d-4c3e-a798-074a879a1ccc",
+          "name": "Admin-Submitted J — Admin list enrollments: own entry is HIDDEN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/admin/enrollments?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "enrollments?limit=50"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j  = pm.response.json();",
+                  "const id = pm.environment.get(\"adminEnrollmentId\");",
+                  "if (id) {",
+                  "  pm.test(\"admin-submitted enrollment NOT visible to admin\", () => {",
+                  "    pm.expect((j.items || []).find(e => e.id === id)).to.be.undefined;",
+                  "  });",
+                  "}",
+                  "pm.test(\"all visible enrollments have submittedByAdmin=false\", () => {",
+                  "  (j.items || []).forEach(e => pm.expect(e.submittedByAdmin).to.equal(false));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "69233e34-084b-42e2-858a-2f29f048ee90",
+          "name": "Admin-Submitted K — Admin approve own enrollment → 403 FORBIDDEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/enrollments/{{adminEnrollmentId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "enrollments",
+                "{{adminEnrollmentId}}",
+                "approve"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN — admin cannot approve admin-submitted enrollment\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"error code is FORBIDDEN\", () => pm.expect(pm.response.json().error.code).to.equal(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "ab0f32a5-53dc-4f83-88c1-6a038007ab58",
+          "name": "Admin-Submitted L — super_admin approves admin enrollment → 200 + Cleanup",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/enrollments/{{adminEnrollmentId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "enrollments",
+                "{{adminEnrollmentId}}",
+                "approve"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — super_admin approves admin enrollment\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"state is approved\", () => pm.expect(pm.response.json().state).to.equal(\"approved\"));",
+                  "pm.environment.unset(\"adminEnrollmentId\");",
+                  "",
+                  "// Fire cleanup: remove student role from admin (fire-and-forget)",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get(\"baseUrl\") + \"/users/\" + pm.environment.get(\"adminId\") + \"/roles\",",
+                  "  method: \"PATCH\",",
+                  "  header: [{ key: \"Content-Type\", value: \"application/json\" }, { key: \"Authorization\", value: \"Bearer \" + pm.environment.get(\"superAdminToken\") }],",
+                  "  body: { mode: \"raw\", raw: JSON.stringify({ role: \"student\", action: \"remove\" }) }",
+                  "}, () => {});"
+                ]
+              }
+            }
+          ]
         }
       ]
     },
@@ -8153,6 +8449,418 @@
                   "  const j = pm.response.json();",
                   "  pm.test(\"409 errorCode is INVALID_STATE\", () => pm.expect(j.error.code).to.equal(\"INVALID_STATE\"));",
                   "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "77ee50d1-fc64-4baa-969c-8129c6a5e093",
+          "name": "Admin-Submitted A — Setup: Add member role to admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\",\n  \"action\": \"add\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{adminId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{adminId}}",
+                "roles"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — member role added to admin\", () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "f72ace0f-667f-4a4d-bb4c-4a42866622a8",
+          "name": "Admin-Submitted B — Admin submits role request (leader)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"requestedRole\": \"leader\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/role-requests",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "role-requests"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Re-sign admin to pick up updated roles (member added in step A)",
+                  "const apiKey = pm.environment.get(\"firebaseWebApiKey\");",
+                  "const authBase = pm.environment.get(\"authBaseUrl\");",
+                  "pm.sendRequest({",
+                  "  url: authBase + \"/accounts:signInWithPassword?key=\" + apiKey,",
+                  "  method: \"POST\",",
+                  "  header: [{ key: \"Content-Type\", value: \"application/json\" }],",
+                  "  body: { mode: \"raw\", raw: JSON.stringify({ email: \"admin@cmp.com\", password: \"Admin@12345\", returnSecureToken: true }) }",
+                  "}, (err, res) => {",
+                  "  if (!err && res.code === 200) {",
+                  "    const j = res.json();",
+                  "    pm.environment.set(\"adminToken\", j.idToken);",
+                  "  }",
+                  "});"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 201 = new request created; 409 ROLE_ALREADY_HELD = admin already has leader",
+                  "pm.test(\"201 or 409 (already held) — role request submitted\", () => {",
+                  "  pm.expect([201, 409]).to.include(pm.response.code);",
+                  "});",
+                  "if (pm.response.code === 201) {",
+                  "  const j = pm.response.json();",
+                  "  pm.environment.set(\"adminRoleRequestId\", j.id);",
+                  "  pm.test(\"submittedByAdmin is true on new request\", () => {",
+                  "    pm.expect(j.submittedByAdmin).to.equal(true);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d1eef25a-794e-4e2a-9d6d-dfef14216963",
+          "name": "Admin-Submitted C — Admin list: own request is HIDDEN",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/role-requests?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "role-requests?limit=50"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const adminRRId = pm.environment.get(\"adminRoleRequestId\");",
+                  "if (adminRRId) {",
+                  "  const found = (j.items || []).find(r => r.id === adminRRId);",
+                  "  pm.test(\"admin-submitted request is NOT visible to admin\", () => {",
+                  "    pm.expect(found).to.be.undefined;",
+                  "  });",
+                  "}",
+                  "// All visible items must have submittedByAdmin=false",
+                  "pm.test(\"all listed items have submittedByAdmin=false\", () => {",
+                  "  (j.items || []).forEach(r => pm.expect(r.submittedByAdmin).to.equal(false));",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "e7e7e9bd-7dd7-4c41-bbc6-199acba77229",
+          "name": "Admin-Submitted D — super_admin list: sees admin request + submittedByAdmin=true",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/role-requests?limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "role-requests?limit=50"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK\", () => pm.response.to.have.status(200));",
+                  "const j   = pm.response.json();",
+                  "const id  = pm.environment.get(\"adminRoleRequestId\");",
+                  "if (id) {",
+                  "  const entry = (j.items || []).find(r => r.id === id);",
+                  "  pm.test(\"admin-submitted request IS visible to super_admin\", () => {",
+                  "    pm.expect(entry).to.exist;",
+                  "  });",
+                  "  pm.test(\"submittedByAdmin flag is true\", () => {",
+                  "    pm.expect(entry && entry.submittedByAdmin).to.equal(true);",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d8fef7ea-056c-4b39-95d4-3f7366f90f16",
+          "name": "Admin-Submitted E — Admin approve admin-request → 403 FORBIDDEN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/role-requests/{{adminRoleRequestId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "role-requests",
+                "{{adminRoleRequestId}}",
+                "approve"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"403 FORBIDDEN — admin cannot approve admin-submitted request\", () => pm.response.to.have.status(403));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"error code is FORBIDDEN\", () => pm.expect(j.error.code).to.equal(\"FORBIDDEN\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "d5652110-3c7f-4ad5-8a06-c2cd02f895ab",
+          "name": "Admin-Submitted F — super_admin approve admin-request → 200",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/role-requests/{{adminRoleRequestId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "role-requests",
+                "{{adminRoleRequestId}}",
+                "approve"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — super_admin can approve admin-submitted request\", () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test(\"status is approved\", () => pm.expect(j.status).to.equal(\"approved\"));",
+                  "pm.test(\"submittedByAdmin is still true after approval\", () => pm.expect(j.submittedByAdmin).to.equal(true));",
+                  "pm.environment.unset(\"adminRoleRequestId\");"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "id": "fba6a25e-aed8-422b-9efd-4eb3be2c66c7",
+          "name": "Admin-Submitted G — Cleanup: Remove member role from admin",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"member\",\n  \"action\": \"remove\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/users/{{adminId}}/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "users",
+                "{{adminId}}",
+                "roles"
+              ]
+            },
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{superAdminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          },
+          "response": [],
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"200 OK — member role removed from admin\", () => pm.response.to.have.status(200));"
                 ]
               }
             }
