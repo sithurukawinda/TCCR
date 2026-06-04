@@ -3,41 +3,44 @@ import { createHttpError } from '@shared/errors';
 export type EnrollmentState = 'pending' | 'approved' | 'rejected' | 'withdrawn';
 
 export interface EnrollmentProps {
-  id:          string; // ${studentUid}_${courseId}
-  studentUid:  string;
-  courseId:    string;
-  state:       EnrollmentState;
-  reason:      string | null;
-  rejectedAt:  string | null;
-  approvedAt:  string | null;
-  withdrawnAt: string | null;
-  createdAt:   string;
-  updatedAt:   string;
+  id:               string; // ${studentUid}_${courseId}
+  studentUid:       string;
+  courseId:         string;
+  state:            EnrollmentState;
+  reason:           string | null;
+  rejectedAt:       string | null;
+  approvedAt:       string | null;
+  withdrawnAt:      string | null;
+  createdAt:        string;
+  updatedAt:        string;
+  submittedByAdmin: boolean;
 }
 
 export class Enrollment {
-  id:          string;
-  studentUid:  string;
-  courseId:    string;
-  state:       EnrollmentState;
-  reason:      string | null;
-  rejectedAt:  string | null;
-  approvedAt:  string | null;
-  withdrawnAt: string | null;
+  id:               string;
+  studentUid:       string;
+  courseId:         string;
+  state:            EnrollmentState;
+  reason:           string | null;
+  rejectedAt:       string | null;
+  approvedAt:       string | null;
+  withdrawnAt:      string | null;
   readonly createdAt: string;
-  updatedAt:   string;
+  updatedAt:        string;
+  submittedByAdmin: boolean;
 
   constructor(props: EnrollmentProps) {
-    this.id          = props.id;
-    this.studentUid  = props.studentUid;
-    this.courseId    = props.courseId;
-    this.state       = props.state;
-    this.reason      = props.reason;
-    this.rejectedAt  = props.rejectedAt;
-    this.approvedAt  = props.approvedAt;
-    this.withdrawnAt = props.withdrawnAt;
-    this.createdAt   = props.createdAt;
-    this.updatedAt   = props.updatedAt;
+    this.id               = props.id;
+    this.studentUid       = props.studentUid;
+    this.courseId         = props.courseId;
+    this.state            = props.state;
+    this.reason           = props.reason;
+    this.rejectedAt       = props.rejectedAt;
+    this.approvedAt       = props.approvedAt;
+    this.withdrawnAt      = props.withdrawnAt;
+    this.createdAt        = props.createdAt;
+    this.updatedAt        = props.updatedAt;
+    this.submittedByAdmin = props.submittedByAdmin ?? false;
   }
 
   approve(): void {
