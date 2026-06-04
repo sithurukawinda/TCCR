@@ -9,10 +9,21 @@ metadata:
 spec:
   tls:
     - hosts:
-        - api.yourdomain.com
+        - cms.api.bethelnet.au
+        - api.tccr.lk
       secretName: cmp-tls
   rules:
-    - host: api.yourdomain.com
+    - host: cms.api.bethelnet.au
+      http:
+        paths:
+          - path: /api/v1
+            pathType: Prefix
+            backend:
+              service:
+                name: cmp-gateway
+                port:
+                  number: 3000
+    - host: api.tccr.lk
       http:
         paths:
           - path: /api/v1
