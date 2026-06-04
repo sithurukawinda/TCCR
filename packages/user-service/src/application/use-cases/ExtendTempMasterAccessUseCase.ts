@@ -7,6 +7,7 @@ import { User }                 from '../../domain/entities/User';
 export interface ExtendTempMasterAccessInput {
   targetUid:     string;
   callerUid:     string;
+  callerEmail:   string;
   newExpiresAt:  string; // ISO 8601 timestamp — must be in the future
   requestId:     string;
 }
@@ -19,7 +20,7 @@ export class ExtendTempMasterAccessUseCase {
   ) {}
 
   async execute(input: ExtendTempMasterAccessInput): Promise<User> {
-    const { targetUid, callerUid, newExpiresAt, requestId } = input;
+    const { targetUid, callerUid, callerEmail, newExpiresAt, requestId } = input;
 
     const user = await this.userRepo.findById(targetUid);
     if (!user) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
@@ -48,7 +49,7 @@ export class ExtendTempMasterAccessUseCase {
       type:    'audit.action',
       payload: {
         actorUid:          callerUid,
-        actorEmail:        '',
+        actorEmail:        callerEmail,
         action:            'EXTEND_TEMP_MASTER_ACCESS',
         category:          'user',
         targetType:        'user',

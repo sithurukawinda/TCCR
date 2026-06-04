@@ -84,27 +84,25 @@ async function run() {
     }
   }
 
-  // 4. Delete any master account left from a previous Newman master-management test run.
-  //    Without this, POST /master/invite returns 409 MASTER_ALREADY_EXISTS on the next run.
+  // 4. Check for existing master — do NOT auto-delete.
+  //    The Postman collection's own pre-flight step ("Pre-flight — Delete Existing Master")
+  //    handles freeing the slot before the master-management tests run. Auto-deleting here
+  //    would silently destroy a real master account created outside of test runs.
   try {
     const masterSnap = await db.collection('users')
       .where('roles', 'array-contains', 'master')
       .get();
     if (!masterSnap.empty) {
       const seedEmails = new Set(seeds.map(s => s.email));
-      const masterDocs = masterSnap.docs.filter(d => !seedEmails.has(d.data().email));
-      if (masterDocs.length > 0) {
-        const batch = db.batch();
-        for (const doc of masterDocs) {
-          batch.delete(doc.ref);
-          try { await admin.auth().deleteUser(doc.id); } catch (_) { /* already gone */ }
-        }
-        await batch.commit();
-        console.log(`🧹  Deleted ${masterDocs.length} stale master user(s) from previous test run`);
+      const nonSeedMasters = masterSnap.docs.filter(d => !seedEmails.has(d.data().email));
+      if (nonSeedMasters.length > 0) {
+        const emails = nonSeedMasters.map(d => d.data().email).join(', ');
+        console.log(`ℹ️   Active master user(s) found: ${emails}`);
+        console.log(`    The Newman collection's pre-flight step will free the slot before master tests run.`);
       }
     }
   } catch (e) {
-    console.error(`⚠️   master cleanup failed: ${e.message}`);
+    console.error(`⚠️   master check failed: ${e.message}`);
   }
 }
 

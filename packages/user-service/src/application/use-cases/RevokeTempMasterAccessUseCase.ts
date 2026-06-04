@@ -11,7 +11,7 @@ export class RevokeTempMasterAccessUseCase {
     private readonly outbox:     OutboxEventPublisher,
   ) {}
 
-  async execute(targetUid: string, callerUid: string, requestId: string): Promise<User> {
+  async execute(targetUid: string, callerUid: string, callerEmail: string, requestId: string): Promise<User> {
     const user = await this.userRepo.findById(targetUid);
     if (!user) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
 
@@ -30,7 +30,7 @@ export class RevokeTempMasterAccessUseCase {
       type:    'audit.action',
       payload: {
         actorUid:          callerUid,
-        actorEmail:        '',
+        actorEmail:        callerEmail,
         action:            'REVOKE_TEMP_MASTER_ACCESS',
         category:          'user',
         targetType:        'user',

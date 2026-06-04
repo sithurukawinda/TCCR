@@ -79,7 +79,9 @@ export class MasterController {
 
   deleteMaster = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      await this.deleteUC.execute(req.params.uid);
+      const { uid: callerUid, email: callerEmail } = (req as AuthenticatedRequest).principal;
+      const requestId = (req.headers['x-request-id'] as string) ?? '';
+      await this.deleteUC.execute(req.params.uid, callerUid, callerEmail, requestId);
       res.status(204).end();
     } catch (err) { next(err); }
   };

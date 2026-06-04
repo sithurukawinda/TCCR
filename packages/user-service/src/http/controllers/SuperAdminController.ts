@@ -118,11 +118,12 @@ export class SuperAdminController {
     try {
       const parsed = tempMasterAccessSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const { uid: callerUid, email: callerEmail } = (req as AuthenticatedRequest).principal;
       const requestId          = (req.headers['x-request-id'] as string) ?? '';
       const user = await this.grantTempMasterAccessUC.execute({
         targetUid: req.params.uid,
         callerUid,
+        callerEmail,
         expiresAt: parsed.data.expiresAt,
         requestId,
       });
@@ -134,11 +135,12 @@ export class SuperAdminController {
     try {
       const parsed = tempMasterAccessSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const { uid: callerUid, email: callerEmail } = (req as AuthenticatedRequest).principal;
       const requestId          = (req.headers['x-request-id'] as string) ?? '';
       const user = await this.extendTempMasterAccessUC.execute({
         targetUid:    req.params.uid,
         callerUid,
+        callerEmail,
         newExpiresAt: parsed.data.expiresAt,
         requestId,
       });
@@ -148,9 +150,9 @@ export class SuperAdminController {
 
   revokeTempMasterAccess = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { uid: callerUid } = (req as AuthenticatedRequest).principal;
+      const { uid: callerUid, email: callerEmail } = (req as AuthenticatedRequest).principal;
       const requestId          = (req.headers['x-request-id'] as string) ?? '';
-      const user = await this.revokeTempMasterAccessUC.execute(req.params.uid, callerUid, requestId);
+      const user = await this.revokeTempMasterAccessUC.execute(req.params.uid, callerUid, callerEmail, requestId);
       sendSuccess(res, { message: 'Temporary Master Access revoked.', uid: user.uid });
     } catch (err) { next(err); }
   };

@@ -5,10 +5,11 @@ import { FirebaseAuthClient }   from '../../infrastructure/clients/FirebaseAuthC
 import { User }                 from '../../domain/entities/User';
 
 export interface GrantTempMasterAccessInput {
-  targetUid:  string;
-  callerUid:  string;
-  expiresAt:  string; // ISO 8601 timestamp — must be in the future
-  requestId:  string;
+  targetUid:   string;
+  callerUid:   string;
+  callerEmail: string;
+  expiresAt:   string; // ISO 8601 timestamp — must be in the future
+  requestId:   string;
 }
 
 export class GrantTempMasterAccessUseCase {
@@ -19,7 +20,7 @@ export class GrantTempMasterAccessUseCase {
   ) {}
 
   async execute(input: GrantTempMasterAccessInput): Promise<User> {
-    const { targetUid, callerUid, expiresAt, requestId } = input;
+    const { targetUid, callerUid, callerEmail, expiresAt, requestId } = input;
 
     const user = await this.userRepo.findById(targetUid);
     if (!user) throw createHttpError(404, 'USER_NOT_FOUND', 'User not found.');
@@ -45,7 +46,7 @@ export class GrantTempMasterAccessUseCase {
       type:    'audit.action',
       payload: {
         actorUid:   callerUid,
-        actorEmail: '',
+        actorEmail: callerEmail,
         action:     'GRANT_TEMP_MASTER_ACCESS',
         category:   'user',
         targetType: 'user',
