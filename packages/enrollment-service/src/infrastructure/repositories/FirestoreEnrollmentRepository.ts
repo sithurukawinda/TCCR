@@ -36,9 +36,8 @@ export class FirestoreEnrollmentRepository implements IEnrollmentRepository {
 
   async findAll(opts: EnrollmentListOptions): Promise<EnrollmentListResult> {
     let q = this.col as FirebaseFirestore.Query;
-    if (opts.state)                           q = q.where('state',           '==', opts.state);
-    if (opts.courseId)                        q = q.where('courseId',        '==', opts.courseId);
-    if (opts.submittedByAdmin !== undefined)  q = q.where('submittedByAdmin','==', opts.submittedByAdmin);
+    if (opts.state)    q = q.where('state',    '==', opts.state);
+    if (opts.courseId) q = q.where('courseId', '==', opts.courseId);
 
     const [countSnap, cursorSnap] = await Promise.all([
       q.count().get(),

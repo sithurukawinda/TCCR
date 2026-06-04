@@ -14,13 +14,9 @@ export class RejectEnrollmentUseCase {
     private readonly courseClient: CourseServiceClient,
   ) {}
 
-  async execute(id: string, reason: string | undefined, requestId: string, callerRoles: string[] = []): Promise<Enrollment> {
+  async execute(id: string, reason: string | undefined, requestId: string): Promise<Enrollment> {
     const enrollment = await this.enrollRepo.findById(id);
     if (!enrollment) throw createHttpError(404, 'ENROLLMENT_NOT_FOUND', 'Enrollment not found.');
-
-    if (enrollment.submittedByAdmin && !callerRoles.includes('super_admin')) {
-      throw createHttpError(403, 'FORBIDDEN', 'Only super_admin can reject enrollments submitted by admin accounts.');
-    }
 
     enrollment.reject(reason);
     await this.enrollRepo.update(enrollment);

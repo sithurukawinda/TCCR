@@ -12,7 +12,7 @@ export class CreateEnrollmentUseCase {
     private readonly outbox:       OutboxEventPublisher,
   ) {}
 
-  async execute(studentUid: string, courseId: string, requestId: string, callerRoles: string[] = []): Promise<Enrollment> {
+  async execute(studentUid: string, courseId: string, requestId: string): Promise<Enrollment> {
     const isPublished = await this.courseClient.isCoursePublished(courseId);
     if (!isPublished) throw createHttpError(404, 'COURSE_NOT_FOUND', 'Course not found or not published.');
 
@@ -33,17 +33,16 @@ export class CreateEnrollmentUseCase {
 
     const now        = new Date().toISOString();
     const enrollment = new Enrollment({
-      id:               `${studentUid}_${courseId}`,
+      id:          `${studentUid}_${courseId}`,
       studentUid,
       courseId,
-      state:            'pending',
-      reason:           null,
-      rejectedAt:       null,
-      approvedAt:       null,
-      withdrawnAt:      null,
-      createdAt:        now,
-      updatedAt:        now,
-      submittedByAdmin: callerRoles.includes('admin'),
+      state:       'pending',
+      reason:      null,
+      rejectedAt:  null,
+      approvedAt:  null,
+      withdrawnAt: null,
+      createdAt:   now,
+      updatedAt:   now,
     });
 
     await this.enrollRepo.create(enrollment);

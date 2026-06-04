@@ -30,9 +30,9 @@ export class EnrollmentController {
   // V1: POST /courses/:id/enroll  (courseId from URL param)
   enroll = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     try {
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const requestId      = (req.headers['x-request-id'] as string) ?? '';
-      const enrollment     = await this.createUC.execute(uid, req.params.id, requestId, roles);
+      const { uid }   = (req as AuthenticatedRequest).principal;
+      const requestId = (req.headers['x-request-id'] as string) ?? '';
+      const enrollment = await this.createUC.execute(uid, req.params.id, requestId);
       EnrollmentController.clearCaches();
       sendSuccess(res, enrollment, 201);
     } catch (err) { next(err); }
@@ -43,9 +43,9 @@ export class EnrollmentController {
     try {
       const parsed = enrollV2Schema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { uid, roles } = (req as AuthenticatedRequest).principal;
-      const requestId      = (req.headers['x-request-id'] as string) ?? '';
-      const enrollment     = await this.createUC.execute(uid, parsed.data.courseId, requestId, roles);
+      const { uid }   = (req as AuthenticatedRequest).principal;
+      const requestId = (req.headers['x-request-id'] as string) ?? '';
+      const enrollment = await this.createUC.execute(uid, parsed.data.courseId, requestId);
       EnrollmentController.clearCaches();
       sendSuccess(res, enrollment, 201);
     } catch (err) { next(err); }
@@ -82,22 +82,11 @@ export class EnrollmentController {
       const parsed = listSchema.safeParse(req.query);
       if (!parsed.success) return next(fromZodError(parsed.error));
 
-      const { roles }  = (req as AuthenticatedRequest).principal;
-      const isSuperAdmin = roles.includes('super_admin');
-      // admin callers see only non-admin-submitted enrollments; super_admin sees all
-      const submittedByAdminFilter = isSuperAdmin ? undefined : false;
-
-      const cacheKey = JSON.stringify({ ...parsed.data, roles });
+      const cacheKey = JSON.stringify({ ...parsed.data });
       const cached   = EnrollmentController.adminCache.get(cacheKey);
       if (cached) return sendPaginated(res, cached.items, cached.nextCursor, cached.total);
 
-      const result = await this.enrollRepo.findAll({
-        limit:            parsed.data.limit,
-        cursor:           parsed.data.cursor,
-        state:            parsed.data.status,
-        courseId:         parsed.data.courseId,
-        submittedByAdmin: submittedByAdminFilter,
-      });
+      const result = await this.enrollRepo.findAll({ limit: parsed.data.limit, cursor: parsed.data.cursor, state: parsed.data.status, courseId: parsed.data.courseId });
       EnrollmentController.adminCache.set(cacheKey, result);
       sendPaginated(res, result.items, result.nextCursor, result.total);
     } catch (err) { next(err); }
@@ -107,9 +96,8 @@ export class EnrollmentController {
     try {
       const parsed    = approveEnrollmentSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { roles }  = (req as AuthenticatedRequest).principal;
       const requestId  = (req.headers['x-request-id'] as string) ?? '';
-      const enrollment = await this.approveUC.execute(req.params.id, requestId, parsed.data.note, roles);
+      const enrollment = await this.approveUC.execute(req.params.id, requestId, parsed.data.note);
       EnrollmentController.clearCaches();
       sendSuccess(res, enrollment);
     } catch (err) { next(err); }
@@ -119,9 +107,8 @@ export class EnrollmentController {
     try {
       const parsed = rejectSchema.safeParse(req.body);
       if (!parsed.success) return next(fromZodError(parsed.error));
-      const { roles }  = (req as AuthenticatedRequest).principal;
       const requestId  = (req.headers['x-request-id'] as string) ?? '';
-      const enrollment = await this.rejectUC.execute(req.params.id, parsed.data.reason, requestId, roles);
+      const enrollment = await this.rejectUC.execute(req.params.id, parsed.data.reason, requestId);
       EnrollmentController.clearCaches();
       sendSuccess(res, enrollment);
     } catch (err) { next(err); }

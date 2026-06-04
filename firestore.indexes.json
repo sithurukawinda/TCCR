@@ -1,24 +1,6 @@
 {
   "indexes": [
     {
-      "collectionGroup": "role_requests",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "submittedByAdmin", "order": "ASCENDING" },
-        { "fieldPath": "status",           "order": "ASCENDING" },
-        { "fieldPath": "createdAt",        "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "enrollments",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "submittedByAdmin", "order": "ASCENDING" },
-        { "fieldPath": "state",            "order": "ASCENDING" },
-        { "fieldPath": "createdAt",        "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "users",
       "queryScope": "COLLECTION",
       "fields": [

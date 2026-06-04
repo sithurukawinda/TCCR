@@ -27,7 +27,6 @@ export interface RoleRequestProps {
   applicantProfile:         ApplicantProfile;
   qualificationTitle:       string | null;
   qualificationStoragePath: string | null;
-  submittedByAdmin:         boolean;
 }
 
 export class RoleRequest {
@@ -42,7 +41,6 @@ export class RoleRequest {
   applicantProfile:         ApplicantProfile;
   qualificationTitle:       string | null;
   qualificationStoragePath: string | null;
-  submittedByAdmin:         boolean;
 
   constructor(props: RoleRequestProps) {
     this.id                       = props.id;
@@ -56,7 +54,6 @@ export class RoleRequest {
     this.applicantProfile         = props.applicantProfile;
     this.qualificationTitle       = props.qualificationTitle;
     this.qualificationStoragePath = props.qualificationStoragePath;
-    this.submittedByAdmin         = props.submittedByAdmin ?? false;
   }
 
   approve(decidedByUid: string, note?: string): void {

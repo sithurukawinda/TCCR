@@ -1,11 +1,10 @@
 import { Enrollment, EnrollmentState } from '../entities/Enrollment';
 
 export interface EnrollmentListOptions {
-  limit:             number;
-  cursor?:           string;
-  state?:            EnrollmentState;
-  courseId?:         string;
-  submittedByAdmin?: boolean;
+  limit:     number;
+  cursor?:   string;
+  state?:    EnrollmentState;
+  courseId?: string;
 }
 
 export interface EnrollmentListResult {
