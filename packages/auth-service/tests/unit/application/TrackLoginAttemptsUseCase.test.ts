@@ -57,6 +57,28 @@ describe('TrackLoginAttemptsUseCase', () => {
     expect(result.attempts).toBe(1);
   });
 
+  it('re-enables a disabled account once the lockout window has expired', async () => {
+    repo.findByEmail.mockResolvedValue({ email: 'a@b.com', attempts: 10, windowStart: OLD_WINDOW });
+    repo.save.mockResolvedValue(undefined);
+    authMock.getUserByEmail.mockResolvedValueOnce({ uid: 'uid-1', disabled: true });
+
+    const result = await useCase.execute('a@b.com');
+
+    expect(result.locked).toBe(false);
+    expect(result.attempts).toBe(1);
+    expect(authMock.updateUser).toHaveBeenCalledWith('uid-1', { disabled: false });
+  });
+
+  it('does not re-enable when the account is not disabled', async () => {
+    repo.findByEmail.mockResolvedValue({ email: 'a@b.com', attempts: 3, windowStart: OLD_WINDOW });
+    repo.save.mockResolvedValue(undefined);
+    authMock.getUserByEmail.mockResolvedValueOnce({ uid: 'uid-1', disabled: false });
+
+    await useCase.execute('a@b.com');
+
+    expect(authMock.updateUser).not.toHaveBeenCalled();
+  });
+
   it('starts fresh counter when no previous record exists', async () => {
     repo.findByEmail.mockResolvedValue(null);
     repo.save.mockResolvedValue(undefined);
