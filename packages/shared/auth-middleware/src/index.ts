@@ -181,10 +181,10 @@ export function authorize(...roles: Role[]) {
       return next(createHttpError(401, 'UNAUTHENTICATED', 'Authentication required.'));
     }
 
-    // super_admin — G12 level access + analytics + add/suspend only (no admin CRUD)
+    // super_admin — full access: inherits admin plus all lower roles.
     // master     — G12 level access + org-wide report visibility
     const effectiveRoles: Role[] = principal.roles.includes('super_admin')
-      ? ([...new Set([...principal.roles, 'g12', 'leader', 'student', 'member'])] as Role[])
+      ? ([...new Set([...principal.roles, 'admin', 'g12', 'leader', 'student', 'member'])] as Role[])
       : principal.roles.includes('master')
         ? (['master', 'g12', 'leader', 'student', 'member'] as Role[])
         : principal.roles;
@@ -215,7 +215,7 @@ export function mustBeOwnerOrAdmin(getResourceUid: (req: Request) => string | un
     if (!resourceUid) return next();
 
     const isOwner = principal.uid === resourceUid;
-    const isAdmin = principal.roles.includes('admin');
+    const isAdmin = principal.roles.includes('admin') || principal.roles.includes('super_admin');
 
     if (!isOwner && !isAdmin) {
       return next(

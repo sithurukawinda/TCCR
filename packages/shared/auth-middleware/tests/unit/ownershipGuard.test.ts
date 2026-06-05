@@ -41,12 +41,10 @@ describe('mustBeOwnerOrAdmin()', () => {
     expect(next).toHaveBeenCalledWith();
   });
 
-  it('super_admin is NOT treated as admin in ownership bypass — must be owner', () => {
+  it('passes when caller is super_admin regardless of ownership (full access)', () => {
     const req = makeReq({ uid: 'sadmin-uid', email: 'sa@sa.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     mustBeOwnerOrAdmin(() => 'owner-uid')(req, res, next);
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
-    );
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('passes when caller is promoted admin (student+admin roles)', () => {
