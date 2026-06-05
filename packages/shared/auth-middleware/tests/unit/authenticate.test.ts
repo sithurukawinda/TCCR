@@ -17,6 +17,14 @@ jest.mock('@shared/errors', () => ({
   },
 }));
 
+// ── Mock @shared/logger ───────────────────────────────────────────────────────
+// Factory must be self-contained (jest.mock is hoisted above const decls).
+jest.mock('@shared/logger', () => ({
+  logger: { debug: jest.fn(), info: jest.fn(), warn: jest.fn(), error: jest.fn() },
+}));
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const mockLogger = (require('@shared/logger') as { logger: Record<'debug' | 'info' | 'warn' | 'error', jest.Mock> }).logger;
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function makeReq(authHeader?: string): Request {
   return {
@@ -41,11 +49,13 @@ describe('authenticate()', () => {
     await authenticate()(req, res, next);
 
     expect((req as AuthenticatedRequest).principal).toEqual({
-      uid:              'user-1',
-      email:            'test@example.com',
-      role:             'student',
-      roles:            ['student'],
-      tempReportAccess: false,
+      uid:               'user-1',
+      email:             'test@example.com',
+      role:              'student',
+      roles:             ['student'],
+      tempReportAccess:  false,
+      reportsFullAccess: false,
+      tempMasterAccess:  false,
     });
     expect(next).toHaveBeenCalledWith();
   });
@@ -99,6 +109,31 @@ describe('authenticate()', () => {
 
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ status: 401, errorCode: 'INVALID_TOKEN' }),
+    );
+  });
+
+  it('calls next(403 ACCOUNT_DISABLED) when Firebase returns auth/user-disabled', async () => {
+    const err: any = new Error('disabled');
+    err.code = 'auth/user-disabled';
+    mockVerifyIdToken.mockRejectedValue(err);
+
+    await authenticate()(makeReq('Bearer disabled-token'), res, next);
+
+    expect(next).toHaveBeenCalledWith(
+      expect.objectContaining({ status: 403, errorCode: 'ACCOUNT_DISABLED' }),
+    );
+  });
+
+  it('logs a warning on the disabled-account branch', async () => {
+    const err: any = new Error('disabled');
+    err.code = 'auth/user-disabled';
+    mockVerifyIdToken.mockRejectedValue(err);
+
+    await authenticate()(makeReq('Bearer disabled-token'), res, next);
+
+    expect(mockLogger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({ errorCode: 'ACCOUNT_DISABLED', firebaseCode: 'auth/user-disabled' }),
+      expect.any(String),
     );
   });
 
@@ -221,6 +256,85 @@ describe('authenticate()', () => {
         email: 'unverified@example.com',
         role:  'member',
       });
+    });
+  });
+
+  // ── Absolute session cap (auth_time) ──────────────────────────────────────
+  describe('session max-age cap', () => {
+    const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+    it('rejects with 401 SESSION_EXPIRED when auth_time is older than the cap', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'student', email_verified: true,
+        auth_time: nowSeconds() - (5 * 60 * 60), // signed in 5h ago — past 4h default
+      });
+      const req = makeReq('Bearer stale-session');
+
+      await authenticate()(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 401, errorCode: 'SESSION_EXPIRED' }),
+      );
+      expect((req as any).principal).toBeUndefined();
+    });
+
+    it('passes through when auth_time is within the cap', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'student', email_verified: true,
+        auth_time: nowSeconds() - (60 * 60), // signed in 1h ago — well within 4h
+      });
+
+      await authenticate()(makeReq('Bearer fresh-session'), res, next);
+
+      expect(next).toHaveBeenCalledWith(); // no error
+    });
+
+    it('passes through when auth_time is absent (legacy tokens — backward compat)', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'student', email_verified: true,
+        // auth_time deliberately absent
+      });
+
+      await authenticate()(makeReq('Bearer no-authtime'), res, next);
+
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('honours a custom maxSessionAgeSeconds override', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'student', email_verified: true,
+        auth_time: nowSeconds() - 120, // 2 min ago
+      });
+
+      await authenticate({ maxSessionAgeSeconds: 60 })(makeReq('Bearer t'), res, next);
+
+      expect(next).toHaveBeenCalledWith(
+        expect.objectContaining({ status: 401, errorCode: 'SESSION_EXPIRED' }),
+      );
+    });
+
+    it('disables the cap when maxSessionAgeSeconds is 0', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'student', email_verified: true,
+        auth_time: nowSeconds() - (100 * 60 * 60), // ancient session
+      });
+
+      await authenticate({ maxSessionAgeSeconds: 0 })(makeReq('Bearer t'), res, next);
+
+      expect(next).toHaveBeenCalledWith();
+    });
+
+    it('does not apply the cap on allowUnverified routes (logout/revoke can still run)', async () => {
+      mockVerifyIdToken.mockResolvedValue({
+        uid: 'u', email: 'e@e.com', role: 'member', email_verified: true,
+        auth_time: nowSeconds() - (10 * 60 * 60), // past the cap
+      });
+      const req = makeReq('Bearer stale-but-logging-out');
+
+      await authenticate({ allowUnverified: true })(req, res, next);
+
+      expect(next).toHaveBeenCalledWith(); // no error — session cap skipped
+      expect((req as any).principal).toBeDefined();
     });
   });
 });
