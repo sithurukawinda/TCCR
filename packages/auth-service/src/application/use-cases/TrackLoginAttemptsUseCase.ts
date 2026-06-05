@@ -16,8 +16,9 @@ export class TrackLoginAttemptsUseCase {
     const now      = Date.now();
     const existing = await this.attemptsRepo.findByEmail(email);
 
-    let attempts    = 1;
-    let windowStart = new Date(now).toISOString();
+    let attempts     = 1;
+    let windowStart  = new Date(now).toISOString();
+    let windowExpired = false;
 
     if (existing) {
       const windowAge = now - new Date(existing.windowStart).getTime();
@@ -25,8 +26,26 @@ export class TrackLoginAttemptsUseCase {
       if (windowAge < WINDOW_MS) {
         attempts    = existing.attempts + 1;
         windowStart = existing.windowStart;
+      } else {
+        windowExpired = true; // window expired — reset to 1
       }
-      // else: window expired — reset to 1
+    }
+
+    // Lockout self-heal: once the 15-minute window has elapsed, clear any
+    // `disabled` flag a previous lockout set on the Firebase account so the user
+    // can sign in again without admin intervention. Without this the account
+    // stays permanently disabled — and because authenticate() uses
+    // checkRevoked=true, a disabled account also invalidates any still-active
+    // session on its next request, surfacing as a sudden "logged out" event.
+    if (windowExpired) {
+      try {
+        const user = await getAuth().getUserByEmail(email);
+        if (user.disabled) {
+          await getAuth().updateUser(user.uid, { disabled: false });
+        }
+      } catch {
+        // User may not exist — ignore
+      }
     }
 
     await this.attemptsRepo.save({ email, attempts, windowStart });
