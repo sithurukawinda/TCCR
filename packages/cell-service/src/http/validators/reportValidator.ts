@@ -13,7 +13,7 @@ export const fileReportSchema = z.object({
   noMeetReason:           z.string().max(1000).nullable().optional(),
   leaderPresent:          z.boolean().default(true),
   conductedByIfAbsent:    z.string().max(200).nullable().optional(),
-  location:               z.string().min(1).max(300).optional().default(''),
+  location:               z.string().max(300).optional().default(''),
   timeStarted:            z.string().optional().default(''),
   timeEnded:              z.string().optional().default(''),
   language:               z.enum(['si', 'ta', 'en']).optional().default('en'),
@@ -33,6 +33,16 @@ export const fileReportSchema = z.object({
   // Up to 10 photo URLs uploaded beforehand via POST /cells/:id/report-photos
   photoUrls:              z.array(z.string().url()).max(10).optional().default([]),
   clientReqId:            z.string().uuid('X-Idempotency-Key must be a UUID'),
+}).superRefine((data, ctx) => {
+  // Location is required only when the cell actually met. When the cell did not
+  // meet (didMeet === false) there is nothing to locate, so an empty location is valid.
+  if (data.didMeet && (data.location ?? '').trim().length === 0) {
+    ctx.addIssue({
+      code:    z.ZodIssueCode.custom,
+      path:    ['location'],
+      message: 'Location is required when the cell met.',
+    });
+  }
 });
 
 export const voidReportSchema = z.object({
@@ -49,7 +59,7 @@ export const updateReportSchema = z.object({
   noMeetReason:           z.string().max(1000).nullable().optional(),
   leaderPresent:          z.boolean().optional(),
   conductedByIfAbsent:    z.string().max(200).nullable().optional(),
-  location:               z.string().min(1).max(300).optional(),
+  location:               z.string().max(300).optional(),
   timeStarted:            z.string().optional(),
   timeEnded:              z.string().optional(),
   language:               z.enum(['si', 'ta', 'en']).optional(),
