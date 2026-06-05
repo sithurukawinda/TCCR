@@ -10,7 +10,7 @@ courseRouter.get( '/courses',              tryAuthenticate(), container.courseCo
 courseRouter.get( '/courses/:id',          tryAuthenticate(), container.courseController.getOne);
 
 // Admin
-courseRouter.post(  '/courses',                  authenticate(), authorize('admin'), container.courseController.create);
+courseRouter.post(  '/courses',                  authenticate(), authorize('admin', 'super_admin'), container.courseController.create);
 courseRouter.patch( '/courses/:id',              authenticate(), authorize('admin'), container.courseController.update);
 courseRouter.post(  '/courses/:id/publish',      authenticate(), authorize('admin'), container.courseController.publish);
 courseRouter.post(  '/courses/:id/unpublish',    authenticate(), authorize('admin'), container.courseController.unpublish);
