@@ -23,13 +23,13 @@ describe('authorize()', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('calls next() when role matches', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('student')(req, res, next);
     expect(next).toHaveBeenCalledWith();
   });
 
   it('calls next(403 FORBIDDEN) when role does not match', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('admin')(req, res, next);
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
@@ -37,7 +37,7 @@ describe('authorize()', () => {
   });
 
   it('super_admin does NOT pass an admin-only route (inherits g12, not admin)', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('admin')(req, res, next);
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
@@ -45,19 +45,19 @@ describe('authorize()', () => {
   });
 
   it('super_admin passes a g12 route', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('g12')(req, res, next);
     expect(next).toHaveBeenCalledWith();
   });
 
   it('super_admin passes a super_admin-only route', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('super_admin')(req, res, next);
     expect(next).toHaveBeenCalledWith();
   });
 
   it('admin does NOT pass a super_admin-only route', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('super_admin')(req, res, next);
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
@@ -65,7 +65,7 @@ describe('authorize()', () => {
   });
 
   it('student does NOT pass an admin route', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'student', roles: ['student'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('admin')(req, res, next);
     expect(next).toHaveBeenCalledWith(
       expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
@@ -73,13 +73,13 @@ describe('authorize()', () => {
   });
 
   it('accepts multiple allowed roles', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('student', 'admin')(req, res, next);
     expect(next).toHaveBeenCalledWith();
   });
 
   it('promoted admin passes both student and admin routes', () => {
-    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['student', 'admin'] , tempReportAccess: false});
+    const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'admin', roles: ['student', 'admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('student')(req, res, next);
     expect(next).toHaveBeenCalledWith();
   });
