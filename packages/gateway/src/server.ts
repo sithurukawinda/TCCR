@@ -4,6 +4,7 @@ import { app }    from './app';
 
 const server = app.listen(config.port, () => {
   logger.info({ port: config.port }, `${config.serviceName} listening`);
+  logger.info({ allowedOrigins: config.allowedOrigins }, 'CORS allowed origins');
 });
 
 // Keep connections alive longer than the typical load-balancer idle timeout (60 s).

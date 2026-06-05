@@ -1,12 +1,13 @@
 ﻿# TCCR — API Reference Document
 ## The Christian Center Rathmalana · `tccr-backend`
-### REST API · Version 2.45.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
+### REST API · Version 2.46.0 · Base URL: `https://cms.api.bethelnet.au/api/v1`
 
-**Version:** 2.45.0
-**Date:** 03 June 2026
+**Version:** 2.46.0
+**Date:** 05 June 2026
 **Organisation:** Future CX Lanka (Pvt) Ltd
 **Status:** Release Baseline
-**Supersedes:** Version 2.44.0 (31 May 2026)
+**Supersedes:** Version 2.45.0 (03 June 2026)
+**Change in 2.46.0:** Admin-submitted request routing — when a caller whose `roles[]` includes `admin` submits a role request (`POST /role-requests`) or an enrollment (`POST /courses/:id/enroll`, `POST /enrollments`), the record is flagged `submittedByAdmin: true` and can only be approved or rejected by `super_admin`. §5.1 `POST /role-requests` — added `submittedByAdmin` to response; noted admin-submission routing rule. §5.3 `GET /role-requests` — added `super_admin` to allowed roles; `admin` sees only non-admin-submitted requests, `super_admin` sees all. §5.6 `POST /role-requests/:id/approve` and §5.7 `POST /role-requests/:id/reject` — added `super_admin` to allowed roles; added `403 FORBIDDEN` when `admin` caller attempts to decide an admin-submitted request. §5.4 `GET /role-requests/:id` — added `submittedByAdmin` to response examples. §11.2 `POST /enrollments` — added `submittedByAdmin` to response. §11.4 `GET /enrollments` — `admin` now sees only non-admin-submitted enrollments; `super_admin` sees all. §11.5 `POST /enrollments/:id/approve` and §11.6 `POST /enrollments/:id/reject` — added `super_admin` to allowed roles; added `403 FORBIDDEN` guard for admin-submitted enrollments. §20 Data Models — added `submittedByAdmin` to Enrollment and RoleRequest schemas. Two new Firestore composite indexes: `role_requests (submittedByAdmin, status, createdAt)` and `enrollments (submittedByAdmin, state, createdAt)`.
 **Change in 2.45.0:** §14.6 `GET /cells/network/reports` — added `master` to allowed roles; added `role` (`g12`|`master`), `leaderUid`, `cellId`, `cursor` query params; updated scope table with master/TMA rows. §14.7 `GET /cells/network/summary` — added `master` to allowed roles; `month` now optional (accepts `from`+`to` range); added `role` query param; updated scope table. §18 — added §18.16–18.20: five new `super_admin` endpoints for G12 report access (`/super-admin/g12/:uid/reports-full-access` POST/DELETE) and Temporary Master Access (`/super-admin/g12/:uid/temp-master-access` POST/PATCH/DELETE) with full request/response/error docs. §20 Data Models User table — added `tempReportAccess`, `reportsFullAccess`, `temporaryMasterAccess`, `master` role, and extended profile fields. ToC updated.
 **Change in 2.44.0:** Completeness pass — added response JSON examples, field reference tables, and error codes to all previously sparse endpoints across §4 (users), §6–9 (courses/batches/semesters/subjects/lessons), §12 (progress), §13–14 (cells/reports), §15 (analytics), §16 (notifications), §17 (audit), §18 (super-admin). Every endpoint now has a full JSON response example, a field reference table for non-trivial objects, and documented error codes.
 **Change in 2.43.0:** §3.11 `GET /me/courses/:courseId` — corrected response shape: root key `courseId` → `id`; added `title` and `state` at root; replaced `batchId` string with full `batch` object (`id`, `name`, `intakeStart`, `intakeEnd`); added `subjectCount` to semester fields; added `createdAt`, `updatedAt` to subjects. Field reference table updated. §15.6 `GET /analytics/:chart/export` — corrected `Content-Disposition` filename from generic `analytics-export.csv` to `analytics-{chart}-export.csv`.
@@ -1798,6 +1799,8 @@ Member submits an application for the `student` role. Personal details and quali
 **Authentication:** Bearer required | **Roles:** `member`
 **Content-Type:** `application/json`
 
+> **Admin-submission routing:** Because the `member` role is permanent on all accounts, users who also hold the `admin` role can call this endpoint. When they do, the request is created with `submittedByAdmin: true` and is **visible only to `super_admin`** in `GET /role-requests`. Regular `admin` callers cannot approve or reject admin-submitted requests — attempting to do so returns `403 FORBIDDEN`.
+
 **Request Body:**
 ```json
 { "requestedRole": "student" }
@@ -1814,6 +1817,7 @@ Member submits an application for the `student` role. Personal details and quali
   "requesterUid":  "Xf3aBC...",
   "requestedRole": "student",
   "status":        "pending",
+  "submittedByAdmin": false,
   "applicantProfile": {
     "firstName":          "John",
     "lastName":           "Doe",
@@ -1891,23 +1895,25 @@ List own role requests (FR-MEM-004).
 
 List all requests in the admin review queue.
 
-**Authentication:** Bearer required | **Roles:** `admin`
+**Authentication:** Bearer required | **Roles:** `admin`, `super_admin`
 
 | Parameter | Description |
 |-----------|-------------|
 | `status` | `pending` \| `approved` \| `rejected` |
 | `limit`, `cursor` | Pagination |
 
+> **Role-scoped results:** `admin` callers receive only requests where `submittedByAdmin: false` (member-submitted only). `super_admin` callers receive all requests, including admin-submitted ones (`submittedByAdmin: true`). The cache key includes the caller's roles so admin and super_admin never see each other's cached results.
+
 **Response:**
 
-Paginated RoleRequest list. Each item includes the full `applicantProfile` object, `qualificationTitle`, and `qualificationStoragePath`.
+Paginated RoleRequest list. Each item includes the full `applicantProfile` object, `qualificationTitle`, `qualificationStoragePath`, and `submittedByAdmin`.
 
 **Status Codes:**
 | Code | Description |
 |------|-------------|
 | 200 | OK — paginated list of role requests |
 | 401 | `UNAUTHENTICATED` — missing or expired token |
-| 403 | `FORBIDDEN` — caller does not hold `admin` |
+| 403 | `FORBIDDEN` — caller does not hold `admin` or `super_admin` |
 
 ---
 
@@ -1928,10 +1934,11 @@ Get a single role request including full applicant details. For `admin` / `super
 
 ```json
 {
-  "id":            "req-001",
-  "requesterUid":  "Xf3aBC...",
-  "requestedRole": "student",
-  "status":        "pending",
+  "id":               "req-001",
+  "requesterUid":     "Xf3aBC...",
+  "requestedRole":    "student",
+  "status":           "pending",
+  "submittedByAdmin": false,
   "applicantProfile": {
     "firstName":          "John",
     "lastName":           "Doe",

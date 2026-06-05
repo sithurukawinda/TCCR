@@ -1095,7 +1095,7 @@ These items are intentionally incomplete. Do not assume they are implemented.
 - **`.claude/blueprint/Backend_Blueprint.md`** — V1 architecture specification, implementation patterns, all use case code samples, security requirements traceability.
 - **`.claude/blueprint/Version_02__Backend_Blueprint.md`** — V2 companion blueprint covering cell-service, analytics-service, scheduled-jobs, and extended service patterns.
 - **`.claude/APIdocument/API_Document.md`** — Complete V1 REST API reference (all endpoints, request/response schemas, error codes). Audited and corrected to match the actual implementation.
-- **`.claude/APIdocument/Version_02__API_Reference.md`** — V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Current version: 2.44.0.
+- **`.claude/APIdocument/Version_02__API_Reference.md`** — V2 API reference covering role-requests, batches, cells, analytics, and other V2-only endpoints. Do not hardcode the version number here — read the current version from the file's header so it can't drift.
 - **`.claude/APIdocument/g12_master_report.md`** — G12 & Master report access API reference: `GET /cells/network/summary`, `GET /cells/network/reports` with `?role=` scoping, and all five TMA + reports-full-access super-admin endpoints. Includes role access matrix, response field reference, workflows, and error codes.
 - **`.claude/tracker/tracker.md`** — Phase-by-phase implementation checklist (Phases 0—21). Update `[ ]` → `[x]` as work completes. Check this before starting any phase to understand what’s done and what’s blocked.
 - **`.claude/plan/implementation-plan.md`** — Detailed implementation plan with phase dependencies and sequencing.
