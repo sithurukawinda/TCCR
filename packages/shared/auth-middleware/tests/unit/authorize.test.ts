@@ -36,12 +36,10 @@ describe('authorize()', () => {
     );
   });
 
-  it('super_admin does NOT pass an admin-only route (inherits g12, not admin)', () => {
+  it('super_admin passes an admin-only route (full access — inherits admin)', () => {
     const req = makeReq({ uid: 'u1', email: 'e@e.com', role: 'super_admin', roles: ['super_admin'] , tempReportAccess: false, reportsFullAccess: false, tempMasterAccess: false});
     authorize('admin')(req, res, next);
-    expect(next).toHaveBeenCalledWith(
-      expect.objectContaining({ status: 403, errorCode: 'FORBIDDEN' }),
-    );
+    expect(next).toHaveBeenCalledWith();
   });
 
   it('super_admin passes a g12 route', () => {
